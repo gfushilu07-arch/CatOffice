@@ -114,7 +114,7 @@ export interface DeckAccess {
   searchImages?(query: string, maxResults: number): Promise<string[]>
   /** Whether cloud single-page generation is available (kill switch + gsk login state) */
   isCloudPageGenEnabled?(): Promise<boolean>
-  /** live predicate: gsk login && the Genspark-cloud-tools toggle; false hides generate_image / analyze_media */
+  /** live predicate: gsk login && the Catspark-cloud-tools toggle; false hides generate_image / analyze_media */
   gskTools?(): boolean
   /**
    * Cloud single-page generation (gsk slide_generate), used by generate_deck's self-driven
@@ -1553,11 +1553,11 @@ export function formatSlideDump(slide: RenderSlide): string {
   return `Canvas ${slide.widthPx}×${slide.heightPx}px (1 px = ${pxToEmu} EMU)\n${parts.join('\n---\n') || '(no elements on this page)'}${colorNote}`
 }
 
-/** tools only usable through the Genspark cloud (gated by login + the cloud-tools toggle) */
+/** tools only usable through the Catspark cloud (gated by login + the cloud-tools toggle) */
 const GSK_ONLY_TOOLS = new Set(['generate_image', 'analyze_media'])
 
 const GSK_TOOLS_OFF_NOTE =
-  '\n\nNote: generate_image and analyze_media are currently unavailable (Genspark cloud tools are off or the user is signed out). Do not call or promise them; for imagery use image_search + insert_web_image instead.'
+  '\n\nNote: generate_image and analyze_media are currently unavailable (Catspark cloud tools are off or the user is signed out). Do not call or promise them; for imagery use image_search + insert_web_image instead.'
 
 export function createSlidesSkill(access: DeckAccess): AgentSkill {
   // The HTML pipeline was already used in this conversation → later calls without an explicit mode default to append.

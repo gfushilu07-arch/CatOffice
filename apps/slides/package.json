@@ -87,6 +87,7 @@
     }
   },
   "dependencies": {
+    "@catoffice/catspark": "*",
     "@genoffice/electron-utils": "*",
     "acorn": "^8.18.0",
     "harfbuzzjs": "^1.4.0",

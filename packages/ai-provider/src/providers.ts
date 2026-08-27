@@ -1,33 +1,36 @@
 import type { AiProviderId, AiProviderMeta, AiSettings, LegacyAiSettings } from './types'
+import { attributionHeaders, llmProxyBase } from '@catoffice/catspark'
 
 /**
- * Genspark server-side LLM proxy endpoints. All three protocols share the
- * api_key from the gsk login; model ids follow the proxy's own naming scheme,
+ * Cloud LLM proxy endpoints (CatSpark seam — defaults keep the upstream
+ * Genspark service working; see packages/catspark). All three protocols share
+ * the api_key from the login; model ids follow the proxy's own naming scheme,
  * which differs from the official vendor ids.
  */
 export const GENSPARK_LLM_BASE_URLS = {
-  anthropic: 'https://www.genspark.ai/api/anthropic',
-  gemini: 'https://www.genspark.ai/api/llm_proxy/gemini/v1beta',
-  openai: 'https://www.genspark.ai/api/llm_proxy/v1',
+  anthropic: llmProxyBase('anthropic'),
+  gemini: llmProxyBase('gemini'),
+  openai: llmProxyBase('openai'),
 } as const
 
 /**
- * Splits GenOffice usage out of the proxy's default "Claw" billing bucket
- * (the backend attributes gsk-key traffic by X-Agent-Type). Only sent to the
- * Genspark proxy — never to direct vendor APIs.
+ * Splits this app's usage out of the proxy's default "Claw" billing bucket
+ * (the backend attributes traffic by X-Agent-Type). Only sent to the cloud
+ * proxy — never to direct vendor APIs. Legacy export name kept for callers;
+ * the actual value (and any custom-deployment override) lives in @catoffice/catspark.
  */
 export const GENSPARK_AGENT_TYPE = 'genoffice'
 
 export function gensparkAttributionHeaders(baseUrl?: string): Record<string, string> {
-  return baseUrl?.startsWith('https://www.genspark.ai')
-    ? { 'X-Agent-Type': GENSPARK_AGENT_TYPE }
-    : {}
+  return attributionHeaders(baseUrl)
 }
 
 export const AI_PROVIDERS: AiProviderMeta[] = [
   {
+    // storage/settings key — keep stable so existing users' configs survive
     id: 'genspark',
-    label: 'Genspark',
+    // display name follows the CatSpark brand (see docs/catoffice/product-plan.md)
+    label: 'Catspark',
     models: [
       'claude-opus-4-7',
       'claude-opus-4-8',
@@ -40,7 +43,7 @@ export const AI_PROVIDERS: AiProviderMeta[] = [
       'gemini-3.7-flash',
     ],
     defaultModel: 'claude-opus-4-7',
-    keyPlaceholder: 'Not required - sign in to Genspark',
+    keyPlaceholder: 'Not required - sign in to Catspark',
   },
   {
     id: 'anthropic',

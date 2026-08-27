@@ -4,6 +4,7 @@
 /// of retries turn most of those transient failures into successful inserts.
 
 import { fetchWithSsrfGuard, type FetchWithSsrfGuardOptions } from './safe-remote-url'
+import { cloudReferer, isCloudAssetHost } from '@catoffice/catspark'
 
 const RETRY_DELAYS_MS: readonly number[] = [500, 1500]
 
@@ -17,8 +18,8 @@ export function remoteImageHeaders(rawUrl: string): Record<string, string> {
   }
   try {
     const host = new URL(rawUrl).hostname.toLowerCase()
-    if (host === 'genspark.ai' || host.endsWith('.genspark.ai')) {
-      headers.Referer = 'https://www.genspark.ai/'
+    if (isCloudAssetHost(host)) {
+      headers.Referer = cloudReferer()
     }
   } catch {
     /* fetchWithSsrfGuard rejects unparseable URLs on its own */

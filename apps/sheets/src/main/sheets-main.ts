@@ -48,6 +48,7 @@ import {
   viewMenuTemplate,
   windowMenuTemplate,
 } from '@genoffice/electron-utils'
+import { proxyProbeUrl } from '@catoffice/catspark'
 import { createI18n, getUiLang, type Lang, normalizeLang, setUiLang } from '@genoffice/i18n'
 import { ProjectStore } from '@genoffice/project-store'
 
@@ -215,7 +216,7 @@ const tMain = createI18n({
     errImageNoText: 'Image attachments have no text; the image is sent along with the user message',
     errNotImage: 'not a supported image type',
     errGskNotLoggedIn:
-      'Not signed in to Genspark: click “Sign in to Genspark” below, sign in, then retry',
+      'Not signed in to Genspark: click “Sign in to Catspark” below, sign in, then retry',
     errNoApiKey: 'No API key configured for {provider}',
     errNoModel: 'No model name configured',
     errImgAbsPath: 'Image path must be absolute.',
@@ -274,7 +275,7 @@ const tMain = createI18n({
       '画像添付にはテキストがありません。画像はユーザー メッセージと一緒に送信されるため、そのまま画像をご確認ください',
     errNotImage: 'サポートされていない画像形式です',
     errGskNotLoggedIn:
-      'Genspark にサインインしていません。下の「Genspark にサインイン」からサインインして再試行してください',
+      'Catspark にサインインしていません。下の「Catspark にサインイン」からサインインして再試行してください',
     errNoApiKey: '{provider} の API キーが設定されていません',
     errNoModel: 'モデル名が設定されていません',
     errImgAbsPath: '画像パスは絶対パスで指定してください。',
@@ -335,7 +336,7 @@ const tMain = createI18n({
       '이미지 첨부에는 텍스트가 없습니다. 이미지는 사용자 메시지와 함께 전송되므로 이미지를 직접 확인하세요',
     errNotImage: '지원되는 이미지 형식이 아닙니다',
     errGskNotLoggedIn:
-      'Genspark에 로그인되어 있지 않습니다. 아래 "Genspark 로그인"을 눌러 로그인한 뒤 다시 시도하세요',
+      'Catspark에 로그인되어 있지 않습니다. 아래 "Catspark 로그인"을 눌러 로그인한 뒤 다시 시도하세요',
     errNoApiKey: '{provider}의 API 키가 설정되지 않았습니다',
     errNoModel: '모델 이름이 설정되지 않았습니다',
     errImgAbsPath: '이미지 경로는 절대 경로여야 합니다.',
@@ -396,7 +397,7 @@ const tMain = createI18n({
       "Les images jointes n'ont pas de texte ; l'image est envoyée avec le message de l'utilisateur",
     errNotImage: "type d'image non pris en charge",
     errGskNotLoggedIn:
-      'Non connecté à Genspark : cliquez sur « Se connecter à Genspark » ci-dessous, connectez-vous puis réessayez',
+      'Non connecté à Catspark : cliquez sur « Se connecter à Catspark » ci-dessous, connectez-vous puis réessayez',
     errNoApiKey: 'Aucune clé API configurée pour {provider}',
     errNoModel: 'Aucun nom de modèle configuré',
     errImgAbsPath: "Le chemin de l'image doit être absolu.",
@@ -458,7 +459,7 @@ const tMain = createI18n({
       'Bildanlagen enthalten keinen Text; das Bild wird zusammen mit der Benutzernachricht gesendet',
     errNotImage: 'kein unterstützter Bildtyp',
     errGskNotLoggedIn:
-      'Nicht bei Genspark angemeldet: Klicken Sie unten auf „Bei Genspark anmelden“, melden Sie sich an und versuchen Sie es erneut',
+      'Nicht bei Catspark angemeldet: Klicken Sie unten auf „Bei Catspark anmelden“, melden Sie sich an und versuchen Sie es erneut',
     errNoApiKey: 'Kein API-Schlüssel für {provider} konfiguriert',
     errNoModel: 'Kein Modellname konfiguriert',
     errImgAbsPath: 'Der Bildpfad muss absolut sein.',
@@ -579,7 +580,7 @@ const tMain = createI18n({
       'รูปภาพแนบไม่มีข้อความ รูปภาพจะถูกส่งไปพร้อมข้อความของผู้ใช้ ให้ดูที่รูปภาพโดยตรง',
     errNotImage: 'ไม่ใช่ชนิดรูปภาพที่รองรับ',
     errGskNotLoggedIn:
-      'ยังไม่ได้ลงชื่อเข้าใช้ Genspark: แตะ “ลงชื่อเข้าใช้ Genspark” ด้านล่าง แล้วลองอีกครั้ง',
+      'ยังไม่ได้ลงชื่อเข้าใช้ Genspark: แตะ “ลงชื่อเข้าใช้ Catspark” ด้านล่าง แล้วลองอีกครั้ง',
     errNoApiKey: 'ยังไม่ได้ตั้งค่า API Key ของ {provider}',
     errNoModel: 'ยังไม่ได้กำหนดชื่อโมเดล',
     errImgAbsPath: 'เส้นทางรูปภาพต้องเป็นเส้นทางแบบสัมบูรณ์',
@@ -637,7 +638,7 @@ const tMain = createI18n({
     errParseFailed: 'Gagal mengurai file',
     errImageNoText: 'Lampiran gambar tidak memiliki teks; gambar dikirim bersama pesan pengguna',
     errNotImage: 'bukan jenis gambar yang didukung',
-    errGskNotLoggedIn: 'Belum masuk ke Genspark: klik “Masuk ke Genspark” di bawah, lalu coba lagi',
+    errGskNotLoggedIn: 'Belum masuk ke Genspark: klik “Masuk ke Catspark” di bawah, lalu coba lagi',
     errNoApiKey: 'API Key untuk {provider} belum dikonfigurasi',
     errNoModel: 'Nama model belum dikonfigurasi',
     errImgAbsPath: 'Jalur gambar harus berupa jalur absolut.',
@@ -814,7 +815,7 @@ const tMain = createI18n({
       'Anexos de imagem não têm texto; a imagem é enviada junto com a mensagem do usuário',
     errNotImage: 'não é um tipo de imagem suportado',
     errGskNotLoggedIn:
-      'Não conectado ao Genspark: clique em “Entrar no Genspark” abaixo, entre e tente novamente',
+      'Não conectado ao Genspark: clique em “Entrar no Catspark” abaixo, entre e tente novamente',
     errNoApiKey: 'Nenhuma chave de API configurada para {provider}',
     errNoModel: 'Nenhum nome de modelo configurado',
     errImgAbsPath: 'O caminho da imagem deve ser absoluto.',
@@ -874,7 +875,7 @@ const tMain = createI18n({
       "Gli allegati immagine non hanno testo; l'immagine viene inviata insieme al messaggio dell'utente",
     errNotImage: 'tipo di immagine non supportato',
     errGskNotLoggedIn:
-      'Accesso a Genspark non effettuato: fai clic su “Accedi a Genspark” qui sotto, accedi e riprova',
+      'Accesso a Catspark non effettuato: fai clic su “Accedi a Catspark” qui sotto, accedi e riprova',
     errNoApiKey: 'Nessuna chiave API configurata per {provider}',
     errNoModel: 'Nessun nome di modello configurato',
     errImgAbsPath: "Il percorso dell'immagine deve essere assoluto.",
@@ -935,7 +936,7 @@ const tMain = createI18n({
       'Załączniki graficzne nie zawierają tekstu; obraz jest wysyłany razem z wiadomością użytkownika',
     errNotImage: 'nieobsługiwany typ obrazu',
     errGskNotLoggedIn:
-      'Nie zalogowano do Genspark: kliknij „Zaloguj się do Genspark” poniżej, zaloguj się i spróbuj ponownie',
+      'Nie zalogowano do Genspark: kliknij „Zaloguj się do Catspark” poniżej, zaloguj się i spróbuj ponownie',
     errNoApiKey: 'Nie skonfigurowano klucza API dla {provider}',
     errNoModel: 'Nie skonfigurowano nazwy modelu',
     errImgAbsPath: 'Ścieżka obrazu musi być bezwzględna.',
@@ -995,7 +996,7 @@ const tMain = createI18n({
       'Afbeeldingsbijlagen bevatten geen tekst; de afbeelding wordt samen met het gebruikersbericht verzonden',
     errNotImage: 'geen ondersteund afbeeldingstype',
     errGskNotLoggedIn:
-      'Niet aangemeld bij Genspark: klik hieronder op “Aanmelden bij Genspark”, meld u aan en probeer het opnieuw',
+      'Niet aangemeld bij Genspark: klik hieronder op “Aanmelden bij Catspark”, meld u aan en probeer het opnieuw',
     errNoApiKey: 'Geen API-sleutel geconfigureerd voor {provider}',
     errNoModel: 'Geen modelnaam geconfigureerd',
     errImgAbsPath: 'Het afbeeldingspad moet absoluut zijn.',
@@ -1055,7 +1056,7 @@ const tMain = createI18n({
     errImageNoText: 'Lampiran imej tiada teks; imej dihantar bersama mesej pengguna',
     errNotImage: 'bukan jenis imej yang disokong',
     errGskNotLoggedIn:
-      'Belum log masuk ke Genspark: klik “Log masuk ke Genspark” di bawah, kemudian cuba lagi',
+      'Belum log masuk ke Genspark: klik “Log masuk ke Catspark” di bawah, kemudian cuba lagi',
     errNoApiKey: 'Kunci API untuk {provider} belum dikonfigurasikan',
     errNoModel: 'Nama model belum dikonfigurasikan',
     errImgAbsPath: 'Laluan imej mestilah laluan mutlak.',
@@ -1114,7 +1115,7 @@ const tMain = createI18n({
     errParseFailed: 'ניתוח הקובץ נכשל',
     errImageNoText: 'קבצים מצורפים מסוג תמונה אינם מכילים טקסט; התמונה נשלחת יחד עם הודעת המשתמש',
     errNotImage: 'סוג תמונה שאינו נתמך',
-    errGskNotLoggedIn: 'לא מחובר ל-Genspark: לחץ על "התחבר ל-Genspark" למטה, התחבר ונסה שוב',
+    errGskNotLoggedIn: 'לא מחובר ל-Genspark: לחץ על "התחבר ל-Catspark" למטה, התחבר ונסה שוב',
     errNoApiKey: 'לא הוגדר מפתח API עבור {provider}',
     errNoModel: 'לא הוגדר שם מודל',
     errImgAbsPath: 'נתיב התמונה חייב להיות מוחלט.',
@@ -1171,7 +1172,7 @@ const tMain = createI18n({
     errImageNoText: 'छवि अनुलग्नक में टेक्स्ट नहीं होता; छवि उपयोगकर्ता संदेश के साथ भेजी जाती है',
     errNotImage: 'समर्थित छवि प्रकार नहीं है',
     errGskNotLoggedIn:
-      'Genspark में साइन इन नहीं है: नीचे “Genspark में साइन इन करें” पर क्लिक करें, साइन इन करें और फिर से कोशिश करें',
+      'Catspark में साइन इन नहीं है: नीचे “Catspark में साइन इन करें” पर क्लिक करें, साइन इन करें और फिर से कोशिश करें',
     errNoApiKey: '{provider} के लिए कोई API कुंजी कॉन्फ़िगर नहीं है',
     errNoModel: 'कोई मॉडल नाम कॉन्फ़िगर नहीं है',
     errImgAbsPath: 'छवि पथ निरपेक्ष होना चाहिए।',
@@ -1320,7 +1321,7 @@ interface SheetsRuntimeConfig {
   rendererFile: string
   /** absolute path to the Rust xlsx-sidecar binary */
   sidecarPath?: string | undefined
-  /** Shell router used to open exported PDFs in a new GenOffice tab. */
+  /** Shell router used to open exported PDFs in a new CatOffice tab. */
   openGeneratedPath?: (path: string) => boolean
 }
 
@@ -1729,7 +1730,7 @@ export async function createSheetsWindow(
     minWidth: 1024,
     minHeight: 680,
     show: false,
-    title: 'GenOffice Sheets',
+    title: 'CatOffice Sheets',
     // Traffic lights sit inside the toolbar row.
     ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
     webPreferences: {
@@ -2039,12 +2040,12 @@ export function registerSheetsIpc(): void {
     async (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
       if (!hasGskAuth())
         return {
-          error: 'Genspark account is not logged in on this machine; ask the user to log in first',
+          error: 'Catspark account is not logged in on this machine; ask the user to log in first',
         }
       if (!gskCloudToolsOn())
         return {
           error:
-            'Genspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
+            'Catspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
         }
       const prompt = String(op?.prompt ?? '').trim()
       if (!prompt) return { error: 'prompt must not be empty' }
@@ -2817,7 +2818,7 @@ export function registerSheetsAiIpc(): void {
     return settings
   })
 
-  // Genspark account (gsk login state): the auth source for AI features; the
+  // Catspark account (gsk login state): the auth source for AI features; the
   // frontend uses it to guide sign-in when logged out
   ipcMain.handle(
     IPC_CHANNELS.aiGskStatus,
@@ -2869,7 +2870,7 @@ export function registerSheetsAiIpc(): void {
     const maxTokens = request.maxTokens ?? 8192
     const provider = request.settings.provider as AiProviderId
     let config = request.settings.providers[provider]
-    // Genspark's key never enters the settings file; it is read from the gsk
+    // Catspark's key never enters the settings file; it is read from the gsk
     // login state per request
     if (provider === 'genspark' && config && !config.apiKey) {
       config = { ...config, apiKey: gskApiKey() }
@@ -3673,8 +3674,8 @@ async function applyMainProcessProxy(): Promise<void> {
   try {
     await app.whenReady()
     // PAC/rule proxies answer per-host: probe the host the login flow, the
-    // Genspark LLM proxy and the gsk CLI actually target
-    const resolved = await electronSession.defaultSession.resolveProxy('https://www.genspark.ai/')
+    // Catspark LLM proxy and the gsk CLI actually target
+    const resolved = await electronSession.defaultSession.resolveProxy(proxyProbeUrl())
     const m = /PROXY\s+([^;]+)/i.exec(resolved || '')
     if (m?.[1]) {
       await setDispatcher(`http://${m[1].trim()}`)

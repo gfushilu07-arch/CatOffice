@@ -20,6 +20,7 @@ import {
 } from 'electron'
 import type { WebContents } from 'electron'
 import { execFile } from 'node:child_process'
+import { proxyProbeUrl } from '@catoffice/catspark'
 import { readFile, writeFile, rm, stat, mkdir, open } from 'node:fs/promises'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync } from 'node:fs'
@@ -4576,8 +4577,8 @@ async function applyMainProcessProxy(): Promise<void> {
   try {
     await app.whenReady()
     // PAC/rule proxies answer per-host: probe the host the login flow, the
-    // Genspark LLM proxy and the gsk CLI actually target
-    const resolved = await electronSession.defaultSession.resolveProxy('https://www.genspark.ai/')
+    // Catspark LLM proxy and the gsk CLI actually target
+    const resolved = await electronSession.defaultSession.resolveProxy(proxyProbeUrl())
     // resolveProxy returns strings like "PROXY 127.0.0.1:1087" or "DIRECT"
     const m = /PROXY\s+([^;]+)/i.exec(resolved || '')
     if (m) {

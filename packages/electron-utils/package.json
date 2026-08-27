@@ -18,6 +18,7 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "@catoffice/catspark": "*",
     "parse5": "^8.0.1"
   }
 }

@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@catoffice/catspark": "*",
     "@genoffice/agent-core": "*"
   },
   "devDependencies": {

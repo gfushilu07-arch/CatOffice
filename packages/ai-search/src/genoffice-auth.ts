@@ -1,5 +1,5 @@
 /**
- * GenOffice's own Genspark identity: device-code login (office_addin_auth,
+ * GenOffice's own Catspark identity: device-code login (office_addin_auth,
  * app_type=genoffice) minting a gsk API key named "genoffice" — the key_name
  * lands in billing as billing_tag, attributing all traffic (incl. gsk CLI
  * subprocesses) to GenOffice. Stored in ~/.genoffice/auth.json, deliberately
@@ -15,6 +15,7 @@ import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { asRecord, gskProxyUrl } from './shared'
+import { cloudOrigin } from '@catoffice/catspark'
 
 /** Progress event for the browser login flow. */
 export interface GskLoginProgress {
@@ -30,7 +31,9 @@ const KEY_NAME = 'genoffice'
 const HTTP_TIMEOUT_MS = 30_000
 
 function baseUrl(): string {
-  return (process.env.GSK_BASE_URL || 'https://www.genspark.ai').replace(/\/$/, '')
+  // CatSpark seam (packages/catspark): CATSPARK_API_BASE > legacy GSK_BASE_URL
+  // > built-in default, so the self-hosted backend is a config flip away.
+  return cloudOrigin()
 }
 
 let cachedFetch: typeof fetch | undefined

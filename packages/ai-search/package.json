@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@catoffice/catspark": "*",
     "@genspark/cli": "^1.4.2"
   },
   "devDependencies": {

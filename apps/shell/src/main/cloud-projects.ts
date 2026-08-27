@@ -1,5 +1,6 @@
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
+import { apiUrl } from '@catoffice/catspark'
 import { gskApiKey, gskListPastProjects, hasGskAuth } from '@genoffice/ai-search'
 import type { CloudProjectEntry, CloudProjectKind, CloudProjectsSnapshot } from '../shared/home-api'
 
@@ -14,7 +15,8 @@ export function kindFromType(type: string): CloudProjectKind | 'other' {
   return KINDS.find((k) => type.startsWith(k)) ?? 'other'
 }
 
-export const GENSPARK_ORIGIN = 'https://www.genspark.ai'
+/** Web origin for opening cloud projects (CatSpark seam; see packages/catspark). */
+export const GENSPARK_ORIGIN = apiUrl('')
 
 /** API ctime carries no timezone marker and is UTC; append Z before parsing */
 function ctimeToMs(ctime: string): number {

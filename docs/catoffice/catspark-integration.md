@@ -1,0 +1,66 @@
+# CatSpark 后端对接契约
+
+办公猫客户端已把**全部云端调用收敛到一个接缝包 `packages/catspark`**。后端把下列接口实现完，桌面端只需改环境变量即完成切换，无需改代码。
+
+## 切换开关（部署时设置）
+
+| 环境变量 | 作用 | 默认值（开发期 = 上游服务） |
+| --- | --- | --- |
+| `CATSPARK_API_BASE` | **总开关**：登录、LLM 代理、云项目、积分页全部派生自它 | `https://www.genspark.ai` |
+| `CATSPARK_LLM_ANTHROPIC_BASE` / `_GEMINI_` / `_OPENAI_` | 覆盖单个协议的 LLM 代理地址（混合部署时用） | `$CATSPARK_API_BASE/api/anthropic` 等 |
+| `CATSPARK_TOOL_CLI_BASE` | 结构化工具调用端点 | `$CATSPARK_API_BASE/api/tool_cli` |
+| `CATSPARK_AGENT_TYPE` | 自定义网关的计费归因头（`X-Agent-Type`）；默认源固定 `genoffice` | — |
+| `CATSPARK_CREDIT_USAGE_URL` | 设置页打开的用量页 | `$CATSPARK_API_BASE/credit-usage` |
+| `CATSPARK_IMAGE_HOSTS` | 图片下载附加 Referer 的自定义 CDN 域名列表（逗号分隔） | — |
+| `CATSPARK_GITHUB_REPO` | About 页星数仓库（`owner/repo`；置空禁用该组件） | `cat-office/catoffice` |
+
+兼容性说明：旧变量 `GSK_BASE_URL`（上游 CLI 引导）仍然生效，优先级在 `CATSPARK_API_BASE` 之后。
+
+## 一、设备码登录（app_type=genoffice，存储于 ~/.genoffice/auth.json）
+
+实现参考：`packages/ai-search/src/genoffice-auth.ts`。
+
+| 方法与路径 | 请求 | 必需响应字段 |
+| --- | --- | --- |
+| `POST {base}/api/office_addin_auth/device_code?app_type=genoffice` | 无 body | `{device_code, auth_url, expires_in?, poll_interval?}` |
+| `GET {base}/api/office_addin_auth/token?code={device_code}` | 轮询直到 approved | `{status: "pending"\|"approved", access_token}`（approved 且无 token 视为过期） |
+| `POST {base}/api/office_addin_auth/session` | `Authorization: Bearer {access_token}` | 成功 + `Set-Cookie`（会话 cookie） |
+| `POST {base}/api/api_tokens/create` | Cookie + JSON `{key_name: "genoffice"}` | `{data: {token, key_id}, message?}`；token 即后续 API key |
+| `POST {base}/api/api_tokens/revoke` | Cookie + JSON `{key_id}` | 仅 best-effort，登出用 |
+
+注意：非浏览器请求会被 Cloudflare 类质询拦截，所以客户端走 Chromium `net.fetch`；CatSpark 网关需对这三个 `/api/office_addin_auth/*` 路径放行程序化客户端或做等价校验。超时 30s。
+
+## 二、LLM 代理（三种协议共用一个 api key）
+
+| 协议 | Base（默认派生） |
+| --- | --- |
+| Anthropic | `{base}/api/anthropic`（含 `/v1/messages` 由客户端拼接） |
+| Gemini | `{base}/api/llm_proxy/gemini/v1beta` |
+| OpenAI 兼容 | `{base}/api/llm_proxy/v1`（`chat/completions`） |
+
+- 鉴权：gsk API key（`X-Api-Key` 或各协议原生鉴权头，与上游一致）。
+- 计费归因：凡 baseUrl 在本源前缀下都带 `X-Agent-Type`；直连厂商 API 不带。模型 id 使用代理自有命名（claude-opus-4-8 / gpt-5.6 / gemini-3.7-flash 等，见 `packages/ai-provider/src/providers.ts`），CatSpark 网关需支持同一套别名映射。
+
+## 三、tool_cli（结构化云工具）
+
+`POST {base}/api/tool_cli/{tool}`：
+
+- 头：`X-Api-Key`、`Content-Type: application/json`、`X-Agent-Type`。
+- 体：JSON 参数（如 slide_generate 的 `{brief, deck_context, images, width, height, tier}`）。
+- 响应：**NDJSON 流**，心跳行为普通 JSON 行，最后一行形如 `{"status":"ok"|"error","message":...,"data":...}`（解析器 `parseToolCliNdjson`）。
+- 客户端另以子进程方式使用 `@genspark/cli`（search/img/media analysis/upload/transcription/download）。过渡期安装包仍内置上游 CLI；CatSpark 提供同参数界面的 CLI 后通过 `GSK_CLI_PATH` 热插拔或直接换打包资源（对应规划文档中的「自有代理」线）。
+
+### 文件直链
+
+生成结果里的 `/api/files/…` 包裹链接返回 403，需提供免鉴权直链换取能力：CLI `download <url>` 返回 `{download_url}`（签名直链）。若 CatSpark 的文件服务天然支持匿名 GET，可省略该交换并在上传时直接返回可下载 URL。
+
+## 四、Web 资源
+
+- 云项目打开：`{GENSPARK_ORIGIN}{project_url}`（origin 来自 `cloudOrigin()`）。
+- 用量页：`creditUsageUrl()`。
+- 图片 CDN：AI 生图/搜索图落在本域或 *.genspark.ai 时会带 `Referer: {origin}/`——自有 CDN 域名用 `CATSPARK_IMAGE_HOSTS` 登记，否则裸取可能被拒。
+
+## 五、验收
+
+1. 设 `CATSPARK_API_BASE=https://your.gateway` 跑 `pnpm --filter @catoffice/catspark exec tsc --noEmit && pnpm --filter @genoffice/ai-search test && pnpm --filter @genoffice/ai-provider test`（全部应绿：测试不依赖具体 origin，只依赖接缝语义）。
+2. 手动冒烟：设置页登录 → 模型对话流式输出 → PDF→Word 云转换 → 首页云项目列表。
