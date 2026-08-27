@@ -212,7 +212,7 @@ const tMain = createI18n({
     menuWindow: '窗口',
     menuHelp: '帮助',
     menuShortcuts: '键盘快捷键',
-    menuDocsHelp: 'GenOffice Docs 帮助',
+    menuDocsHelp: '办公猫文档帮助',
   },
   en: {
     dlgOpenDoc: 'Open Document',
@@ -249,7 +249,7 @@ const tMain = createI18n({
     errImageNoText: 'Image attachments have no text; the image is sent along with the user message',
     errNotImage: 'not a supported image type',
     errGskNotLoggedIn:
-      'Not signed in to Genspark: click “Sign in to Genspark” below, sign in, then retry',
+      'Not signed in to Genspark: click “Sign in to Catspark” below, sign in, then retry',
     errNoApiKey: 'No API key configured for {provider}',
     errNoModel: 'No model name configured',
     menuFile: 'File',
@@ -306,7 +306,7 @@ const tMain = createI18n({
     menuWindow: 'Window',
     menuHelp: 'Help',
     menuShortcuts: 'Keyboard Shortcuts',
-    menuDocsHelp: 'GenOffice Docs Help',
+    menuDocsHelp: 'Cat Office Docs Help',
   },
   ja: {
     dlgOpenDoc: '文書を開く',
@@ -343,7 +343,7 @@ const tMain = createI18n({
       '画像の添付ファイルはテキストを提供しません。画像としてユーザーメッセージと一緒に送信されるため、そのまま画像をご確認ください',
     errNotImage: 'サポートされていない画像形式です',
     errGskNotLoggedIn:
-      'Genspark にサインインしていません。下の「Genspark にサインイン」からサインインして再試行してください',
+      'Catspark にサインインしていません。下の「Catspark にサインイン」からサインインして再試行してください',
     errNoApiKey: '{provider} の API キーが設定されていません',
     errNoModel: 'モデル名が設定されていません',
     menuFile: 'ファイル',
@@ -400,7 +400,7 @@ const tMain = createI18n({
     menuWindow: 'ウィンドウ',
     menuHelp: 'ヘルプ',
     menuShortcuts: 'キーボードショートカット',
-    menuDocsHelp: 'GenOffice Docs ヘルプ',
+    menuDocsHelp: 'Cat Office Docs ヘルプ',
   },
   ko: {
     dlgOpenDoc: '문서 열기',
@@ -438,7 +438,7 @@ const tMain = createI18n({
       '이미지 첨부 파일은 텍스트를 제공하지 않으며, 이미지 형태로 사용자 메시지와 함께 전송되므로 이미지를 직접 확인하면 됩니다',
     errNotImage: '지원되지 않는 이미지 형식입니다',
     errGskNotLoggedIn:
-      'Genspark에 로그인되어 있지 않습니다. 아래 "Genspark 로그인"을 눌러 로그인한 뒤 다시 시도하세요',
+      'Catspark에 로그인되어 있지 않습니다. 아래 "Catspark 로그인"을 눌러 로그인한 뒤 다시 시도하세요',
     errNoApiKey: '{provider}의 API 키가 설정되지 않았습니다',
     errNoModel: '모델 이름이 설정되지 않았습니다',
     menuFile: '파일',
@@ -495,7 +495,7 @@ const tMain = createI18n({
     menuWindow: '창',
     menuHelp: '도움말',
     menuShortcuts: '키보드 바로 가기',
-    menuDocsHelp: 'GenOffice Docs 도움말',
+    menuDocsHelp: 'Cat Office Docs 도움말',
   },
   fr: {
     dlgOpenDoc: 'Ouvrir un document',
@@ -534,7 +534,7 @@ const tMain = createI18n({
       "Les pièces jointes image ne fournissent pas de texte ; l'image est envoyée avec le message de l'utilisateur, consultez-la directement",
     errNotImage: "type d'image non pris en charge",
     errGskNotLoggedIn:
-      'Non connecté à Genspark : cliquez sur « Se connecter à Genspark » ci-dessous, connectez-vous puis réessayez',
+      'Non connecté à Catspark : cliquez sur « Se connecter à Catspark » ci-dessous, connectez-vous puis réessayez',
     errNoApiKey: 'Aucune clé API configurée pour {provider}',
     errNoModel: 'Aucun nom de modèle configuré',
     menuFile: 'Fichier',
@@ -591,7 +591,7 @@ const tMain = createI18n({
     menuWindow: 'Fenêtre',
     menuHelp: 'Aide',
     menuShortcuts: 'Raccourcis clavier',
-    menuDocsHelp: 'Aide GenOffice Docs',
+    menuDocsHelp: 'Aide Cat Office Docs',
   },
   de: {
     dlgOpenDoc: 'Dokument öffnen',
@@ -630,7 +630,7 @@ const tMain = createI18n({
       'Bildanlagen liefern keinen Text; das Bild wird mit der Benutzernachricht gesendet und kann direkt betrachtet werden',
     errNotImage: 'kein unterstütztes Bildformat',
     errGskNotLoggedIn:
-      'Nicht bei Genspark angemeldet: Klicken Sie unten auf „Bei Genspark anmelden“, melden Sie sich an und versuchen Sie es erneut',
+      'Nicht bei Catspark angemeldet: Klicken Sie unten auf „Bei Catspark anmelden“, melden Sie sich an und versuchen Sie es erneut',
     errNoApiKey: 'Kein API-Schlüssel für {provider} konfiguriert',
     errNoModel: 'Kein Modellname konfiguriert',
     menuFile: 'Datei',
@@ -687,7 +687,7 @@ const tMain = createI18n({
     menuWindow: 'Fenster',
     menuHelp: 'Hilfe',
     menuShortcuts: 'Tastenkombinationen',
-    menuDocsHelp: 'GenOffice Docs-Hilfe',
+    menuDocsHelp: 'Cat Office Docs-Hilfe',
   },
   es: {
     dlgOpenDoc: 'Abrir documento',
@@ -782,7 +782,7 @@ const tMain = createI18n({
     menuWindow: 'Ventana',
     menuHelp: 'Ayuda',
     menuShortcuts: 'Atajos de teclado',
-    menuDocsHelp: 'Ayuda de GenOffice Docs',
+    menuDocsHelp: 'Ayuda de Cat Office Docs',
   },
   th: {
     dlgOpenDoc: 'เปิดเอกสาร',
@@ -819,7 +819,7 @@ const tMain = createI18n({
       'สิ่งที่แนบเป็นรูปภาพไม่มีข้อความ รูปจะถูกส่งไปพร้อมข้อความของผู้ใช้ ดูรูปได้โดยตรง',
     errNotImage: 'ไม่ใช่ชนิดรูปภาพที่รองรับ',
     errGskNotLoggedIn:
-      'ยังไม่ได้ลงชื่อเข้าใช้ Genspark: แตะ “ลงชื่อเข้าใช้ Genspark” ด้านล่าง แล้วลองอีกครั้ง',
+      'ยังไม่ได้ลงชื่อเข้าใช้ Genspark: แตะ “ลงชื่อเข้าใช้ Catspark” ด้านล่าง แล้วลองอีกครั้ง',
     errNoApiKey: 'ยังไม่ได้ตั้งค่า API Key ของ {provider}',
     errNoModel: 'ยังไม่ได้ตั้งค่าชื่อโมเดล',
     menuFile: 'ไฟล์',
@@ -876,7 +876,7 @@ const tMain = createI18n({
     menuWindow: 'หน้าต่าง',
     menuHelp: 'วิธีใช้',
     menuShortcuts: 'แป้นพิมพ์ลัด',
-    menuDocsHelp: 'วิธีใช้ GenOffice Docs',
+    menuDocsHelp: 'วิธีใช้ Cat Office Docs',
   },
   id: {
     dlgOpenDoc: 'Buka Dokumen',
@@ -913,7 +913,7 @@ const tMain = createI18n({
     errImageNoText:
       'Lampiran gambar tidak menyediakan teks; gambar dikirim bersama pesan pengguna dan dapat dilihat langsung',
     errNotImage: 'bukan jenis gambar yang didukung',
-    errGskNotLoggedIn: 'Belum masuk ke Genspark: klik “Masuk ke Genspark” di bawah, lalu coba lagi',
+    errGskNotLoggedIn: 'Belum masuk ke Genspark: klik “Masuk ke Catspark” di bawah, lalu coba lagi',
     errNoApiKey: 'API Key untuk {provider} belum dikonfigurasi',
     errNoModel: 'Nama model belum dikonfigurasi',
     menuFile: 'File',
@@ -970,7 +970,7 @@ const tMain = createI18n({
     menuWindow: 'Jendela',
     menuHelp: 'Bantuan',
     menuShortcuts: 'Pintasan Papan Ketik',
-    menuDocsHelp: 'Bantuan GenOffice Docs',
+    menuDocsHelp: 'Bantuan Cat Office Docs',
   },
   ru: {
     dlgOpenDoc: 'Открыть документ',
@@ -1065,7 +1065,7 @@ const tMain = createI18n({
     menuWindow: 'Окно',
     menuHelp: 'Справка',
     menuShortcuts: 'Сочетания клавиш',
-    menuDocsHelp: 'Справка GenOffice Docs',
+    menuDocsHelp: 'Справка Cat Office Docs',
   },
   ar: {
     dlgOpenDoc: 'فتح مستند',
@@ -1160,7 +1160,7 @@ const tMain = createI18n({
     menuWindow: 'نافذة',
     menuHelp: 'تعليمات',
     menuShortcuts: 'اختصارات لوحة المفاتيح',
-    menuDocsHelp: 'تعليمات GenOffice Docs',
+    menuDocsHelp: 'تعليمات Cat Office Docs',
   },
   pt: {
     dlgOpenDoc: 'Abrir Documento',
@@ -1198,7 +1198,7 @@ const tMain = createI18n({
       'Anexos de imagem não fornecem texto; a imagem é enviada junto com a mensagem do usuário, basta vê-la diretamente',
     errNotImage: 'não é um tipo de imagem suportado',
     errGskNotLoggedIn:
-      'Não conectado ao Genspark: clique em “Entrar no Genspark” abaixo, entre e tente novamente',
+      'Não conectado ao Genspark: clique em “Entrar no Catspark” abaixo, entre e tente novamente',
     errNoApiKey: 'Nenhuma chave de API configurada para {provider}',
     errNoModel: 'Nenhum nome de modelo configurado',
     menuFile: 'Arquivo',
@@ -1255,7 +1255,7 @@ const tMain = createI18n({
     menuWindow: 'Janela',
     menuHelp: 'Ajuda',
     menuShortcuts: 'Atalhos de Teclado',
-    menuDocsHelp: 'Ajuda do GenOffice Docs',
+    menuDocsHelp: 'Ajuda do Cat Office Docs',
   },
   it: {
     dlgOpenDoc: 'Apri documento',
@@ -1293,7 +1293,7 @@ const tMain = createI18n({
       "Gli allegati immagine non forniscono testo; l'immagine viene inviata insieme al messaggio dell'utente, basta guardarla direttamente",
     errNotImage: 'tipo di immagine non supportato',
     errGskNotLoggedIn:
-      'Accesso a Genspark non effettuato: fai clic su “Accedi a Genspark” qui sotto, accedi e riprova',
+      'Accesso a Catspark non effettuato: fai clic su “Accedi a Catspark” qui sotto, accedi e riprova',
     errNoApiKey: 'Nessuna chiave API configurata per {provider}',
     errNoModel: 'Nessun nome di modello configurato',
     menuFile: 'File',
@@ -1350,7 +1350,7 @@ const tMain = createI18n({
     menuWindow: 'Finestra',
     menuHelp: 'Aiuto',
     menuShortcuts: 'Scelte rapide da tastiera',
-    menuDocsHelp: 'Guida di GenOffice Docs',
+    menuDocsHelp: 'Guida di Cat Office Docs',
   },
   pl: {
     dlgOpenDoc: 'Otwórz dokument',
@@ -1388,7 +1388,7 @@ const tMain = createI18n({
       'Załączniki graficzne nie zawierają tekstu; obraz jest wysyłany razem z wiadomością użytkownika, wystarczy na niego spojrzeć',
     errNotImage: 'nieobsługiwany typ obrazu',
     errGskNotLoggedIn:
-      'Nie zalogowano do Genspark: kliknij „Zaloguj się do Genspark” poniżej, zaloguj się i spróbuj ponownie',
+      'Nie zalogowano do Genspark: kliknij „Zaloguj się do Catspark” poniżej, zaloguj się i spróbuj ponownie',
     errNoApiKey: 'Nie skonfigurowano klucza API dla {provider}',
     errNoModel: 'Nie skonfigurowano nazwy modelu',
     menuFile: 'Plik',
@@ -1445,7 +1445,7 @@ const tMain = createI18n({
     menuWindow: 'Okno',
     menuHelp: 'Pomoc',
     menuShortcuts: 'Skróty klawiaturowe',
-    menuDocsHelp: 'Pomoc GenOffice Docs',
+    menuDocsHelp: 'Pomoc Cat Office Docs',
   },
   nl: {
     dlgOpenDoc: 'Document openen',
@@ -1483,7 +1483,7 @@ const tMain = createI18n({
       'Afbeeldingsbijlagen bevatten geen tekst; de afbeelding wordt samen met het gebruikersbericht verzonden en kan direct worden bekeken',
     errNotImage: 'geen ondersteund afbeeldingstype',
     errGskNotLoggedIn:
-      'Niet aangemeld bij Genspark: klik hieronder op “Aanmelden bij Genspark”, meld u aan en probeer het opnieuw',
+      'Niet aangemeld bij Genspark: klik hieronder op “Aanmelden bij Catspark”, meld u aan en probeer het opnieuw',
     errNoApiKey: 'Geen API-sleutel geconfigureerd voor {provider}',
     errNoModel: 'Geen modelnaam geconfigureerd',
     menuFile: 'Bestand',
@@ -1540,7 +1540,7 @@ const tMain = createI18n({
     menuWindow: 'Venster',
     menuHelp: 'Help',
     menuShortcuts: 'Sneltoetsen',
-    menuDocsHelp: 'GenOffice Docs Help',
+    menuDocsHelp: 'Cat Office Docs Help',
   },
   ms: {
     dlgOpenDoc: 'Buka Dokumen',
@@ -1578,7 +1578,7 @@ const tMain = createI18n({
       'Lampiran imej tidak menyediakan teks; imej dihantar bersama mesej pengguna dan boleh dilihat terus',
     errNotImage: 'bukan jenis imej yang disokong',
     errGskNotLoggedIn:
-      'Belum log masuk ke Genspark: klik “Log masuk ke Genspark” di bawah, kemudian cuba lagi',
+      'Belum log masuk ke Genspark: klik “Log masuk ke Catspark” di bawah, kemudian cuba lagi',
     errNoApiKey: 'Kunci API untuk {provider} belum dikonfigurasikan',
     errNoModel: 'Nama model belum dikonfigurasikan',
     menuFile: 'Fail',
@@ -1635,7 +1635,7 @@ const tMain = createI18n({
     menuWindow: 'Tetingkap',
     menuHelp: 'Bantuan',
     menuShortcuts: 'Pintasan Papan Kekunci',
-    menuDocsHelp: 'Bantuan GenOffice Docs',
+    menuDocsHelp: 'Bantuan Cat Office Docs',
   },
   he: {
     dlgOpenDoc: 'פתיחת מסמך',
@@ -1671,7 +1671,7 @@ const tMain = createI18n({
     errImageNoText:
       'קבצים מצורפים מסוג תמונה אינם מספקים טקסט; התמונה נשלחת יחד עם הודעת המשתמש וניתן לצפות בה ישירות',
     errNotImage: 'סוג תמונה שאינו נתמך',
-    errGskNotLoggedIn: 'לא מחובר ל-Genspark: לחץ על "התחבר ל-Genspark" למטה, התחבר ונסה שוב',
+    errGskNotLoggedIn: 'לא מחובר ל-Genspark: לחץ על "התחבר ל-Catspark" למטה, התחבר ונסה שוב',
     errNoApiKey: 'לא הוגדר מפתח API עבור {provider}',
     errNoModel: 'לא הוגדר שם מודל',
     menuFile: 'קובץ',
@@ -1728,7 +1728,7 @@ const tMain = createI18n({
     menuWindow: 'חלון',
     menuHelp: 'עזרה',
     menuShortcuts: 'קיצורי מקלדת',
-    menuDocsHelp: 'עזרה של GenOffice Docs',
+    menuDocsHelp: 'עזרה של Cat Office Docs',
   },
   hi: {
     dlgOpenDoc: 'दस्तावेज़ खोलें',
@@ -1766,7 +1766,7 @@ const tMain = createI18n({
       'छवि अनुलग्नक टेक्स्ट प्रदान नहीं करते; छवि उपयोगकर्ता संदेश के साथ भेजी जाती है, उसे सीधे देखें',
     errNotImage: 'समर्थित छवि प्रकार नहीं है',
     errGskNotLoggedIn:
-      'Genspark में साइन इन नहीं है: नीचे “Genspark में साइन इन करें” पर क्लिक करें, साइन इन करें और फिर से कोशिश करें',
+      'Catspark में साइन इन नहीं है: नीचे “Catspark में साइन इन करें” पर क्लिक करें, साइन इन करें और फिर से कोशिश करें',
     errNoApiKey: '{provider} के लिए कोई API कुंजी कॉन्फ़िगर नहीं है',
     errNoModel: 'कोई मॉडल नाम कॉन्फ़िगर नहीं है',
     menuFile: 'फ़ाइल',
@@ -1823,7 +1823,7 @@ const tMain = createI18n({
     menuWindow: 'विंडो',
     menuHelp: 'सहायता',
     menuShortcuts: 'कीबोर्ड शॉर्टकट',
-    menuDocsHelp: 'GenOffice Docs सहायता',
+    menuDocsHelp: 'Cat Office Docs सहायता',
   },
   'zh-TW': {
     dlgOpenDoc: '開啟文件',
@@ -1915,7 +1915,7 @@ const tMain = createI18n({
     menuWindow: '視窗',
     menuHelp: '說明',
     menuShortcuts: '鍵盤快速鍵',
-    menuDocsHelp: 'GenOffice Docs 說明',
+    menuDocsHelp: '辦公貓文件說明',
   },
 })
 const tm = (key: Parameters<typeof tMain>[1], params?: Parameters<typeof tMain>[2]) =>
@@ -2603,7 +2603,7 @@ export function registerAiIpc(): void {
     return settings
   })
 
-  // Genspark account (gsk login state): auth source for AI features; the frontend uses it to prompt login when logged out
+  // Catspark account (gsk login state): auth source for AI features; the frontend uses it to prompt login when logged out
   ipcMain.handle(
     'ai:gsk-status',
     async (_event, withEmail?: boolean): Promise<GenSparkAccountStatus> => {
@@ -2752,12 +2752,12 @@ export function registerAiIpc(): void {
     async (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
       if (!hasGskAuth())
         return {
-          error: 'Genspark account is not logged in on this machine; ask the user to log in first',
+          error: 'Catspark account is not logged in on this machine; ask the user to log in first',
         }
       if (!gskCloudToolsOn())
         return {
           error:
-            'Genspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
+            'Catspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
         }
       const prompt = String(op?.prompt ?? '').trim()
       if (!prompt) return { error: 'prompt must not be empty' }
@@ -3936,7 +3936,7 @@ export function createDocsWindow(openPath?: string): BrowserWindow {
     height: 900,
     minWidth: 980,
     minHeight: 600,
-    title: 'GenOffice Docs',
+    title: 'Cat Office Docs',
     // Word-like custom title bar (document name centered, quick-access buttons)
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const }
@@ -4227,11 +4227,11 @@ export function startDocsStandalone(): void {
   installContextMenu(app, () => contextMenuLabels(getUiLang()))
   // dev runs must not share the packaged app's userData (recent files, AI settings)
   // or its single-instance lock — otherwise `npm run dev` silently quits whenever
-  // the installed GenOffice Docs is open and forwards its argv there instead.
+  // the installed Cat Office Docs is open and forwards its argv there instead.
   // AI_OFFICE_USER_DATA: E2E/screenshot runs isolate userData (and the
   // single-instance lock) so parallel automation sessions don't evict each other
   if (process.env.AI_OFFICE_USER_DATA) app.setPath('userData', process.env.AI_OFFICE_USER_DATA)
-  else if (isDev) app.setPath('userData', join(app.getPath('appData'), 'GenOffice Docs Dev'))
+  else if (isDev) app.setPath('userData', join(app.getPath('appData'), 'CatOffice Docs Dev'))
 
   const hasSingleInstanceLock = app.requestSingleInstanceLock()
   if (!hasSingleInstanceLock) {

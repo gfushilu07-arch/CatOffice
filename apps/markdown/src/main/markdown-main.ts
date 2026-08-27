@@ -300,7 +300,7 @@ interface RuntimePaths {
   preloadPath: string
   rendererUrl?: string
   rendererFile?: string
-  /** Shell router used to open exported PDFs in a new GenOffice tab. */
+  /** Shell router used to open exported PDFs in a new CatOffice tab. */
   openGeneratedPath?: (path: string) => boolean
 }
 
@@ -691,12 +691,12 @@ function registerMarkdownIpc(): void {
     async (_e, op: { prompt?: unknown; aspectRatio?: unknown }) => {
       if (!hasGskAuth())
         return {
-          error: 'Genspark account is not logged in on this machine; ask the user to log in first',
+          error: 'Catspark account is not logged in on this machine; ask the user to log in first',
         }
       if (!gskCloudToolsOn())
         return {
           error:
-            'Genspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
+            'Catspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
         }
       const prompt = String(op?.prompt ?? '').trim()
       if (!prompt) return { error: 'prompt must not be empty' }
