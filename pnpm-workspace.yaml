@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - packages/*
+
+# 与上游 package.json "overrides" 保持一致（pnpm 从这里读取 overrides）
+overrides:
+  nanoid@3: ^3.3.17
+  nanoid@5: ^5.1.16
+
+# 允许运行构建脚本的依赖：esbuild 安装平台二进制校验，protobufjs 同理；
+# electron-winstaller 仅打 Windows 包时用到。
+onlyBuiltDependencies:
+  - esbuild
+  - protobufjs
+  - electron-winstaller

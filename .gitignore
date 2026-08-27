@@ -41,3 +41,6 @@ __pycache__/
 # One-off verification tests kept while chasing a fix; promote to a real test
 # file (or delete) instead of committing them under this name.
 _scratch-*
+
+# 本地构建产物符号链接（外接卷，见 README.catoffice.md）
+/apps/shell/release

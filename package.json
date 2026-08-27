@@ -1,8 +1,8 @@
 {
-  "name": "genoffice",
+  "name": "catoffice",
   "version": "0.1.0",
   "private": true,
-  "description": "AI-native office suite (docs, sheets, slides, pdf)",
+  "description": "办公猫 Cat Office — AI-native office suite (docs, sheets, slides, pdf, markdown)",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=22.12.0",
@@ -10,14 +10,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/genspark-ai/genoffice.git"
+    "url": "git+https://github.com/cat-office/catoffice.git"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "postinstall": "install-electron",
+    "postinstall": "install-electron && node tools/catoffice-setup.mjs",
     "format": "node tools/format-changed.mjs --write",
     "format:check": "node tools/format-changed.mjs --check",
     "check:theme-colors": "node tools/check-theme-colors.mjs",
