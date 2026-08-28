@@ -1,0 +1,12 @@
+{
+  "file": "docx/01-simple.docx",
+  "kind": "docx",
+  "text": "# 标题\n第一段。\n第二段。",
+  "digest": {
+    "blockTypes": {
+      "heading": 1,
+      "paragraph": 2,
+      "passthrough": 1
+    }
+  }
+}

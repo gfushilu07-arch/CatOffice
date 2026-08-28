@@ -1,0 +1,11 @@
+{
+  "file": "docx/03-rich.docx",
+  "kind": "docx",
+  "text": "- bullet one\n- bullet two\n- numbered item\nE=mc^2",
+  "digest": {
+    "blockTypes": {
+      "listItem": 3,
+      "passthrough": 2
+    }
+  }
+}

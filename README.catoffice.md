@@ -27,6 +27,7 @@ pnpm run typecheck                # 全 workspace tsc --noEmit
 pnpm run dev                      # 五个编辑器 + shell 全部起 Vite dev server
 pnpm run dev:docs                 # 单个应用
 pnpm run sync-gate                # 上游合并后的全套门禁（typecheck + 测试 + build:all）
+pnpm --filter @catoffice/compat-lab run golden   # 重建 compat/golden 语料（有意变更后）
 
 # 打包（产物在 apps/shell/release）
 pnpm run dist:mac
@@ -61,16 +62,16 @@ pnpm run notices                  # 重新生成安装包内 THIRD-PARTY-NOTICES
 
 ## Phase 0 差距看板（对照 product-plan.md 第 3/22/23 节）
 
-| 规划事项                                      | 状态       | 说明                                                                                                                                                                                                                                                           |
-| --------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fork、换品牌、换包身份、更新通道              | ✅ 已完成  | appId/productName/artifactName/userData 目录已换；更新服务器尚无（GENOFFICE_UPDATE_URL 未设则自动禁用内置更新）                                                                                                                                                |
-| 内部日构建可用                                | ✅         | pnpm install → typecheck/test/build:all 全绿；dist:mac 待签名证书                                                                                                                                                                                              |
-| 图标 / 关于页 / User-Agent 换肤               | ⬜ 未做    | 仍为上游图标与 `genoffice-logo.svg`，需出猫系 logo 与 icns/ico 全套                                                                                                                                                                                            |
-| Catspark 对接 / Genspark 解耦                 | ◐ 接缝完成 | 全部端点收敛至 `packages/catspark`（登录/LLM 代理/tool_cli/云项目/积分/图片 CDN），`CATSPARK_API_BASE` 一换即切；约 560 处用户可见文案已改 Catspark；过渡期安装包仍内置上游 @genspark/cli（`GSK_CLI_PATH` 可热替换）；设置存储键 `genspark` 保留以兼容既有配置 |
-| 接国产模型 + 本地端点                         | ◐ 部分继承 | ai-provider BYOK 已含 DeepSeek/Qwen/GLM/Kimi 等；provider 显示名已切 Catspark，企业网关模式由 catspark 配置承担                                                                                                                                                |
-| 依赖许可证审计（Univer/Tiptap Pro/字体/WASM） | ✅ 已完成  | 结论绿灯：314 npm 包 + 144 crate 全过门禁，IronCalc 为 MIT OR Apache-2.0；PDFium 归属缺口已修复；黄灯过渡项与律师清单见 [docs/catoffice/license-audit.md](docs/catoffice/license-audit.md)；Noto CJK 确认为 OFL 子集内嵌于 apps/docs、apps/slides 渲染资产     |
-| Compat Lab 黄金语料                           | ⬜ 未做    | 建议落仓库根 `compat/golden/`（按 docx/xlsx/pptx/pdf 分桶），上游 `fixtures/generated` 机制可复用                                                                                                                                                              |
-| 中文排版引擎层（避头尾/标点挤压/回退链）      | ⬜ 未做    | i18n 文案中文已全量（strings.ts zh-CN/zh-TW）；`apps/docs/src/renderer/line-metrics.ts` 已有字体回退链骨架（GenOffice Sans/Songti 等），是中文排版的挂载点                                                                                                     |
-| ee/ 企业许可隔离                              | ✅ 无风险  | `ee/` 仅含 LICENSE+README，无代码、不在 workspace 构建路径                                                                                                                                                                                                     |
+| 规划事项                                      | 状态        | 说明                                                                                                                                                                                                                                                           |
+| --------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fork、换品牌、换包身份、更新通道              | ✅ 已完成   | appId/productName/artifactName/userData 目录已换；更新服务器尚无（GENOFFICE_UPDATE_URL 未设则自动禁用内置更新）                                                                                                                                                |
+| 内部日构建可用                                | ✅          | pnpm install → typecheck/test/build:all 全绿；dist:mac 待签名证书                                                                                                                                                                                              |
+| 图标 / 关于页 / User-Agent 换肤               | ⬜ 未做     | 仍为上游图标与 `genoffice-logo.svg`，需出猫系 logo 与 icns/ico 全套                                                                                                                                                                                            |
+| Catspark 对接 / Genspark 解耦                 | ◐ 接缝完成  | 全部端点收敛至 `packages/catspark`（登录/LLM 代理/tool_cli/云项目/积分/图片 CDN），`CATSPARK_API_BASE` 一换即切；约 560 处用户可见文案已改 Catspark；过渡期安装包仍内置上游 @genspark/cli（`GSK_CLI_PATH` 可热替换）；设置存储键 `genspark` 保留以兼容既有配置 |
+| 接国产模型 + 本地端点                         | ◐ 部分继承  | ai-provider BYOK 已含 DeepSeek/Qwen/GLM/Kimi 等；provider 显示名已切 Catspark，企业网关模式由 catspark 配置承担                                                                                                                                                |
+| 依赖许可证审计（Univer/Tiptap Pro/字体/WASM） | ✅ 已完成   | 结论绿灯：314 npm 包 + 144 crate 全过门禁，IronCalc 为 MIT OR Apache-2.0；PDFium 归属缺口已修复；黄灯过渡项与律师清单见 [docs/catoffice/license-audit.md](docs/catoffice/license-audit.md)；Noto CJK 确认为 OFL 子集内嵌于 apps/docs、apps/slides 渲染资产     |
+| Compat Lab 黄金语料                           | ✅ 框架落地 | `compat/golden/` 10 个必过文件 + 20 条 vitest 门禁（读取快照 + pptx/pdf 往返 + xlsx 重建一致），随 `pnpm test` 执行；详见 [compat/README.md](compat/README.md)；真实世界脏样本为后续扩充方向                                                                   |
+| 中文排版引擎层（避头尾/标点挤压/回退链）      | ⬜ 未做     | i18n 文案中文已全量（strings.ts zh-CN/zh-TW）；`apps/docs/src/renderer/line-metrics.ts` 已有字体回退链骨架（GenOffice Sans/Songti 等），是中文排版的挂载点                                                                                                     |
+| ee/ 企业许可隔离                              | ✅ 无风险   | `ee/` 仅含 LICENSE+README，无代码、不在 workspace 构建路径                                                                                                                                                                                                     |
 
 > 基线勘误：规划稿假设上游「v0.4.x Alpha」，实际基线为 2026-08-26 snapshot（shell v0.8.0），较规划假设新——部分 Alpha 缺口可能已收窄，执行前应先以本基线复测。

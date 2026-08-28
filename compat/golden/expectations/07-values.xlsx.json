@@ -1,0 +1,5 @@
+{
+  "file": "xlsx/07-values.xlsx",
+  "kind": "xlsx",
+  "text": "# Values\nProduct |  | Qty | Price\n办公猫笔记本 |  | 12 | 4.5\nCat & Mouse \"Special\" <Edition> |  | TRUE | FALSE\n | gap-filler\nTail 锦上添花"
+}

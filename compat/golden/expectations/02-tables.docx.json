@@ -1,0 +1,12 @@
+{
+  "file": "docx/02-tables.docx",
+  "kind": "docx",
+  "text": "Before table.\nA1 | B1\nA2 | B2\nBetween tables.\nOuter  | RightCell",
+  "digest": {
+    "blockTypes": {
+      "paragraph": 2,
+      "table": 2,
+      "passthrough": 1
+    }
+  }
+}

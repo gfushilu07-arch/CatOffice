@@ -1,0 +1,5 @@
+{
+  "file": "pdf/10-multipage.pdf",
+  "kind": "pdf",
+  "text": "Multipage marker ALPHA\nfirst page\n\nMultipage marker BRAVO\nsecond page\n\nMultipage marker CHARLIE\nthird page"
+}

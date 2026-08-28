@@ -40,7 +40,7 @@ git push origin main --tags
 | 文件 | 偏离内容 | 合并取舍 |
 | --- | --- | --- |
 | `.npmrc` / `pnpm-workspace.yaml` | pnpm 配置 + 缓存外置卷 | 我方文件为主；上游新增依赖不需要动它们 |
-| `package.json`(根) | name、postinstall 追加 setup 脚本、新增 `sync-gate` 一键门禁 | postinstall 与 sync-gate 保我方；其余脚本随上游 |
+| `package.json`(根) | name、postinstall 追加 setup 脚本、新增 `sync-gate` 一键门禁、test/typecheck 链尾追加 `@catoffice/compat-lab` | postinstall、sync-gate、链尾 compat-lab 项保我方；其余脚本随上游 |
 | `tools/gen-third-party-notices.mjs` | 标题 CatOffice 化；import 扫描豁免 `@catoffice/*`；licenseText 收录包内全部 LICENSE* 文件（PDFium 等捆绑二进制要求重现全部版权声明）；cargo 路径回退（CARGO_HOME / ~/.cargo/bin） | 保我方四处小改；上游对生成逻辑的其余改动照常收 |
 | `tools/check-english-comments.mjs` | 文档扫描豁免 fork 文档（`README.catoffice.md`、`docs/catoffice/`——刻意中文且永不回传上游） | 保我方两行；上游对其余扫描逻辑的改动照常收 |
 | `tools/catoffice-setup.mjs` | 新增 | 全保留 |

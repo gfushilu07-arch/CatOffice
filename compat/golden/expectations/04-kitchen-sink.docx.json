@@ -1,0 +1,15 @@
+{
+  "file": "docx/04-kitchen-sink.docx",
+  "kind": "docx",
+  "text": "# 第一章 概述\n普通段落,包含加粗斜体下划线删除线红色14号与特殊字符 & < > 结束。\n## 1.1 列表\n- 无序项一\n- 无序项二\n- 有序项一\n链接示例:示例网站\nA1 | B1\nA2 | B2\nE=mc^2\n尾段。",
+  "digest": {
+    "blockTypes": {
+      "heading": 2,
+      "paragraph": 3,
+      "listItem": 3,
+      "table": 1,
+      "image": 1,
+      "passthrough": 2
+    }
+  }
+}
