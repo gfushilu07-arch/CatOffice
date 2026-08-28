@@ -19,10 +19,11 @@ origin (自建仓库)
 git fetch upstream
 git checkout main
 git merge upstream/main
-pnpm run sync-gate            # 门禁：typecheck + 测试 + 构建冒烟（见下）
-git tag fork-YYYYMMDD         # 记录一次成功同步点
+pnpm run sync-gate # 门禁：typecheck + 测试 + 构建冒烟（见下）
+git tag fork-YYYYMMDD # 记录一次成功同步点
 git push origin main --tags
-```
+
+````
 
 若上游变更巨大想先观察再整合，可建 `integration/xxx` 临时分支演练 merge，绿了再快进 main。
 
@@ -39,7 +40,9 @@ git push origin main --tags
 | 文件 | 偏离内容 | 合并取舍 |
 | --- | --- | --- |
 | `.npmrc` / `pnpm-workspace.yaml` | pnpm 配置 + 缓存外置卷 | 我方文件为主；上游新增依赖不需要动它们 |
-| `package.json`(根) | name/postinstall 追加 setup 脚本 | postinstall 取 `install-electron && node tools/catoffice-setup.mjs`；其余脚本随上游 |
+| `package.json`(根) | name、postinstall 追加 setup 脚本、新增 `sync-gate` 一键门禁 | postinstall 与 sync-gate 保我方；其余脚本随上游 |
+| `tools/gen-third-party-notices.mjs` | 标题 CatOffice 化；import 扫描豁免 `@catoffice/*`；licenseText 收录包内全部 LICENSE* 文件（PDFium 等捆绑二进制要求重现全部版权声明）；cargo 路径回退（CARGO_HOME / ~/.cargo/bin） | 保我方四处小改；上游对生成逻辑的其余改动照常收 |
+| `tools/check-english-comments.mjs` | 文档扫描豁免 fork 文档（`README.catoffice.md`、`docs/catoffice/`——刻意中文且永不回传上游） | 保我方两行；上游对其余扫描逻辑的改动照常收 |
 | `tools/catoffice-setup.mjs` | 新增 | 全保留 |
 | `apps/shell/electron-builder.cjs` | appId/productName/linux 元数据约 6 行 | 身份四行保我方；上游新功能照常收 |
 | 各应用 `strings*.ts` | 约 560 处品牌值（键名未动） | 冲突时按 key 逐条合入上游改动并保留 Catspark 文案；高频冲突源，待覆盖层后归零 |
@@ -48,9 +51,24 @@ git push origin main --tags
 | `packages/electron-utils/src/default-save-dir.ts` 等 | 回退目录 `CatOffice` | 保我方值 |
 | 字体家族名 / PDF 数据键 / provider 存储键 `genspark` | 有意不改 | 永远保上游 |
 
+## 双 lockfile 治理
+
+pnpm 用 `pnpm-lock.yaml` 安装依赖，但上游的三件许可证工具（`tools/check-licenses.mjs`、`tools/gen-third-party-notices.mjs`）读取 npm 的 `package-lock.json`，两者必须并存：
+
+- **合并 upstream 后**：冲突时对 package-lock.json 取 theirs（上游刚生成的那份本来就是最新的），必要时再重建；
+- **我们自行增删依赖后**：跑一次 `npm install --package-lock-only --ignore-scripts` 刷新 package-lock.json 并一并提交——不提交会导致许可证门禁看不到新依赖。
+
 ## 同步门禁 sync-gate
 
-合并完成后必须全绿才算同步完成（等价命令手工跑也可以）：
+根脚本一条命令跑完全部等价检查：
+
+```bash
+pnpm run sync-gate
+````
+
+（= typecheck 全 workspace + catspark tsc + 全量测试 + build:all；测试前自动把 cargo 加入 PATH。）
+
+合并完成后必须全绿才算同步完成，等价命令手工跑也可以：
 
 ```bash
 pnpm run typecheck

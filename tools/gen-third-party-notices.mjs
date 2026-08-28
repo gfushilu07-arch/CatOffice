@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { homedir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { builtinModules, createRequire } from 'node:module'
 
@@ -103,7 +104,10 @@ function bareName(spec) {
   if (spec.startsWith('.') || spec.startsWith('/')) return null
   const parts = spec.split('/')
   const name = spec.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
-  if (BUILTIN.has(name) || name.startsWith('@genoffice/')) return null
+  // our own workspace scopes are first-party; never emit third-party notices for them
+  if (BUILTIN.has(name) || name.startsWith('@genoffice/') || name.startsWith('@catoffice/')) {
+    return null
+  }
   // the specifier regex also fires on prose inside string concatenations
   return NPM_NAME.test(name) ? name : null
 }
@@ -190,8 +194,12 @@ function licenseText(name, dir) {
   }
   const files = readdirSync(dir).filter((f) => LICENSE_FILE.test(f))
   files.sort((a, b) => a.length - b.length)
-  if (files.length > 0) return readFileSync(join(dir, files[0]), 'utf8').trim()
-  return null
+  if (files.length === 0) return null
+  // some packages ship extra LICENSE.<component> files for bundled binaries
+  // (e.g. @embedpdf/pdfium → LICENSE.pdfium for pdfium.wasm); a binary-form
+  // redistribution must reproduce every copyright notice, so emit all of them
+  const texts = [...new Set(files.map((f) => readFileSync(join(dir, f), 'utf8').trim()))]
+  return texts.join('\n\n')
 }
 
 function noticeText(dir) {
@@ -216,14 +224,34 @@ function repoOf(pkg) {
 }
 
 /** Rust crates statically linked into xlsx-sidecar */
+function cargoMetadata(target) {
+  // cargo is not on PATH on every build host; CARGO_HOME and rustup's default
+  // layout are the usual alternates. A cargo that exists but fails still
+  // degrades to null (notices point at Cargo.lock instead).
+  const candidates = [
+    'cargo',
+    process.env.CARGO_HOME && join(process.env.CARGO_HOME, 'bin', 'cargo'),
+    join(homedir(), '.cargo', 'bin', 'cargo'),
+  ].filter(Boolean)
+  for (const cmd of candidates) {
+    try {
+      return execFileSync(cmd, ['metadata', '--format-version', '1', '--manifest-path', target], {
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+    } catch (e) {
+      if (e.code !== 'ENOENT') return null
+    }
+  }
+  return null
+}
+
 function rustCrates() {
   const target = join(ROOT, 'apps/sheets/native/xlsx-engine/Cargo.toml')
   try {
-    const raw = execFileSync(
-      'cargo',
-      ['metadata', '--format-version', '1', '--manifest-path', target],
-      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] },
-    )
+    const raw = cargoMetadata(target)
+    if (raw === null) return null
     return JSON.parse(raw)
       .packages.filter((p) => p.name !== 'xlsx-sidecar')
       .map((p) => ({
@@ -246,7 +274,7 @@ const seed = importedNames()
 const { resolved, missing } = closure(seed)
 resolved.sort(([a], [b]) => a.localeCompare(b))
 
-let out = `GenOffice — Third-Party Software Notices
+let out = `CatOffice — Third-Party Software Notices
 
 This application includes third-party software components under the licenses
 reproduced below.
