@@ -42,8 +42,10 @@ git push origin main --tags
 | `.npmrc` / `pnpm-workspace.yaml` | pnpm 配置 + 缓存外置卷 | 我方文件为主；上游新增依赖不需要动它们 |
 | `package.json`(根) | name、postinstall 追加 setup 脚本、新增 `sync-gate` 一键门禁、test/typecheck 链尾追加 `@catoffice/compat-lab` | postinstall、sync-gate、链尾 compat-lab 项保我方；其余脚本随上游 |
 | `tools/gen-third-party-notices.mjs` | 标题 CatOffice 化；import 扫描豁免 `@catoffice/*`；licenseText 收录包内全部 LICENSE* 文件（PDFium 等捆绑二进制要求重现全部版权声明）；cargo 路径回退（CARGO_HOME / ~/.cargo/bin） | 保我方四处小改；上游对生成逻辑的其余改动照常收 |
-| `tools/check-english-comments.mjs` | 文档扫描豁免 fork 文档（`README.catoffice.md`、`docs/catoffice/`——刻意中文且永不回传上游） | 保我方两行；上游对其余扫描逻辑的改动照常收 |
+| `tools/check-english-comments.mjs` | 文档扫描豁免 fork 文档（README.catoffice.md、docs/catoffice/、compat/、assets/brand/——刻意中文且永不回传上游） | 保我方两行；上游对其余扫描逻辑的改动照常收 |
 | `tools/catoffice-setup.mjs` | 新增 | 全保留 |
+| `assets/brand/*` + `tools/build-catoffice-icons.mjs` + `apps/shell/build/icon.*`/`icons/` + 渲染层 `app-icon.png`/`catoffice-logo.svg` | 猫系图标全套（我们的产物，覆盖上游同名二进制）；`Home.tsx` lockup import 一行 | 全保我方；上游若改 electron-builder 图标引用结构 → 重新对齐产物路径 |
+| `apps/shell/src/renderer/src/assets/genoffice-logo.svg` | 已删除（被 catoffice-logo.svg 取代） | 上游若恢复/引用该文件 → 保留删除并改回我方文件 |
 | `apps/shell/electron-builder.cjs` | appId/productName/linux 元数据约 6 行 | 身份四行保我方；上游新功能照常收 |
 | 各应用 `strings*.ts` | 约 560 处品牌值（键名未动） | 冲突时按 key 逐条合入上游改动并保留 Catspark 文案；高频冲突源，待覆盖层后归零 |
 | 主窗口标题 / userData / 默认保存目录 / PDF 作者 | 点状值替换 | 保我方值；上游逻辑变更照常收 |

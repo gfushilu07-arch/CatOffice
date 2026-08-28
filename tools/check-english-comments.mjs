@@ -16,7 +16,7 @@ const HAN = /[\u3400-\u9fff]/
 // contracts, sync and license policies). It never goes upstream, so the
 // English-only norm — which exists for the upstream contribution flow — does
 // not apply to it.
-const FORK_DOCS = /^README\.catoffice\.md$|^docs\/catoffice\//
+const FORK_DOCS = /^README\.catoffice\.md$|^docs\/catoffice\/|^compat\/|^assets\/brand\//
 
 const git = spawnSync('git', ['ls-files'], { encoding: 'utf8' })
 if (git.status !== 0) {

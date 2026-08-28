@@ -1,0 +1,50 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- CatOffice app icon — "the document is the cat" -->
+  <defs>
+    <linearGradient id="tile" x1="512" y1="100" x2="512" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB25C"/>
+      <stop offset="1" stop-color="#EF721A"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="512" y1="300" x2="512" y2="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFCF5"/>
+      <stop offset="1" stop-color="#FBF0DC"/>
+    </linearGradient>
+  </defs>
+
+  <!-- tile -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="white" opacity="0.06"/>
+
+  <!-- soft shadow under the sheet (no filters: keeps rasterizers honest) -->
+  <rect x="318" y="318" width="400" height="520" rx="44" fill="#A34708" opacity="0.2"/>
+
+  <!-- ears sit behind the sheet so the junction is clean -->
+  <path d="M384 310 L410 190 L520 300 Z" fill="#FFFCF5"/>
+  <path d="M640 310 L614 190 L504 300 Z" fill="#FFFCF5"/>
+  <path d="M416 286 L430 222 L474 284 Z" fill="#F08A3C"/>
+  <path d="M608 286 L594 222 L550 284 Z" fill="#F08A3C"/>
+
+  <!-- the sheet with a dog-eared top-right corner -->
+  <path d="M356 300 H624 L712 388 V776 Q712 820 668 820 H356 Q312 820 312 776 V344 Q312 300 356 300 Z" fill="url(#paper)"/>
+  <path d="M624 300 L712 388 H646 Q624 388 624 366 Z" fill="#EFDCBB"/>
+
+  <!-- face -->
+  <ellipse cx="428" cy="452" rx="30" ry="40" fill="#33261C"/>
+  <ellipse cx="596" cy="452" rx="30" ry="40" fill="#33261C"/>
+  <circle cx="438" cy="440" r="9" fill="#FFFCF5"/>
+  <circle cx="606" cy="440" r="9" fill="#FFFCF5"/>
+  <path d="M494 512 H530 L518 531 Q512 538 506 531 Z" fill="#E05A12"/>
+  <path d="M512 534 V548 M512 548 C507 564 488 568 477 556 M512 548 C517 564 536 568 547 556"
+        stroke="#33261C" stroke-width="9" stroke-linecap="round" fill="none"/>
+
+  <!-- whiskers break out of the sheet onto the tile: the signature -->
+  <path d="M382 466 L262 446 M384 492 L256 492 M382 518 L262 538"
+        stroke="#33261C" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <path d="M642 466 L762 446 M640 492 L768 492 M642 518 L762 538"
+        stroke="#33261C" stroke-width="9" stroke-linecap="round" fill="none"/>
+
+  <!-- document text lines -->
+  <rect x="368" y="636" width="236" height="26" rx="13" fill="#E7D8BD"/>
+  <rect x="368" y="688" width="288" height="26" rx="13" fill="#E7D8BD"/>
+  <rect x="368" y="740" width="188" height="26" rx="13" fill="#F3C289"/>
+</svg>

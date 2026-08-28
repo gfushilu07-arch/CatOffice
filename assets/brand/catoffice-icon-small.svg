@@ -1,0 +1,37 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Small rendition of the CatOffice mark for 16/24/32 px: whiskers and
+       document text lines dropped, ears/eyes enlarged so the cat survives
+       pixel-thin sizes. Same geometry as catoffice-icon.svg otherwise. -->
+  <defs>
+    <linearGradient id="tile" x1="512" y1="100" x2="512" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB25C"/>
+      <stop offset="1" stop-color="#EF721A"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="512" y1="300" x2="512" y2="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFCF5"/>
+      <stop offset="1" stop-color="#FBF0DC"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
+
+  <rect x="318" y="318" width="400" height="520" rx="44" fill="#A34708" opacity="0.2"/>
+
+  <path d="M356 310 L400 160 L540 300 Z" fill="#FFFCF5"/>
+  <path d="M668 310 L624 160 L484 300 Z" fill="#FFFCF5"/>
+  <path d="M404 284 L428 200 L486 282 Z" fill="#F08A3C"/>
+  <path d="M620 284 L596 200 L538 282 Z" fill="#F08A3C"/>
+
+  <path d="M356 300 H624 L712 388 V776 Q712 820 668 820 H356 Q312 820 312 776 V344 Q312 300 356 300 Z" fill="url(#paper)"/>
+  <path d="M624 300 L712 388 H646 Q624 388 624 366 Z" fill="#EFDCBB"/>
+
+  <ellipse cx="422" cy="470" rx="40" ry="52" fill="#33261C"/>
+  <ellipse cx="602" cy="470" rx="40" ry="52" fill="#33261C"/>
+  <circle cx="436" cy="452" r="12" fill="#FFFCF5"/>
+  <circle cx="616" cy="452" r="12" fill="#FFFCF5"/>
+  <path d="M488 540 H536 L521 563 Q512 572 503 563 Z" fill="#E05A12"/>
+  <path d="M512 562 V578 M512 578 C506 596 484 600 472 587 M512 578 C518 596 540 600 552 587"
+        stroke="#33261C" stroke-width="13" stroke-linecap="round" fill="none"/>
+
+  <rect x="376" y="680" width="272" height="34" rx="17" fill="#E7D8BD"/>
+</svg>
