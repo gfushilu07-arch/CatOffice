@@ -4,15 +4,19 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "CatSpark cloud integration seam: every CatOffice -> cloud endpoint in one place (device-code login, LLM proxy, tool CLI, cloud projects, credits). No Electron dependency, pure TS.",
+  "description": "CatSpark cloud integration seam: every CatOffice -> cloud endpoint in one place (device-code login, LLM proxy, tool CLI, cloud projects, credits). No Electron dependency, pure TS. The ./mock subpath serves the embedded mock backend (node:http).",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./mock": "./src/mock/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }

@@ -18,6 +18,7 @@
     "dist:dir": "electron-vite build && electron-builder --dir"
   },
   "devDependencies": {
+    "@catoffice/catspark": "*",
     "@genoffice/agent-core": "*",
     "@genoffice/ai-provider": "*",
     "@genoffice/ai-search": "*",
@@ -87,7 +88,6 @@
     }
   },
   "dependencies": {
-    "@catoffice/catspark": "*",
     "@genoffice/electron-utils": "*",
     "acorn": "^8.18.0",
     "harfbuzzjs": "^1.4.0",

@@ -18,6 +18,7 @@
     "dist:dir": "electron-vite build && electron-builder --dir"
   },
   "devDependencies": {
+    "@catoffice/catspark": "*",
     "@genoffice/agent-core": "*",
     "@genoffice/i18n": "*",
     "@genoffice/ai-provider": "*",

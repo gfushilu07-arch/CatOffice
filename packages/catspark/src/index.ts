@@ -2,13 +2,18 @@
  * CatSpark cloud integration seam.
  *
  * Every CatOffice -> cloud endpoint lives here so the self-hosted CatSpark
- * backend can be swapped in by configuration alone. Precedence for all
- * origins: CATSPARK_* env > legacy GSK_* env (kept for the upstream CLI
- * bootstrap) > built-in defaults. The defaults still point at the upstream
- * Genspark service so development keeps working; flip CATSPARK_API_BASE (at
- * minimum) once the CatSpark deployment exists — no code changes needed.
+ * backend can be swapped in by configuration alone.
+ *
+ * Mock mode is the default: with no real backend configured, cloudOrigin()
+ * points at the embedded mock server (see ./mock) and CLI-backed features
+ * return canned data, so the app runs end-to-end without any deployment.
+ * Opting into a real backend is a config flip: set CATSPARK_API_BASE (at
+ * minimum); CATSPARK_MOCK=0 restores the legacy default of talking to the
+ * upstream Genspark service. Precedence for all origins: CATSPARK_* env >
+ * legacy GSK_* env (kept for the upstream CLI bootstrap) > built-in default.
  *
  * Pure TS, no Electron dependency; safe from main processes and tests alike.
+ * The ./mock subpath additionally serves the embedded backend (node:http).
  */
 
 const stripTrailingSlash = (url: string): string => url.replace(/\/+$/, '')
@@ -18,14 +23,48 @@ function env(name: string): string | undefined {
   return value && value.trim() ? value.trim() : undefined
 }
 
-/** Base URL of the cloud backend everything else derives from. */
-export function cloudOrigin(): string {
-  return stripTrailingSlash(
-    env('CATSPARK_API_BASE') ?? env('GSK_BASE_URL') ?? DEFAULT_CLOUD_ORIGIN,
-  )
+/** Legacy default: the upstream Genspark service (CATSPARK_MOCK=0 restores it). */
+export const DEFAULT_CLOUD_ORIGIN = 'https://www.genspark.ai'
+
+/** Port of the embedded mock server; must be known synchronously (seams derive from it before listen). */
+export const DEFAULT_MOCK_PORT = 45917
+
+/** A real backend configured through env — either naming scheme. */
+function explicitCloudBase(): string | undefined {
+  return env('CATSPARK_API_BASE') ?? env('GSK_BASE_URL')
 }
 
-export const DEFAULT_CLOUD_ORIGIN = 'https://www.genspark.ai'
+/**
+ * Mock mode: serve every CatSpark endpoint from the embedded mock server
+ * instead of a real deployment. On by default (the CatSpark backend does not
+ * exist yet); forced on with CATSPARK_MOCK=1 (wins even over an explicit
+ * API base), off with CATSPARK_MOCK=0 or any explicit base. Under vitest the
+ * default is off so existing suites keep their upstream-origin semantics;
+ * mock-behavior tests opt in with CATSPARK_MOCK=1.
+ */
+export function isMockMode(): boolean {
+  const flag = env('CATSPARK_MOCK')
+  if (process.env.VITEST && flag !== '1') return false
+  if (flag === '1') return true
+  if (flag === '0') return false
+  return !explicitCloudBase()
+}
+
+/**
+ * Origin of the embedded mock server. Deterministic before the server binds
+ * so seam derivations stay synchronous; startMockCloud() binds this port and
+ * reuses an already-listening instance from a sibling app process.
+ */
+export function mockCloudOrigin(): string {
+  const port = env('CATSPARK_MOCK_PORT') ?? String(DEFAULT_MOCK_PORT)
+  return `http://127.0.0.1:${port}`
+}
+
+/** Base URL of the cloud backend everything else derives from. */
+export function cloudOrigin(): string {
+  if (isMockMode()) return mockCloudOrigin()
+  return stripTrailingSlash(explicitCloudBase() ?? DEFAULT_CLOUD_ORIGIN)
+}
 
 /** Origin + relative path (path may be empty). */
 export function apiUrl(path = ''): string {

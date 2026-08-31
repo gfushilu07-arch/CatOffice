@@ -9,12 +9,17 @@
  *
  * Auth: gskApiKey() below. When not logged in, hasGskAuth() returns false and
  * callers should fall back to other implementations (e.g. Serper search).
+ *
+ * Mock mode (@catoffice/catspark isMockMode): the CLI never runs. Every
+ * CLI-backed function returns canned data from the seam's mock module, and
+ * the HTTP-based ones (slide_generate, file download) talk to the embedded
+ * mock server through the regular seam endpoints.
  */
 
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { createRequire } from 'node:module'
 import {
   COPYRIGHT_HOSTS,
@@ -26,7 +31,15 @@ import {
   type WebSearchResult,
 } from './shared'
 import { genofficeApiKey } from './genoffice-auth'
-import { attributionHeaders, clientUserAgent, toolCliBase } from '@catoffice/catspark'
+import { attributionHeaders, clientUserAgent, isMockMode, mockCloudOrigin, toolCliBase } from '@catoffice/catspark'
+import {
+  MOCK_ACCOUNT,
+  mockAnalyzedText,
+  mockGeneratedImageUrl,
+  mockImageSearch,
+  mockPastProjects,
+  mockWebSearch,
+} from '@catoffice/catspark/mock'
 
 const TOOL_CLI_BASE = toolCliBase()
 
@@ -84,12 +97,15 @@ function electronCompatArgs(): string[] {
 /**
  * API key for Catspark LLM proxy / tool_cli auth; '' when not logged in.
  * Priority: GSK_API_KEY env → GenOffice's own key (bills to us via its
- * key_name) → shared gsk CLI login (bills to the Claw bucket).
+ * key_name) → shared gsk CLI login (bills to the Claw bucket). In mock mode
+ * the shared CLI login is skipped — a mock identity is minted only by mock
+ * login, never inherited from a real upstream account.
  */
 export function gskApiKey(): string {
   if (process.env.GSK_API_KEY) return process.env.GSK_API_KEY
   const own = genofficeApiKey()
   if (own) return own
+  if (isMockMode()) return ''
   try {
     const configPath = join(homedir(), '.genspark-tool-cli', 'config.json')
     if (!existsSync(configPath)) return ''
@@ -103,9 +119,11 @@ export function gskApiKey(): string {
 /**
  * Whether gsk is usable (CLI installed and logged in / has a key). Callers use this to decide fallback.
  * Set AI_SEARCH_DISABLE_GSK=1 to force-disable (test isolation / force Serper).
+ * In mock mode the bundled upstream CLI never runs — the mock key alone is enough.
  */
 export function hasGskAuth(): boolean {
   if (process.env.AI_SEARCH_DISABLE_GSK === '1') return false
+  if (isMockMode()) return !!gskApiKey()
   return !!gskApiKey() && resolveGskEntry() !== null
 }
 
@@ -174,6 +192,11 @@ export function parseGskOutput(stdout: string): unknown {
 }
 
 function runGsk(args: string[], timeoutMs: number, signal?: AbortSignal): Promise<unknown> {
+  if (isMockMode()) {
+    // defensive: exported helpers branch to mock data first; this would mean a
+    // CLI-only path reached production code in mock mode
+    return Promise.reject(new Error('the gsk CLI is not used in CatSpark mock mode'))
+  }
   const entry = resolveGskEntry()
   if (!entry) return Promise.reject(new Error('@genspark/cli is not installed'))
   // inject the resolved key so the CLI bills the same identity as our direct HTTP calls
@@ -239,6 +262,7 @@ export async function gskWebSearch(
   query: string,
   maxResults = 6,
 ): Promise<{ results: WebSearchResult[]; answer?: string }> {
+  if (isMockMode()) return mockWebSearch(query, maxResults)
   const raw = await runGsk(['search', query], SEARCH_TIMEOUT_MS)
   return parseGskWebSearch(raw, maxResults)
 }
@@ -270,6 +294,7 @@ export function parseGskImageSearch(raw: unknown, maxResults: number): ImageSear
 }
 
 export async function gskImageSearch(query: string, maxResults = 8): Promise<ImageSearchResult[]> {
+  if (isMockMode()) return mockImageSearch(query, maxResults)
   const raw = await runGsk(['img-search', query], SEARCH_TIMEOUT_MS)
   return parseGskImageSearch(raw, maxResults)
 }
@@ -310,6 +335,11 @@ export async function gskGenerateImage(
   options: GskGenerateImageOptions,
   signal?: AbortSignal,
 ): Promise<GskGeneratedImage> {
+  if (isMockMode()) {
+    // a gradient PNG served by the embedded mock server; insertion pipelines
+    // download it like a real result (no /api/files/ wrapper, no URL swap)
+    return { url: mockGeneratedImageUrl(), taskId: 'mock-task' }
+  }
   const args = ['img', options.prompt]
   if (options.model) args.push('-m', options.model)
   if (options.referenceImageUrls?.length) args.push('--image_urls', ...options.referenceImageUrls)
@@ -398,11 +428,11 @@ async function toolCliPost(
   try {
     const resp = await fetch(`${TOOL_CLI_BASE}${path}`, {
       method: 'POST',
+      // X-Agent-Type via the seam: 'genoffice' on the upstream origin (billing
+      // attribution stays intact), CATSPARK_AGENT_TYPE on a CatSpark gateway
       headers: {
         'X-Api-Key': key,
         'Content-Type': 'application/json',
-        // X-Agent-Type via the seam: 'genoffice' on the upstream origin (billing
-        // attribution stays intact), CATSPARK_AGENT_TYPE on a CatSpark gateway
         ...attributionHeaders(TOOL_CLI_BASE),
         'User-Agent': clientUserAgent(),
       },
@@ -476,6 +506,12 @@ export async function gskConvertPdfToDocx(
   filePath: string,
   signal?: AbortSignal,
 ): Promise<Uint8Array> {
+  if (isMockMode()) {
+    // a fake DOCX would be indistinguishable from a broken conversion; fail loudly instead
+    throw new Error(
+      'PDF→Word cloud conversion is not part of the CatSpark mock; set CATSPARK_API_BASE to a real backend',
+    )
+  }
   const wrapperUrl = await gskUpload(filePath)
   const raw = await runGsk(['convert', wrapperUrl], GENERATE_TIMEOUT_MS, signal)
   const link = parseGskConvertResult(raw)
@@ -519,6 +555,7 @@ export async function gskAnalyzeMedia(
   options: GskAnalyzeMediaOptions,
   signal?: AbortSignal,
 ): Promise<string> {
+  if (isMockMode()) return mockAnalyzedText('analysis')
   const args = [
     'media-analyze',
     '--media_urls',
@@ -543,6 +580,7 @@ export async function gskTranscribe(
   options: GskTranscribeOptions,
   signal?: AbortSignal,
 ): Promise<string> {
+  if (isMockMode()) return mockAnalyzedText('transcript')
   const args = ['transcribe', '--audio_urls', ...options.audioUrls]
   if (options.prompt) args.push('--prompt', options.prompt)
   if (options.model) args.push('-m', options.model)
@@ -554,6 +592,11 @@ export async function gskTranscribe(
 
 /** Uploads a local file and returns a file wrapper URL (usable as input to other gsk commands) */
 export async function gskUpload(filePath: string): Promise<string> {
+  if (isMockMode()) {
+    // only consumer in mock mode is gskConvertPdfToDocx, which fails loudly
+    // before uploading; keep a well-formed wrapper URL for future callers
+    return `${mockCloudOrigin()}/api/files/mock-${basename(filePath)}`
+  }
   const raw = asRecord(await runGsk(['upload', filePath], GENERATE_TIMEOUT_MS))
   const dataRec = asRecord(raw.data)
   const url = dataRec.file_wrapper_url ?? raw.url ?? dataRec.url
@@ -633,6 +676,16 @@ export interface GskListPastProjectsOptions {
 export async function gskListPastProjects(
   options: GskListPastProjectsOptions = {},
 ): Promise<GskPastProjectsPage> {
+  if (isMockMode()) {
+    const all = mockPastProjects()
+    const types = options.artifactTypes
+    const filtered = types?.length
+      ? all.projects.filter((p) => types.some((t) => p.type.startsWith(t)))
+      : all.projects
+    const start = options.offset ?? 0
+    const limit = options.limit ?? filtered.length
+    return { projects: filtered.slice(start, start + limit), total: filtered.length, hasMore: false }
+  }
   const args = ['projects']
   if (options.artifactTypes?.length) args.push('--artifact_types', ...options.artifactTypes)
   if (options.limit !== undefined) args.push('--limit', String(options.limit))
@@ -649,6 +702,9 @@ export interface GskLoginInfo {
 
 /** Current login info; null when not logged in */
 export async function gskLoginInfo(): Promise<GskLoginInfo | null> {
+  if (isMockMode()) {
+    return gskApiKey() ? { ...MOCK_ACCOUNT } : null
+  }
   try {
     const raw = await runGsk(['login-info'], SEARCH_TIMEOUT_MS)
     const d = asRecord(asRecord(raw).data ?? raw)

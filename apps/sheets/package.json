@@ -23,7 +23,6 @@
     "gate": "npm run typecheck && npm run fixtures && npm test && npm run compat"
   },
   "dependencies": {
-    "@catoffice/catspark": "*",
     "@fluentui/react-icons": "^2.0.333",
     "@genoffice/agent-core": "*",
     "@genoffice/ai-provider": "*",
@@ -56,6 +55,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@catoffice/catspark": "*",
     "@genoffice/project-store": "*",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.14",

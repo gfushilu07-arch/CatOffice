@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchWithSsrfGuard, isBlockedAddress, isSafeRemoteUrl } from '../src/safe-remote-url'
+import { mockCloudOrigin } from '@catoffice/catspark'
 
 describe('isBlockedAddress', () => {
   it.each([
@@ -156,5 +157,41 @@ describe('fetchWithSsrfGuard', () => {
       fetchWithSsrfGuard('http://169.254.169.254/latest/meta-data/', { fetchImpl }),
     ).resolves.toBeNull()
     expect(fetchImpl).not.toHaveBeenCalled()
+  })
+})
+
+describe('isSafeRemoteUrl in mock mode', () => {
+  const KEYS = ['CATSPARK_MOCK', 'CATSPARK_MOCK_PORT', 'CATSPARK_API_BASE', 'GSK_BASE_URL']
+  const saved = new Map<string, string | undefined>()
+
+  beforeEach(() => {
+    for (const key of KEYS) {
+      saved.set(key, process.env[key])
+      delete process.env[key]
+    }
+    process.env.CATSPARK_MOCK = '1'
+  })
+
+  afterEach(() => {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  })
+
+  it('allows exactly the embedded mock origin (loopback by design)', async () => {
+    await expect(isSafeRemoteUrl(`${mockCloudOrigin()}/mock-image/1.png`)).resolves.toBe(true)
+  })
+
+  it('still blocks other loopback addresses, including sibling ports', async () => {
+    await expect(isSafeRemoteUrl('http://127.0.0.1:9999/x.png')).resolves.toBe(false)
+    await expect(isSafeRemoteUrl('http://[::1]/x.png')).resolves.toBe(false)
+    const siblingPort = mockCloudOrigin().replace(/:\d+$/, ':45918')
+    await expect(isSafeRemoteUrl(`${siblingPort}/x.png`)).resolves.toBe(false)
+  })
+
+  it('blocks the mock origin again once mock mode is off', async () => {
+    process.env.CATSPARK_MOCK = '0'
+    await expect(isSafeRemoteUrl(`${mockCloudOrigin()}/x.png`)).resolves.toBe(false)
   })
 })

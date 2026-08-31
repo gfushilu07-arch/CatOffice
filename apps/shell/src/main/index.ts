@@ -195,6 +195,13 @@ import { normalizeRecentQuery, pageRecentPaths, statExistingPaths } from './rece
 import { TabManager } from './tab-manager'
 import { applyUpdateChannel, initAutoUpdater } from './updater'
 import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
+import { startMockCloud } from '@catoffice/catspark/mock'
+
+// embedded CatSpark mock backend: no-op unless mock mode is on (the default
+// until CATSPARK_API_BASE points at a real deployment). Runs before any
+// window opens; sibling module processes reuse the same server via the
+// health probe when the port is already taken.
+void startMockCloud()
 
 /**
  * CatOffice unified shell: ONE Electron app, ONE BrowserWindow, hosting the

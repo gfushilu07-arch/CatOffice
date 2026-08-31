@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/genspark-ai/genoffice",
   "private": true,
-  "description": "CatOffice (办公猫) shell: one app hosting the docs and sheets modules behind a home/launcher window",
+  "description": "CatOffice (\u529e\u516c\u732b) shell: one app hosting the docs and sheets modules behind a home/launcher window",
   "main": "out/main/index.js",
   "desktopName": "genoffice.desktop",
   "scripts": {
@@ -19,6 +19,7 @@
     "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "devDependencies": {
+    "@catoffice/catspark": "*",
     "@genoffice/agent-core": "*",
     "@genoffice/ai-provider": "*",
     "@genoffice/ai-search": "*",
@@ -45,8 +46,5 @@
     "vite": "^7.3.1",
     "vitest": "^4.1.10"
   },
-  "author": "GenOffice",
-  "dependencies": {
-    "@catoffice/catspark": "*"
-  }
+  "author": "GenOffice"
 }

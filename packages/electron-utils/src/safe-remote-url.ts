@@ -6,6 +6,7 @@
 
 import { lookup } from 'node:dns/promises'
 import { BlockList, isIP } from 'node:net'
+import { isMockMode, mockCloudOrigin } from '@catoffice/catspark'
 
 /**
  * Non-public address ranges. BlockList does the range math and maps
@@ -64,6 +65,10 @@ export async function isSafeRemoteUrl(raw: unknown): Promise<boolean> {
     return false
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+  // The embedded CatSpark mock server is loopback by design; mock mode opts
+  // this deployment into trusting exactly that one origin (same port only —
+  // any other loopback address stays blocked).
+  if (isMockMode() && url.origin === mockCloudOrigin()) return true
   // URL keeps IPv6 literals bracketed; isIP does not accept the brackets
   const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase()
   if (host === '') return false
