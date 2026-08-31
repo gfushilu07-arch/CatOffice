@@ -6,6 +6,7 @@ import { useI18n } from './locale'
 import type { StringKey, TFunc } from './locale'
 import type { AccountStatus, AiCatalogEntry, UiTheme } from '../../shared/home-api'
 import { ProviderLogo } from './provider-logos'
+import appIcon from './assets/app-icon.png'
 import './settings.css'
 
 // ── Settings modal (opened from the account menu) ─────────
@@ -54,6 +55,11 @@ function formatStars(n: number): string {
   if (n < 1000) return String(n)
   const k = n / 1000
   return `${k >= 100 ? Math.round(k) : (Math.round(k * 10) / 10).toString().replace(/\.0$/, '')}k`
+}
+
+/** "https://github.com/cat-office/catoffice" → "github.com/cat-office/catoffice" */
+function displayRepoUrl(repoUrl: string): string {
+  return repoUrl.replace(/^https:\/\//, '')
 }
 
 type SectionId = 'account' | 'aiModel' | 'general' | 'about'
@@ -457,6 +463,9 @@ export function SettingsModal({
   const [channel, setChannel] = useState<'stable' | 'beta'>('stable')
   const [appVersion, setAppVersion] = useState('')
   const [githubStars, setGithubStars] = useState<number | null>(null)
+  // undefined while loading, null when CATSPARK_GITHUB_REPO is empty (the
+  // GitHub field hides), otherwise the repo web URL
+  const [repoUrl, setRepoUrl] = useState<string | null>()
 
   useEffect(() => {
     let alive = true
@@ -474,6 +483,9 @@ export function SettingsModal({
     })
     void window.aiOffice.getAppVersion?.().then((v) => {
       if (alive && v) setAppVersion(v)
+    })
+    void window.aiOffice.githubRepoUrl?.().then((u) => {
+      if (alive) setRepoUrl(u)
     })
     void window.aiOffice.githubStars?.().then((n) => {
       if (alive && n !== null) setGithubStars(n)
@@ -663,6 +675,13 @@ export function SettingsModal({
             {section === 'about' && (
               <>
                 <h3 className="set-pane-title">{t('setSecAbout')}</h3>
+                <div className="set-about-brand">
+                  <img src={appIcon} alt="" className="set-about-icon" />
+                  <div className="set-about-brand-text">
+                    <div className="set-about-name">{t('appName')}</div>
+                    <div className="set-about-tagline">{t('aboutTagline')}</div>
+                  </div>
+                </div>
                 <Field label={t('versionLabel')} value={appVersion || '—'} />
                 <div className="set-field">
                   <div className="set-field-text">
@@ -683,22 +702,25 @@ export function SettingsModal({
                     }}
                   />
                 </div>
-                <Field
-                  label={t('setGithub')}
-                  value={
-                    githubStars === null
-                      ? 'github.com/genspark-ai/genoffice'
-                      : `github.com/genspark-ai/genoffice · ★ ${formatStars(githubStars)}`
-                  }
-                  action={
-                    <button
-                      className="set-btn"
-                      onClick={() => void window.aiOffice.openGitHubRepo?.()}
-                    >
-                      {t('starOnGitHub')}
-                    </button>
-                  }
-                />
+                {repoUrl && (
+                  <Field
+                    label={t('setGithub')}
+                    value={
+                      githubStars === null
+                        ? displayRepoUrl(repoUrl)
+                        : `${displayRepoUrl(repoUrl)} · ★ ${formatStars(githubStars)}`
+                    }
+                    action={
+                      <button
+                        className="set-btn"
+                        onClick={() => void window.aiOffice.openGitHubRepo?.()}
+                      >
+                        {t('starOnGitHub')}
+                      </button>
+                    }
+                  />
+                )}
+                <p className="set-about-note">{t('aboutBasedOn')}</p>
               </>
             )}
           </div>

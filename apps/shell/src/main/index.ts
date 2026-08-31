@@ -37,7 +37,6 @@ import menuHomeIcon2x from './assets/menu-home@2x.png?asset'
 import { createI18n, isLang, normalizeLang, setUiLang, type Lang } from '@genoffice/i18n'
 import {
   DEFAULT_SAVE_DIR_KEY,
-  GITHUB_REPO_URL,
   appMenuLabels,
   contextMenuLabels,
   editMenuTemplate,
@@ -88,7 +87,13 @@ import {
   setGskProxyUrl,
   startGenofficeLogin,
 } from '@genoffice/ai-search'
-import { creditUsageUrl, githubStarsApiUrl, proxyProbeUrl } from '@catoffice/catspark'
+import {
+  clientUserAgent,
+  creditUsageUrl,
+  githubRepoUrl,
+  githubStarsApiUrl,
+  proxyProbeUrl,
+} from '@catoffice/catspark'
 
 import {
   buildDocsMenu,
@@ -436,7 +441,12 @@ async function fetchGithubStars(): Promise<number | null> {
     const repoApiUrl = githubStarsApiUrl()
     if (!repoApiUrl) return null
     const response = await fetch(repoApiUrl, {
-      headers: { Accept: 'application/vnd.github+json' },
+      headers: {
+        Accept: 'application/vnd.github+json',
+        // api.github.com rejects requests without a UA; present as the app,
+        // not as bare undici's default
+        'User-Agent': clientUserAgent(app.getVersion()),
+      },
       signal: AbortSignal.timeout(5000),
     })
     if (!response.ok) return null
@@ -3094,16 +3104,21 @@ function registerHomeIpc(): void {
   })
 
   ipcMain.handle(HOME_CHANNELS.openGitHubRepo, () => {
-    shell.openExternal(GITHUB_REPO_URL).catch(() => {
+    const repoUrl = githubRepoUrl()
+    if (!repoUrl) return // fork repo not public yet: the CTA target is disabled
+    shell.openExternal(repoUrl).catch(() => {
       // no browser handler available; nothing actionable for the user here
     })
   })
 
   ipcMain.handle(HOME_CHANNELS.githubStars, () => fetchGithubStars())
 
+  ipcMain.handle(HOME_CHANNELS.githubRepoUrl, () => githubRepoUrl() || null)
+
   // returning true also counts as "shown": the renderer displays it
   // unconditionally, so no separate mark-shown round-trip is needed
   ipcMain.handle(HOME_CHANNELS.starPromptShouldShow, (): StarPromptShow => {
+    if (!githubRepoUrl()) return { show: false, docOpens: 0 } // star CTAs are disabled
     if (starPromptSessionGrant) return starPromptSessionGrant
     const now = Date.now()
     const state = readStarPrompt()

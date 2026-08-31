@@ -12,7 +12,7 @@
 | `CATSPARK_AGENT_TYPE` | 自定义网关的计费归因头（`X-Agent-Type`）；默认源固定 `genoffice` | — |
 | `CATSPARK_CREDIT_USAGE_URL` | 设置页打开的用量页 | `$CATSPARK_API_BASE/credit-usage` |
 | `CATSPARK_IMAGE_HOSTS` | 图片下载附加 Referer 的自定义 CDN 域名列表（逗号分隔） | — |
-| `CATSPARK_GITHUB_REPO` | About 页星数仓库（`owner/repo`；置空禁用该组件） | `cat-office/catoffice` |
+| `CATSPARK_GITHUB_REPO` | GitHub 仓库（`owner/repo`）：About 页星数仓库与全部 Star CTA（设置页字段、Star 提示卡、Onboarding）的数据源；置空即全禁用 | `cat-office/catoffice` |
 
 兼容性说明：旧变量 `GSK_BASE_URL`（上游 CLI 引导）仍然生效，优先级在 `CATSPARK_API_BASE` 之后。
 

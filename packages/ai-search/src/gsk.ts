@@ -26,7 +26,7 @@ import {
   type WebSearchResult,
 } from './shared'
 import { genofficeApiKey } from './genoffice-auth'
-import { toolCliBase } from '@catoffice/catspark'
+import { attributionHeaders, clientUserAgent, toolCliBase } from '@catoffice/catspark'
 
 const TOOL_CLI_BASE = toolCliBase()
 
@@ -398,11 +398,13 @@ async function toolCliPost(
   try {
     const resp = await fetch(`${TOOL_CLI_BASE}${path}`, {
       method: 'POST',
-      // X-Agent-Type splits GenOffice usage out of the proxy's "Claw" billing bucket
       headers: {
         'X-Api-Key': key,
         'Content-Type': 'application/json',
-        'X-Agent-Type': 'genoffice',
+        // X-Agent-Type via the seam: 'genoffice' on the upstream origin (billing
+        // attribution stays intact), CATSPARK_AGENT_TYPE on a CatSpark gateway
+        ...attributionHeaders(TOOL_CLI_BASE),
+        'User-Agent': clientUserAgent(),
       },
       body: JSON.stringify(body),
       signal: controller.signal,

@@ -96,9 +96,22 @@ export function Onboarding({ onDone }: OnboardingProps) {
   const { t } = useI18n()
   const [index, setIndex] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  // undefined while loading, null when CATSPARK_GITHUB_REPO is empty (the
+  // star CTA hides), otherwise the repo web URL
+  const [repoUrl, setRepoUrl] = useState<string | null>()
   const cardRef = useRef<HTMLDivElement>(null)
   const slide = SLIDES[index]
   const isLast = index === SLIDES.length - 1
+
+  useEffect(() => {
+    let alive = true
+    void window.aiOffice?.githubRepoUrl?.().then((u) => {
+      if (alive) setRepoUrl(u)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const finish = () => {
     if (submitting) return
@@ -192,7 +205,7 @@ export function Onboarding({ onDone }: OnboardingProps) {
               {s.bodyKey && (
                 <p className={`onb-body${s.bodyDim ? ' onb-body-dim' : ''}`}>{t(s.bodyKey)}</p>
               )}
-              {s.showStar && (
+              {s.showStar && repoUrl && (
                 <div className="onb-star">
                   <p className="onb-star-hint">{t('onbStarHint')}</p>
                   <button

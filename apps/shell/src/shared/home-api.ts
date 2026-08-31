@@ -135,8 +135,10 @@ export interface HomeApi {
   openGenTeam(): Promise<void>
   /** open the Catspark credit-usage page in the default browser */
   openCreditUsage(): Promise<void>
-  /** open the public GitHub repository in the default browser */
+  /** open the public GitHub repository in the default browser (no-op while the repo is disabled) */
   openGitHubRepo(): Promise<void>
+  /** web URL of the public repo (null when CATSPARK_GITHUB_REPO is empty — GitHub CTAs hide) */
+  githubRepoUrl(): Promise<string | null>
   /** current stargazer count of the public repo (null while offline / rate-limited) */
   githubStars(): Promise<number | null>
   /** whether the one-time "star us" prompt should show now (show:true also counts as shown);
@@ -302,6 +304,7 @@ export const HOME_CHANNELS = {
   openGenTeam: 'home:open-genteam',
   openCreditUsage: 'home:open-credit-usage',
   openGitHubRepo: 'home:open-github-repo',
+  githubRepoUrl: 'home:github-repo-url',
   githubStars: 'home:github-stars',
   starPromptShouldShow: 'home:star-prompt-should-show',
   starPromptAction: 'home:star-prompt-action',

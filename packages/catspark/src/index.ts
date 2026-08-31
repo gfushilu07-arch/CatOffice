@@ -103,12 +103,35 @@ export function proxyProbeUrl(): string {
 }
 
 /**
+ * The fork's public repo (owner/repo, '' before it goes public — every
+ * in-app GitHub CTA and the About-pane star widget hide when empty).
+ */
+export function githubRepo(): string {
+  return env('CATSPARK_GITHUB_REPO') ?? 'cat-office/catoffice'
+}
+
+/** Web URL of the fork's repo ('' when disabled via githubRepo()). */
+export function githubRepoUrl(): string {
+  const repo = githubRepo()
+  return repo ? `https://github.com/${repo}` : ''
+}
+
+/**
  * About-pane star count source on api.github.com ('' disables the widget —
  * e.g. before the fork's own repo goes public).
  */
 export function githubStarsApiUrl(): string {
-  const repo = env('CATSPARK_GITHUB_REPO') ?? 'cat-office/catoffice'
+  const repo = githubRepo()
   return repo ? `https://api.github.com/repos/${repo}` : ''
+}
+
+/**
+ * UA stamped on requests the app makes with plain Node fetch (bare undici
+ * would present as "node"). Chromium-context requests already carry the app
+ * name via Electron's default UA, so only main-process fetches need this.
+ */
+export function clientUserAgent(version?: string): string {
+  return version ? `CatOffice/${version}` : 'CatOffice'
 }
 
 // ── asset-host classification (Referer / direct-link heuristics) ────
