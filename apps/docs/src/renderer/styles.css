@@ -9920,3 +9920,14 @@ tr > .page-gap-cut {
 ..doc-punct-squeeze {
   margin-right: calc(var(--doc-squeeze-em, 0) * 1em);
 }
+
+/* Chromium (>=~117) applies native CJK punctuation trimming by default
+   (probe: tools/probe-text-spacing-trim.mjs — adjacent fullwidth closing
+   marks lose half width with NO lang attr). That would stack with the
+   .doc-punct-squeeze decorations, double-compressing every run. space-all
+   pins the native pass to no trimming so the decorations are the single
+   visible compression source; the paginated print path re-enables the
+   native behavior and drops the decorations instead. */
+.doc-page {
+  text-spacing-trim: space-all;
+}

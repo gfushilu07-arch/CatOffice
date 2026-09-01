@@ -8,10 +8,12 @@
  * simulateLines) and the editing canvas (PunctSqueezeExtension decorations)
  * both consume it, so page breaks and visible layout stay in lockstep.
  *
- * Phase 1 covers consecutive-mark runs only: line-edge compression (行首/行尾
- * half-width faces) needs the break points, which the flowing editing canvas
- * does not know — that lands with the paginated render path. Pure data, no
- * imports.
+ * Phase 1 covers consecutive-mark runs only: line-edge compression (line-start
+ * / line-end half-width faces) needs the break points, which the flowing
+ * editing canvas does not know — that lands with the paginated render path.
+ * The renderer also pins `text-spacing-trim: space-all` on the page (see
+ * styles.css): Chromium's native trimming would stack with these decorations
+ * and double-compress every run. Pure data, no imports.
  */
 
 /** Fullwidth closing marks that participate in compression runs. */

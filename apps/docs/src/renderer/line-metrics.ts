@@ -1363,10 +1363,22 @@ export function simulateLines(
         for (const ch of buf) {
           const cw = metrics.measure(fragment + ch, style)
           if (fragment && cw > availWidthPx) {
+            // kinsoku on the fragment boundary (same rule as the flow path):
+            // the next fragment must not start with a closing mark and this
+            // one must not end with an opening bracket — pull CJK chars down
+            const pending: string[] = [ch]
+            while (fragment.length > 1) {
+              const head = pending[0]!
+              const lastCp = lastCodePoint(fragment)
+              const lastChar = String.fromCodePoint(lastCp)
+              if (!isKinsokuNoStart(head) && !isKinsokuNoEnd(lastChar)) break
+              fragment = fragment.slice(0, fragment.length - lastChar.length)
+              pending.unshift(lastChar)
+            }
             curText = fragment
             pushLine(wordH)
             curLineH = wordH
-            fragment = ch
+            fragment = pending.join('')
           } else {
             fragment += ch
           }

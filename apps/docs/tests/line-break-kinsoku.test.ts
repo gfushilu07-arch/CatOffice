@@ -59,10 +59,10 @@ describe('simulateLines kinsoku', () => {
     expect(LINES('가나다라마바。', 70)).toEqual(['가나다라마바。'])
   })
 
-  it('hard-breaks an over-wide keep-all run width-only (documented follow-up)', () => {
-    // The hard-break fragmenter does not apply kinsoku yet; the closing mark
-    // lands at the start of the second line.
-    expect(LINES('가나다라마바사。', 70)).toEqual(['가나다라마바사', '。'])
+  it('applies kinsoku to hard-broken keep-all runs too', () => {
+    // The closing mark must not start the second fragment, so the last hangul
+    // syllable is pulled down with it.
+    expect(LINES('가나다라마바사。', 70)).toEqual(['가나다라마바', '사。'])
   })
 
   it('keeps plain CJK wrapping unchanged', () => {
