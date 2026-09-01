@@ -4,6 +4,12 @@ name: CI
 # all workspaces, and the full unit-test suite (engine packages and app tests; the
 # sheets suite also runs the Rust xlsx-sidecar tests). Packaging/signing is handled
 # by separate release automation — this workflow never builds installers.
+#
+# Install uses pnpm (the workspace's actual package manager; see .npmrc). The
+# npm package-lock.json stays in the repo on purpose: tools/check-licenses.mjs and
+# tools/gen-third-party-notices.mjs read it as the dependency manifest for the
+# license gates (docs/catoffice/upstream-sync.md) — refresh it with
+# `npm install --package-lock-only --ignore-scripts` after dependency changes.
 
 on:
   push:
@@ -29,12 +35,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Rust
         # SHA-pinned (third-party action); the ref no longer selects the
@@ -49,7 +60,7 @@ jobs:
           workspaces: apps/sheets/native/xlsx-engine
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Check dependency licenses
         run: npm run licenses
@@ -112,21 +123,32 @@ jobs:
           npm run fixtures -w @genoffice/sheets
           npm run compat -w @genoffice/sheets
 
-  e2e:
-    # 22.04, not -latest: 24.04's AppArmor hardening blocks Electron renderer
-    # spawn under xvfb even with --no-sandbox and the userns sysctl lifted
-    runs-on: ubuntu-22.04
-    timeout-minutes: 45
+  test-windows:
+    # W2 (docs/catoffice/cross-platform-plan.md): first cross-platform test job.
+    # continue-on-error keeps the gate green while Windows-only fallout (path
+    # separators, script chains, MSVC-only assumptions) is shaken out; flip it
+    # off once the job has been green on main for two consecutive weeks.
+    runs-on: windows-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable branch, 2026-07
@@ -139,7 +161,47 @@ jobs:
           workspaces: apps/sheets/native/xlsx-engine
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+  e2e:
+    # 22.04, not -latest: 24.04's AppArmor hardening blocks Electron renderer
+    # spawn under xvfb even with --no-sandbox and the userns sysctl lifted
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable branch, 2026-07
+        with:
+          toolchain: stable
+
+      - name: Cache cargo (xlsx-sidecar)
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: apps/sheets/native/xlsx-engine
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build apps
         run: npm run build:all

@@ -1,0 +1,334 @@
+{
+  "single": {
+    "SimSun": {
+      "chain": "'SimSun','GenOffice Songti SC','STSong','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "宋体": {
+      "chain": "'宋体','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "NSimSun": {
+      "chain": "'NSimSun','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "新宋体": {
+      "chain": "'新宋体','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "SimHei": {
+      "chain": "'SimHei','Heiti SC','STHeiti','PingFang SC','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "黑体": {
+      "chain": "'黑体','Heiti SC','STHeiti','SimHei','PingFang SC','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "KaiTi": {
+      "chain": "'KaiTi','STKaiti','Kaiti SC','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "楷体": {
+      "chain": "'楷体','STKaiti','Kaiti SC','KaiTi','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "FangSong": {
+      "chain": "'FangSong','STFangsong','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "仿宋": {
+      "chain": "'仿宋','STFangsong','FangSong','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "楷体_GB2312": {
+      "chain": "'楷体_GB2312','Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.7143,
+      "cjkFactor": null
+    },
+    "FangSong_GB2312": {
+      "chain": "'FangSong_GB2312','STFangsong','FangSong','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "STZhongsong": {
+      "chain": "'STZhongsong','Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.725,
+      "cjkFactor": null
+    },
+    "华文中宋": {
+      "chain": "'华文中宋','STZhongsong','Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.725,
+      "cjkFactor": null
+    },
+    "Microsoft YaHei": {
+      "chain": "'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.7143,
+      "cjkFactor": null
+    },
+    "微软雅黑": {
+      "chain": "'微软雅黑','Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.7143,
+      "cjkFactor": null
+    },
+    "DengXian": {
+      "chain": "'DengXian','PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.36,
+      "cjkFactor": null
+    },
+    "等线": {
+      "chain": "'等线','DengXian','PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.36,
+      "cjkFactor": null
+    },
+    "等线 Light": {
+      "chain": "'等线 Light','DengXian','PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.36,
+      "cjkFactor": null
+    },
+    "PMingLiU": {
+      "chain": "'PMingLiU','GenOffice MingLiU','GenOffice Fullwidth TC','Songti TC','Noto Serif TC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "細明體": {
+      "chain": "'細明體','GenOffice MingLiU','GenOffice Fullwidth TC','Songti TC','Noto Serif TC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "MingLiU": {
+      "chain": "'MingLiU','GenOffice MingLiU','GenOffice Fullwidth TC','Songti TC','Noto Serif TC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "Microsoft JhengHei": {
+      "chain": "'Microsoft JhengHei','PingFang TC','GenOffice Heiti TC','Noto Sans TC',sans-serif",
+      "lineHeightFactor": 1.775,
+      "cjkFactor": null
+    },
+    "微軟正黑體": {
+      "chain": "'微軟正黑體','Microsoft JhengHei','PingFang TC','GenOffice Heiti TC','Noto Sans TC',sans-serif",
+      "lineHeightFactor": 1.775,
+      "cjkFactor": null
+    },
+    "DFKai-SB": {
+      "chain": "'DFKai-SB','GenOffice MingLiU','GenOffice Fullwidth TC','Songti TC','Noto Serif TC',serif",
+      "lineHeightFactor": 1.775,
+      "cjkFactor": null
+    },
+    "標楷體": {
+      "chain": "'標楷體','GenOffice MingLiU','GenOffice Fullwidth TC','Songti TC','Noto Serif TC',serif",
+      "lineHeightFactor": 1.775,
+      "cjkFactor": null
+    },
+    "Yu Gothic": {
+      "chain": "'Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif",
+      "lineHeightFactor": 1.44,
+      "cjkFactor": null
+    },
+    "游ゴシック": {
+      "chain": "'游ゴシック','Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif",
+      "lineHeightFactor": 1.44,
+      "cjkFactor": null
+    },
+    "Yu Mincho": {
+      "chain": "'Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif",
+      "lineHeightFactor": 1.44,
+      "cjkFactor": null
+    },
+    "游明朝": {
+      "chain": "'游明朝','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif",
+      "lineHeightFactor": 1.44,
+      "cjkFactor": null
+    },
+    "Meiryo": {
+      "chain": "'Meiryo','Yu Gothic','GenOffice Hiragino Sans','Noto Sans JP',sans-serif",
+      "lineHeightFactor": 1.9429,
+      "cjkFactor": null
+    },
+    "メイリオ": {
+      "chain": "'メイリオ','Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif",
+      "lineHeightFactor": 1.9429,
+      "cjkFactor": null
+    },
+    "MS Mincho": {
+      "chain": "'MS Mincho','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "ＭＳ 明朝": {
+      "chain": "'ＭＳ 明朝','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "MS Gothic": {
+      "chain": "'MS Gothic','Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "Malgun Gothic": {
+      "chain": "'Malgun Gothic','GenOffice Sans KR','Apple SD Gothic Neo','Noto Sans KR',sans-serif",
+      "lineHeightFactor": 1.7371,
+      "cjkFactor": null
+    },
+    "맑은 고딕": {
+      "chain": "'맑은 고딕','Malgun Gothic','GenOffice Sans KR','Apple SD Gothic Neo','Noto Sans KR',sans-serif",
+      "lineHeightFactor": 1.7371,
+      "cjkFactor": null
+    },
+    "Batang": {
+      "chain": "'Batang','GenOffice Batang','GenOffice Serif KR','GenOffice Myungjo','Noto Serif KR',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "바탕": {
+      "chain": "'바탕','GenOffice Batang','GenOffice Serif KR','GenOffice Myungjo','Noto Serif KR',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "Gulim": {
+      "chain": "'Gulim','Malgun Gothic','GenOffice Sans KR','Apple SD Gothic Neo','Noto Sans KR',sans-serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "굴림": {
+      "chain": "'굴림','Malgun Gothic','GenOffice Sans KR','Apple SD Gothic Neo','Noto Sans KR',sans-serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "Gungsuh": {
+      "chain": "'Gungsuh','Courier New','GungSeo','GenOffice Batang','GenOffice Serif KR','GenOffice Myungjo','Noto Serif KR',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "궁서": {
+      "chain": "'궁서','Courier New','GungSeo','GenOffice Batang','GenOffice Serif KR','GenOffice Myungjo','Noto Serif KR',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "NanumGothic": {
+      "chain": "'NanumGothic','GenOffice Gothic KR','Malgun Gothic','GenOffice Sans KR','Apple SD Gothic Neo','Noto Sans KR',sans-serif",
+      "lineHeightFactor": 1.495,
+      "cjkFactor": null
+    },
+    "Noto Sans CJK SC": {
+      "chain": "'GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": 1.3029
+    },
+    "Noto Serif CJK SC": {
+      "chain": "'GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": 1.3029
+    },
+    "Noto Sans SC": {
+      "chain": "'Noto Sans SC','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": 1.3029
+    },
+    "Noto Sans TC": {
+      "chain": "'Noto Sans TC','GenOffice MingLiU','GenOffice Fullwidth TC','Songti TC','Noto Serif TC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": 1.3029
+    },
+    "Noto Serif JP": {
+      "chain": "'Noto Serif JP','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": 1.3029
+    },
+    "Noto Sans KR": {
+      "chain": "'Noto Sans KR','KR Theme Latin GO','GenOffice Batang','GenOffice Serif KR','GenOffice Myungjo','Noto Serif KR',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": 1.3029
+    },
+    "Source Han Sans SC": {
+      "chain": "'Source Han Sans SC','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": 1.3029
+    },
+    "Source Han Serif SC": {
+      "chain": "'Source Han Serif SC','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": 1.3029
+    },
+    "方正小标宋简体": {
+      "chain": "'方正小标宋简体','Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.7143,
+      "cjkFactor": null
+    },
+    "华文楷体": {
+      "chain": "'华文楷体','STKaiti','Kaiti SC','KaiTi','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "思源黑体": {
+      "chain": "'思源黑体','Heiti SC','STHeiti','SimHei','PingFang SC','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.3029,
+      "cjkFactor": null
+    },
+    "Calibri": {
+      "chain": "'Calibri','Carlito GO','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.22,
+      "cjkFactor": null
+    },
+    "Aptos": {
+      "chain": "'Aptos','Calibri','Carlito GO','GenOffice PUA Blank','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.22,
+      "cjkFactor": null
+    },
+    "Times New Roman": {
+      "chain": "'Times New Roman','Liberation Serif','GenOffice Box Drawing','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.15,
+      "cjkFactor": null
+    },
+    "Arial": {
+      "chain": "'Arial','Liberation Sans','Noto Sans CJK SC',sans-serif",
+      "lineHeightFactor": 1.15,
+      "cjkFactor": null
+    },
+    "Cambria": {
+      "chain": "'Cambria','Caladea','GenOffice Box Drawing','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Cambria Math": {
+      "chain": "'Cambria Math','STIX Two Math','Caladea','Liberation Serif','GenOffice Box Drawing','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Consolas": {
+      "chain": "'Consolas','Menlo','Courier New','Liberation Mono','Noto Sans CJK SC',monospace",
+      "lineHeightFactor": 1.1667,
+      "cjkFactor": null
+    },
+    "Palatino Linotype": {
+      "chain": "'Palatino Linotype','Palatino','Book Antiqua','GenOffice Box Drawing','Noto Serif CJK SC',serif",
+      "lineHeightFactor": 1.35,
+      "cjkFactor": null
+    },
+    "Hexa Gonic Pro": {
+      "chain": "'Hexa Gonic Pro','Noto Sans CJK GO','GenOffice PUA Blank',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    }
+  },
+  "dual": {
+    "Times New Roman + 宋体": "'Times New Roman','Liberation Serif','GenOffice Box Drawing','Latin Serif GO','宋体','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+    "Arial + Malgun Gothic": "'Arial','Liberation Sans','Latin Sans GO','Malgun Gothic','GenOffice Sans KR','Apple SD Gothic Neo','Noto Sans KR',sans-serif",
+    "Calibri + Yu Mincho": "'Calibri','Carlito GO','Latin Sans GO','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif"
+  },
+  "eaOnly": {
+    "宋体": "var(--doc-latin-chain,'Latin Serif GO'),'宋体','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+    "Malgun Gothic": "var(--doc-latin-chain,'Latin Sans GO'),'Malgun Gothic','GenOffice Sans KR','Apple SD Gothic Neo','Noto Sans KR',sans-serif",
+    "Yu Gothic": "var(--doc-latin-chain,'Latin Sans GO'),'Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif"
+  }
+}

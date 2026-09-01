@@ -24,6 +24,8 @@
  */
 
 import type { DocGrid } from '@genoffice/docx-engine'
+import { fontPlatform } from './font-platform'
+import { LINUX_LINE_FACTORS } from './font-linebox-linux.generated'
 
 // ─── Font metrics interface (same interface as pptx-render/metrics.ts) ─────
 
@@ -121,6 +123,28 @@ const KO_FONT_RE =
   /malgun|맑은|batang|바탕|myeongjo|myungjo|명조|gungsuh|궁서|gulim|굴림|dotum|돋움|nanum|나눔|genoffice (sans|serif) kr|(noto|source han) (sans|serif)[^,]*\bk(r|orean)?\b/i
 
 /**
+ * Linux profile factor: the measured Blink line box of the first FILE-BACKED
+ * bundled family on the font's linux chain (tools/measure-font-linebox.mjs).
+ * local()-only aliases are absent from the measured table, so the lookup skips
+ * them exactly like the renderer does — a chain ending at the bundled Noto CJK
+ * SC subsets yields 1.4, KR subsets 1.22, Latin faces 1.15. Null on non-linux
+ * profiles or chains reaching no measured family.
+ */
+function linuxChainFactor(fontFamily: string): number | null {
+  if (fontPlatform() !== 'linux') return null
+  try {
+    for (const fam of cssFontFamily(fontFamily).split(',')) {
+      const name = fam.trim().replace(/^'/, '').replace(/'$/, '')
+      const factor = LINUX_LINE_FACTORS[name]
+      if (factor !== undefined) return factor
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+/**
  * Per-font single-spacing line-height factor. Re-baselined against Word for
  * Mac (batch probe 2026-08-13: docx per family/size converted by installed
  * Word, baseline pitch measured from the PDF). Latin faces matched the old
@@ -128,8 +152,17 @@ const KO_FONT_RE =
  * with its own bundled faces (SimSun/Batang/PMingLiU at 1.3029, Malgun
  * 1.7371, Meiryo 1.9429, YaHei 1.7143, Yu 1.44) instead of the macOS
  * substitutes LO measured. Unprobed names keep their LO values until probed.
+ *
+ * Linux profile: the declared face is usually absent and rendering lands on
+ * the bundled @font-face families, whose real Blink line boxes
+ * (linuxChainFactor) are what both the editing canvas and the paginated model
+ * must agree on — the Word-for-Mac values would describe a font that never
+ * renders there. Windows keeps the mac-probed values until its own Word
+ * probes land (T2).
  */
 export function lineHeightFactor(fontFamily: string): number {
+  const linuxFactor = linuxChainFactor(fontFamily)
+  if (linuxFactor !== null) return linuxFactor
   const f = fontFamily.toLowerCase()
   // Aptos (M365 cloud face): Word probe 2026-08-22 measured 1.22, same as Calibri
   if (f.includes('aptos')) return 1.22
@@ -303,6 +336,10 @@ export function cjkDeclaredLineFactor(fontFamily: string): number | null {
   )
   if (!m) return null
   if (m[1] === 'kr') return lineHeightFactor(fontFamily)
+  // linux: the declared Noto/Source Han face renders as itself when installed,
+  // else through the bundled subset — either way the measured line box applies
+  const linuxFactor = linuxChainFactor(fontFamily)
+  if (linuxFactor !== null) return linuxFactor
   return 1.3029
 }
 
@@ -694,7 +731,13 @@ export function cssFontFamily(font: string, followAltName = true): string {
     nfkc,
   )
   if (cjkVariant) {
-    const serif = /serif/i.test(cjkVariant[1]) || missingLocally()
+    // Bundled faces are last-resort subsets: on macOS they must not shadow the
+    // wholesale substitution Word applies to a missing EA font (literal head
+    // dropped, class forced to the substituted serif). Windows and Linux keep
+    // the literal head — native on Windows, an installed Noto on Linux — and
+    // the DECLARED class decides serif/sans there.
+    const macSubstitution = fontPlatform() === 'darwin'
+    const serif = /serif/i.test(cjkVariant[1]) || (macSubstitution && missingLocally())
     const region = cjkVariant[2].toLowerCase()
     const chainFor =
       region === 'jp'
@@ -712,8 +755,7 @@ export function cssFontFamily(font: string, followAltName = true): string {
             : serif
               ? TC_SERIF
               : TC_SANS
-    // a bundled face at the chain head would win over the substitution; it stays only as the tail safety net
-    const head = isBundledFont(font) ? [] : [font]
+    const head = macSubstitution && isBundledFont(font) ? [] : [font]
     // missing KR names: Word moves Latin/digits to the theme Latin face while
     // hangul stays Batang (M3 probe sample 13); the alias claims printable
     // ASCII only, everything else falls through per glyph. Installed names and
@@ -1005,6 +1047,8 @@ export function paraLineFactorCss(text: string): string {
 /** --doc-line-factor-kr source: the document's East Asian face when Korean, else the Batang-class default */
 export function krLineFactor(fontFamily: string | undefined): number {
   if (!fontFamily) return 1.3029
+  const linuxFactor = linuxChainFactor(fontFamily)
+  if (linuxFactor !== null) return linuxFactor
   const krName = krNameLineFactor(fontFamily)
   if (krName !== null) return krName
   return isKoreanFontName(fontFamily) ? lineHeightFactor(fontFamily) : 1.3029

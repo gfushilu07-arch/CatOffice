@@ -1,0 +1,131 @@
+{
+  "_meta": {
+    "tool": "tools/measure-font-linebox.mjs",
+    "method": "single-line div, line-height:normal, font-size 100px; canvas fontBoundingBox cross-check",
+    "chromium": "151.0.7922.34",
+    "measuredOn": "darwin",
+    "note": "Ratios are properties of the bundled font files as laid out by Blink. The linux table is generated from the file-backed families that a bare Linux host reaches; regenerate after touching fonts.css."
+  },
+  "families": [
+    {
+      "name": "Noto Sans CJK SC",
+      "cjk": true,
+      "loaded": true,
+      "domRatio": 1.4,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "Noto Serif CJK SC",
+      "cjk": true,
+      "loaded": true,
+      "domRatio": 1.4,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "GenOffice Sans KR",
+      "cjk": true,
+      "loaded": true,
+      "domRatio": 1.22,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "GenOffice Serif KR",
+      "cjk": true,
+      "loaded": true,
+      "domRatio": 1.22,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "GenOffice Gothic KR",
+      "cjk": true,
+      "loaded": true,
+      "domRatio": 1.22,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "GenOffice Fullwidth TC",
+      "cjk": true,
+      "loaded": true,
+      "domRatio": 1.4,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "GenOffice Che Latin KR",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "Latin Sans GO",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "Latin Serif GO",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "KR Theme Latin GO",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "Carlito GO",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "Liberation Serif",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "Liberation Sans",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "Liberation Mono",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    },
+    {
+      "name": "Caladea",
+      "cjk": false,
+      "loaded": true,
+      "domRatio": 1.15,
+      "bboxRatio": 1.15,
+      "ascentRatio": 0.9
+    }
+  ]
+}

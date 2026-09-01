@@ -2,7 +2,7 @@
 
 基于开源项目 [GenOffice](https://github.com/genspark-ai/genoffice)（Apache-2.0）二次开发的 AI 原生办公套件。品牌为「办公猫 / Cat Office」，上游为 GenOffice / Mainfunc, Inc.（商标归其所有，本项目按其 LICENSE 要求使用自己的品牌）。
 
-**产品路线**：以 [docs/catoffice/product-plan.md](docs/catoffice/product-plan.md) 为战略基准（v0.1 规划稿）。仓库现状与规划的对照见文末「Phase 0 差距看板」。品牌决策（2026-08-27）：中文名 **办公猫**，英文名 **CatOffice**。云端后端使用自研 **Catspark**（Rust/axle 研发）：功能清单见 [docs/catoffice/catspark-feature-list.md](docs/catoffice/catspark-feature-list.md)，客户端对接契约见 [docs/catoffice/catspark-integration.md](docs/catoffice/catspark-integration.md)，上游同步策略见 [docs/catoffice/upstream-sync.md](docs/catoffice/upstream-sync.md)，依赖许可证审计见 [docs/catoffice/license-audit.md](docs/catoffice/license-audit.md)。
+**产品路线**：以 [docs/catoffice/product-plan.md](docs/catoffice/product-plan.md) 为战略基准（v0.1 规划稿）。仓库现状与规划的对照见文末「Phase 0 差距看板」。品牌决策（2026-08-27）：中文名 **办公猫**，英文名 **CatOffice**。云端后端使用自研 **Catspark**（Rust/axle 研发）：功能清单见 [docs/catoffice/catspark-feature-list.md](docs/catoffice/catspark-feature-list.md)，客户端对接契约见 [docs/catoffice/catspark-integration.md](docs/catoffice/catspark-integration.md)，跨平台（macOS/Windows/Linux）与中文排版的开发顺序见 [docs/catoffice/cross-platform-plan.md](docs/catoffice/cross-platform-plan.md)，上游同步策略见 [docs/catoffice/upstream-sync.md](docs/catoffice/upstream-sync.md)，依赖许可证审计见 [docs/catoffice/license-audit.md](docs/catoffice/license-audit.md)。
 
 ## 本地约定
 
@@ -76,7 +76,7 @@ pnpm run notices                  # 重新生成安装包内 THIRD-PARTY-NOTICES
 | 接国产模型 + 本地端点                         | ◐ 部分继承  | ai-provider BYOK 已含 DeepSeek/Qwen/GLM/Kimi 等；provider 显示名已切 Catspark，企业网关模式由 catspark 配置承担                                                                                                                                                |
 | 依赖许可证审计（Univer/Tiptap Pro/字体/WASM） | ✅ 已完成   | 结论绿灯：314 npm 包 + 144 crate 全过门禁，IronCalc 为 MIT OR Apache-2.0；PDFium 归属缺口已修复；黄灯过渡项与律师清单见 [docs/catoffice/license-audit.md](docs/catoffice/license-audit.md)；Noto CJK 确认为 OFL 子集内嵌于 apps/docs、apps/slides 渲染资产     |
 | Compat Lab 黄金语料                           | ✅ 框架落地 | `compat/golden/` 10 个必过文件 + 20 条 vitest 门禁（读取快照 + pptx/pdf 往返 + xlsx 重建一致），随 `pnpm test` 执行；详见 [compat/README.md](compat/README.md)；真实世界脏样本为后续扩充方向                                                                   |
-| 中文排版引擎层（避头尾/标点挤压/回退链）      | ⬜ 未做     | i18n 文案中文已全量（strings.ts zh-CN/zh-TW）；`apps/docs/src/renderer/line-metrics.ts` 已有字体回退链骨架（GenOffice Sans/Songti 等），是中文排版的挂载点                                                                                                     |
+| 中文排版引擎层（避头尾/标点挤压/回退链）      | ◐ 约半完成 | 字体回退链（mac 替换链 + fonts.css 69 个子集兜底）、Word 级行高引擎（docGrid 吸附/三行距规则）、中西文自动间距、离线分页断行模拟已落地；**剩余**：首行缩进字符单位、避头尾进 Docs（分页模拟无禁则）、标点挤压（全库零实现）、三平台基线（现仅 mac probe；Windows 字面命中 / Linux bundled 兜底）——任务书见 [docs/catoffice/cross-platform-plan.md](docs/catoffice/cross-platform-plan.md) |
 | ee/ 企业许可隔离                              | ✅ 无风险   | `ee/` 仅含 LICENSE+README，无代码、不在 workspace 构建路径                                                                                                                                                                                                     |
 
 > 基线勘误：规划稿假设上游「v0.4.x Alpha」，实际基线为 2026-08-26 snapshot（shell v0.8.0），较规划假设新——部分 Alpha 缺口可能已收窄，执行前应先以本基线复测。
