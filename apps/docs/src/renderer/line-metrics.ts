@@ -12,6 +12,10 @@
  *   - Latin text breaks greedily by word (breakable at whitespace)
  *   - CJK breaks per character (Unicode CJK ranges)
  *   - Mixed text splits by Unicode segments (same logic as text-layout.ts, simplified port)
+ *   - Kinsoku (line prohibition, sets shared with the pptx text layout): a
+ *     closing mark never starts a line and an opening bracket never ends one;
+ *     CJK predecessors are pulled to the next line, and a run hangs overfull
+ *     when no interior break exists
  *
  * Line-height semantics (Word's three modes):
  *   - auto    = multiple spacing; single = font natural line height (ascent+descent+lineGap)
@@ -23,9 +27,10 @@
  *   - space-before/space-after keep their face value (Word does not grid-snap them)
  */
 
-import type { DocGrid } from '@genoffice/docx-engine'
 import { fontPlatform } from './font-platform'
 import { LINUX_LINE_FACTORS } from './font-linebox-linux.generated'
+import type { DocGrid } from '@genoffice/docx-engine'
+import { isKinsokuNoEnd, isKinsokuNoStart } from '@genoffice/pptx-render/kinsoku'
 
 // ─── Font metrics interface (same interface as pptx-render/metrics.ts) ─────
 
@@ -1416,8 +1421,41 @@ export function simulateLines(
         flushWord()
         const cw = metrics.measure(ch, style)
         if (curLineW + cw > availWidthPx && curLineW > 0) {
+          // Kinsoku — same rule as the pptx text layout: a forbidden-start char
+          // must not begin the new line and a forbidden-end char must not end
+          // the old one. Pull CJK predecessors down to the next line instead of
+          // hanging into the margin. Only CJK predecessors participate: pulling
+          // out of a Latin word or the keep-all buffer needs word-level re-flow
+          // and is left to follow-ups.
+          const pending: string[] = [ch]
+          let pendingW = cw
+          while (curLineW > 0) {
+            const head = pending[0]!
+            const lastCp = lastCodePoint(curText)
+            if (!isCjk(lastCp)) break
+            const lastChar = String.fromCodePoint(lastCp)
+            if (!isKinsokuNoStart(head) && !isKinsokuNoEnd(lastChar)) break
+            const lastW = metrics.measure(lastChar, style)
+            curText = curText.slice(0, curText.length - lastChar.length)
+            curLineW -= lastW
+            pending.unshift(lastChar)
+            pendingW += lastW
+          }
+          if (curText === '') {
+            // a single-CJK-char line pulled empty: no break exists between the
+            // chars — let the run hang slightly overfull (Word's punctuation
+            // overflow) rather than emit an empty line
+            curLineW = pendingW
+            curText = pending.join('')
+            curLineH = Math.max(curLineH, cjkH)
+            continue
+          }
           pushLine(Math.max(curLineH, lineH))
           curLineH = lineH
+          curLineW = pendingW
+          curText = pending.join('')
+          curLineH = Math.max(curLineH, cjkH)
+          continue
         }
         curLineW += cw
         curText += ch

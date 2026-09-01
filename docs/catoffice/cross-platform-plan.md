@@ -11,6 +11,7 @@
 | 2026-08-31 | **T1 完成** | `apps/docs/tests/font-chain-matrix.test.ts`：63 项语料（GB 经典/微软现代/繁/日/韩/Noto/思源/中文厂商名/西文锚点/未知名）× `cssFontFamily`/双槽/EA-only/行高因子，按 `darwin/win32/linux` 三平台快照分桶（`UPDATE_FONT_SNAPSHOTS=1` 再生）；单次运行用 profile 覆盖生成全部三份（任意主机可再生成），另有 win32 字面命中 / linux bundled 兜底两条结构不变量断言 |
 | 2026-08-31 | **T4 完成（第一刀）** | 新增 `apps/docs/src/renderer/font-platform.ts` seam（`fontPlatform()` 推断 + `setFontPlatform()` 测试覆盖 + `WINDOWS_NATIVE_FONTS` 清单）；`line-metrics.ts` 的 cjkVariant 分支接入平台分派：darwin 保持 wholesale 替换（快照逐字节冻结验证），win32/linux 保留字面链头、由声明类决定 serif/sans——修复了 bundled Noto 名在所有平台被降级到替换类的问题；平台分派语义单测 `font-platform.test.ts`。行高因子暂保持平台共享（等 T2/T3 基线） |
 | 2026-08-31 | **T3 完成（测量+接线）** | `tools/measure-font-linebox.mjs`：Playwright 实测 bundled 字体在 Blink 的行盒比例（15 族，单行 div/100px/line-height:normal），产出 fixture + 生成表 `font-linebox-linux.generated.ts`；`linuxChainFactor()` = 字体链上第一个 file-backed bundled 字体的实测值（local() 别名不在表内自然跳过），注入 `lineHeightFactor` / `cjkDeclaredLineFactor` / `krLineFactor` 三入口——Linux 分页/画布因子与真实渲染面对齐（CJK 1.40、KR 1.22、Latin 1.15），darwin/win32 不受影响（快照验证）。**待续**：在真 Linux CI 上重跑测量工具校验跨平台一致性（mac FreeType/CoreText 差异） |
+| 2026-08-31 | **T6 完成（第一刀）** | 禁则集抽成共享模块 `packages/pptx-render/src/kinsoku.ts`（子路径 `@genoffice/pptx-render/kinsoku`，pptx text-layout 与 docs 共用单一数据源）；离线分页 `simulateLines` 接入拉下式避头尾：行首禁闭符号/行尾禁开括号 → CJK 前驱下拉（与 pptx 布局同语义），单字行无法内断时悬挂溢出而非空行；9 个单元场景锁定行为（含 Latin 词不拉、段首豁免、keep-all 路径不动的边界）。**待续**：keep-all 硬断行的禁则、悬挂/挤压两种行尾策略与编辑画布 `line-break` 选型的一致性校验（归入 T5/T6 后续） |
 
 ## 一、基线盘点：已经有什么
 

@@ -489,14 +489,11 @@ function symbolBulletText(font: string | undefined, char: string): string | unde
 }
 
 // ── East-Asian kinsoku (PowerPoint default rules) ───────────────────
-// Closing marks / small kana must not begin a line; opening brackets must not end one.
+// Sets live in ./kinsoku (shared with the docs offline pagination model).
 // Only single-grapheme tokens participate (CJK tokenization emits one token per wide char).
-const KINSOKU_NO_START = new Set(
-  '、。々,.!?:;)]}%，．！？：；）］｝％〉》」』】〕〟｡｣､･ｰﾞﾟ・ーぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶ゛゜ゝゞヽヾ',
-)
-const KINSOKU_NO_END = new Set('([{$（［｛＄〈《「『【〔〝｢£¥￡￥')
-const kinsokuNoStart = (t: Token) => KINSOKU_NO_START.has(t.text)
-const kinsokuNoEnd = (t: Token) => KINSOKU_NO_END.has(t.text)
+import { isKinsokuNoEnd, isKinsokuNoStart } from './kinsoku'
+const kinsokuNoStart = (t: Token) => isKinsokuNoStart(t.text)
+const kinsokuNoEnd = (t: Token) => isKinsokuNoEnd(t.text)
 
 /** Southeast Asian scripts without spaces (Thai/Burmese/Khmer/Lao); word boundaries need ICU dictionary segmentation. */
 const SEA_RE = /[฀-໿က-႟ក-៿]/
