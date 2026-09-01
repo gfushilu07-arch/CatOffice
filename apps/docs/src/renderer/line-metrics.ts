@@ -29,6 +29,7 @@
 
 import { fontPlatform } from './font-platform'
 import { LINUX_LINE_FACTORS } from './font-linebox-linux.generated'
+import { squeezeRightsEm } from './punctuation-squeeze'
 import type { DocGrid } from '@genoffice/docx-engine'
 import { isKinsokuNoEnd, isKinsokuNoStart } from '@genoffice/pptx-render/kinsoku'
 
@@ -1383,7 +1384,10 @@ export function simulateLines(
       buf = ''
     }
 
-    for (const ch of run.text) {
+    const runChars = [...run.text]
+    const runSqueeze = squeezeRightsEm(run.text)
+    for (let ci = 0; ci < runChars.length; ci++) {
+      const ch = runChars[ci]!
       const cp = ch.codePointAt(0) ?? 0
       if (ch === '\n') {
         flushWord()
@@ -1420,7 +1424,13 @@ export function simulateLines(
         }
         flushWord()
         const cw = metrics.measure(ch, style)
-        if (curLineW + cw > availWidthPx && curLineW > 0) {
+        // Punctuation compression (same rule as PunctSqueezeExtension on the
+        // canvas): a closing mark followed by another closing mark gives up its
+        // trailing half. Look-ahead stays inside the run, matching the
+        // decoration pass which only sees per-node adjacency.
+        const squeezeEm = runSqueeze[ci] ?? 0
+        const adv = cw + squeezeEm * style.fontSizePx
+        if (curLineW + adv > availWidthPx && curLineW > 0) {
           // Kinsoku — same rule as the pptx text layout: a forbidden-start char
           // must not begin the new line and a forbidden-end char must not end
           // the old one. Pull CJK predecessors down to the next line instead of
@@ -1428,7 +1438,6 @@ export function simulateLines(
           // out of a Latin word or the keep-all buffer needs word-level re-flow
           // and is left to follow-ups.
           const pending: string[] = [ch]
-          let pendingW = cw
           while (curLineW > 0) {
             const head = pending[0]!
             const lastCp = lastCodePoint(curText)
@@ -1439,25 +1448,31 @@ export function simulateLines(
             curText = curText.slice(0, curText.length - lastChar.length)
             curLineW -= lastW
             pending.unshift(lastChar)
-            pendingW += lastW
           }
+          // carried chars keep their compression relative to the pending run
+          const pendingJoined = pending.join('')
+          const pendingSqueeze = squeezeRightsEm(pendingJoined)
+          const pendingW = pending.reduce(
+            (sum, c, k) => sum + metrics.measure(c, style) + (pendingSqueeze[k] ?? 0) * style.fontSizePx,
+            0,
+          )
           if (curText === '') {
             // a single-CJK-char line pulled empty: no break exists between the
             // chars — let the run hang slightly overfull (Word's punctuation
             // overflow) rather than emit an empty line
             curLineW = pendingW
-            curText = pending.join('')
+            curText = pendingJoined
             curLineH = Math.max(curLineH, cjkH)
             continue
           }
           pushLine(Math.max(curLineH, lineH))
           curLineH = lineH
           curLineW = pendingW
-          curText = pending.join('')
+          curText = pendingJoined
           curLineH = Math.max(curLineH, cjkH)
           continue
         }
-        curLineW += cw
+        curLineW += adv
         curText += ch
         curLineH = Math.max(curLineH, cjkH)
         continue

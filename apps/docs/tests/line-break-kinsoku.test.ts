@@ -30,8 +30,8 @@ describe('simulateLines kinsoku', () => {
   })
 
   it('pulls a run of predecessors for consecutive closing marks', () => {
-    // 」 would start the new line; pulling ） still leaves ） forbidden, so 六
-    // comes down too
+    // The ideographic comma would start the new line; pulling the preceding
+    // closing mark still leaves a forbidden head, so one more char comes down.
     expect(LINES('一二三四五六）」')).toEqual(['一二三四五', '六）」'])
   })
 
@@ -46,8 +46,8 @@ describe('simulateLines kinsoku', () => {
   })
 
   it('hangs when a single CJK char plus a closing mark cannot be split', () => {
-    // Pulling 一 would empty the line — the run stays overfull on one line
-    // instead of emitting an empty first line.
+    // Pulling the only CJK char would empty the line — the run stays overfull
+    // on one line instead of emitting an empty first line.
     expect(LINES('一。', 10)).toEqual(['一。'])
   })
 

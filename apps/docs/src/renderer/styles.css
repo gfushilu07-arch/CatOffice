@@ -9911,3 +9911,12 @@ tr > .page-gap-cut {
 .doc-page span[data-doc-style]:has(.doc-ws-run) span {
   line-height: 0;
 }
+
+/* ---- punctuation compression (T5) -------------------------------- */
+/* Consecutive fullwidth closing marks: every member but the last gives up
+   its trailing half (Word CJK default). The var is set per char by the
+   punctSqueeze decorations; the offline pagination model applies the same
+   rule in simulateLines. */
+..doc-punct-squeeze {
+  margin-right: calc(var(--doc-squeeze-em, 0) * 1em);
+}

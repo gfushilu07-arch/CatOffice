@@ -5,6 +5,7 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { isInTable } from '@tiptap/pm/tables'
 import { t } from '../i18n/locale'
 import { type TabStop } from '@genoffice/docx-engine'
+import { squeezeRightsEm } from '../punctuation-squeeze'
 
 /**
  * Custom schema mirroring the docx-engine Block model 1:1.
@@ -973,6 +974,58 @@ export const PPrChangeExtension = Extension.create({
               )
             })
             return decos.length > 0 ? DecorationSet.create(state.doc, decos) : DecorationSet.empty
+          },
+        },
+      }),
+    ]
+  },
+})
+
+// ── Punctuation compression (T5 phase 1) ────────────────────────────────────
+// Word's CJK default: within a run of adjacent fullwidth closing marks every
+// member except the last gives up its trailing half width. Inline decorations
+// set --doc-squeeze-em on exactly those chars; CSS turns the var into a right
+// margin. The rule lives in punctuation-squeeze.ts — the offline pagination
+// model (line-metrics simulateLines) consumes the same function, so page
+// breaks track what the canvas shows.
+
+export const PunctSqueezeExtension = Extension.create({
+  name: 'punctSqueeze',
+  addProseMirrorPlugins() {
+    const key = new PluginKey<DecorationSet>('punctSqueeze')
+    const punctSqueezeDecos = (doc: ProseMirrorNode): DecorationSet => {
+      const decos: Decoration[] = []
+      doc.descendants((node, pos) => {
+        if (!node.isText || !node.text) return true
+        const squeeze = squeezeRightsEm(node.text)
+        if (!squeeze.some((s) => s !== 0)) return true
+        const chars = [...node.text]
+        let utf16 = 0
+        for (let i = 0; i < chars.length; i++) {
+          if (squeeze[i] !== 0) {
+            decos.push(
+              Decoration.inline(pos + utf16, pos + utf16 + chars[i]!.length, {
+                class: 'doc-punct-squeeze',
+                style: '--doc-squeeze-em:-0.5',
+              }),
+            )
+          }
+          utf16 += chars[i]!.length
+        }
+        return false
+      })
+      return DecorationSet.create(doc, decos)
+    }
+    return [
+      new Plugin({
+        key,
+        state: {
+          init: (_config, state) => punctSqueezeDecos(state.doc),
+          apply: (tr, old) => (tr.docChanged ? punctSqueezeDecos(tr.doc) : old),
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state)
           },
         },
       }),
