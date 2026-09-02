@@ -26,6 +26,7 @@ export * as rebuild from './rebuild'
 export type { ConvertOptions, PageResult, IrDocument } from './pipeline'
 export { extractIrDocument } from './pipeline'
 export type { OcrEngine, OcrLine, OcrChar } from './ocr'
+export { recognizeScannedPages, type AsyncOcrEngine } from './ocr-async'
 export { convertPdfToPptx, type ConvertPptxResult } from './rebuild-pptx'
 export { convertPdfToXlsx, type ConvertXlsxResult } from './rebuild-xlsx'
 

@@ -17,7 +17,7 @@ import {
 import type { ExtractedPage, PdfiumModule } from './extract'
 import { coverageRatio, type Rect } from './geometry'
 import type { IrPage, PageBlock, TextBlock } from './ir'
-import { tryOcrScannedPage, type OcrEngine } from './ocr'
+import { tryOcrScannedPage, type OcrEngine, type OcrRecognition } from './ocr'
 
 export interface ConvertOptions {
   /** initialized @embedpdf/pdfium module (see package header comment) */
@@ -33,6 +33,15 @@ export interface ConvertOptions {
    * failure keeps today's full-page-image fallback.
    */
   ocr?: OcrEngine
+  /**
+   * Pre-recognized pages keyed by 0-based page index (L3): an ASYNC engine
+   * (CatSpark cloud OCR) cannot run inside the sync PDFium scope, so callers
+   * pre-recognize scanned pages (render outside, await, then convert) and
+   * hand the results in. Consumed before `ocr`, same gates afterwards — a
+   * missing entry or a null recognition falls back to `ocr`/bitmap exactly
+   * like a failed engine.
+   */
+  ocrRecognitions?: Map<number, OcrRecognition>
   /**
    * cell-data mode (xlsx exporter): the output carries data rows, not a page
    * facsimile, so bitmap fallbacks are pure loss. Keeps text covered by
@@ -307,11 +316,19 @@ export function extractIrDocument(pdf: Uint8Array, opts: ConvertOptions): IrDocu
         // gate failure keeps the full-page-image fallback below unchanged.
         // Recognition reads a dedicated >=3 px/pt render (~216 dpi) — the
         // scale-2 fallback render costs measurable accuracy on small print.
+        // A pre-recognized supply entry (async cloud engine, L3) wins over
+        // the sync engine; both feed the same gates.
         let ocrConfidence: number | undefined
-        if (page.scanned && opts.ocr) {
+        if (page.scanned && (opts.ocrRecognitions?.has(i) || opts.ocr)) {
           const hiRender =
             renderPageByIndexPng(m, doc, i, Math.max(opts.renderScale ?? 2, 3)) ?? undefined
-          const recovered = tryOcrScannedPage(extracted, opts.ocr, hiRender)
+          const supplied = opts.ocrRecognitions?.get(i)
+          const engine: OcrEngine = supplied !== undefined ? () => supplied : () => null
+          const recovered =
+            tryOcrScannedPage(extracted, engine, hiRender) ??
+            (supplied === undefined && opts.ocr
+              ? tryOcrScannedPage(extracted, opts.ocr, hiRender)
+              : null)
           if (recovered) {
             page = recovered.page
             ocrConfidence = recovered.confidence
