@@ -18,9 +18,9 @@ function block(partial: Omit<Block, 'id' | 'docxIndex' | 'originalXml'>): Block 
 
 const run = (text: string, extra: Partial<Run> = {}): Run => ({ text, ...extra })
 
-/** body text: 12pt (size-4 小四), default face — everyday office typography */
+/** body text: 12pt (the Chinese "size-4" office standard), default face */
 const BODY_HALF_POINTS = 24
-/** headings: 16pt (size-3 三号) */
+/** headings: 16pt (the Chinese "size-3" office standard) */
 const HEAD_HALF_POINTS = 32
 /** 2-char first-line indent at 12pt = 480 twips */
 const TWO_CHAR_TWIPS = 480
