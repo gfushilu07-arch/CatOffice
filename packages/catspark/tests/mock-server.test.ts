@@ -238,3 +238,15 @@ describe('asset center mock (A2)', () => {
     }
   })
 })
+
+describe('asset center query contract (A3)', () => {
+  it('filters by category and searches label/description', async () => {
+    const category = await fetch(`${mock.origin}/api/asset_center/templates?category=govt`)
+    expect(((await category.json()) as { templates: unknown[] }).templates.length).toBeGreaterThanOrEqual(5)
+    const search = await fetch(`${mock.origin}/api/asset_center/templates?q=${encodeURIComponent('会议')}`)
+    const hits = (await search.json()) as { templates: Array<{ id: string }> }
+    expect(hits.templates.map((t) => t.id)).toContain('minutes')
+    const none = await fetch(`${mock.origin}/api/asset_center/templates?q=${encodeURIComponent('不存在的词')}`)
+    expect(((await none.json()) as { templates: unknown[] }).templates).toHaveLength(0)
+  })
+})

@@ -38,11 +38,18 @@ export function assetCenterBase(): string {
   return v && v.trim() !== '' ? v.trim() : apiUrl('/api/asset_center')
 }
 
-/** The template gallery listing (categories in a stable order). */
-export async function listAssetTemplates(): Promise<AssetTemplateEntry[] | null> {
+/** The template gallery listing; `category` filters, `q` searches
+ * label+description (same query contract the mock serves). */
+export async function listAssetTemplates(
+  query?: { category?: string; q?: string },
+): Promise<AssetTemplateEntry[] | null> {
+  const params = new URLSearchParams()
+  if (query?.category) params.set('category', query.category)
+  if (query?.q) params.set('q', query.q)
+  const qs = params.toString()
   let res: Response
   try {
-    res = await fetch(`${assetCenterBase()}/templates`, {
+    res = await fetch(`${assetCenterBase()}/templates${qs ? `?${qs}` : ''}`, {
       headers: attributionHeaders(assetCenterBase()),
     })
   } catch {

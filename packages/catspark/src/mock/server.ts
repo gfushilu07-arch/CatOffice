@@ -272,9 +272,18 @@ function handleFileDownload(res: ServerResponse, origin: string, body: Buffer): 
  * issue and landscape-banner variants are cloud-exclusive extras exercising
  * the tiering story.
  */
-function handleAssetTemplates(res: ServerResponse): void {
-  sendJson(res, 200, {
-    templates: [
+function handleAssetTemplates(res: ServerResponse, url: URL): void {
+  const category = url.searchParams.get('category')
+  const q = url.searchParams.get('q')?.trim().toLowerCase() ?? ''
+  const entries = ASSET_TEMPLATES.filter((t) => {
+    if (category && t.category !== category) return false
+    if (q && !`${t.label} ${t.description}`.toLowerCase().includes(q)) return false
+    return true
+  })
+  sendJson(res, 200, { templates: entries })
+}
+
+const ASSET_TEMPLATES = [
       {
         id: 'notice',
         label: '通知',
@@ -338,9 +347,7 @@ function handleAssetTemplates(res: ServerResponse): void {
         downloads: 613,
         preset: { kind: 'govt', options: { title: '××文件' } },
       },
-    ],
-  })
-}
+]
 
 /**
  * Cloud OCR mock: body is the raw page PNG, response is an OcrRecognition
@@ -439,11 +446,12 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   if (path === '/api/ocr/recognize' && req.method === 'POST')
     return void handleOcrRecognize(res, body)
 
-  // asset center (A2): the template gallery listing. Entries are metadata +
+  // asset center (A2/A3): the template gallery listing. Entries are metadata +
   // a govt generation preset — the renderer applies presets locally, so
-  // there is no binary download leg.
+  // there is no binary download leg. `category` filters, `q` searches
+  // label+description (the real backend serves the same query contract).
   if (path === '/api/asset_center/templates' && req.method === 'GET')
-    return void handleAssetTemplates(res)
+    return void handleAssetTemplates(res, url)
 
   // tool_cli (contract section 3)
   if (path === '/api/tool_cli/slide_generate' && req.method === 'POST')

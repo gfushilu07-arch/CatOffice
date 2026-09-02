@@ -33,6 +33,8 @@
 | `CATSPARK_CREDIT_USAGE_URL` | 设置页打开的用量页 | `$CATSPARK_API_BASE/credit-usage` |
 | `CATSPARK_IMAGE_HOSTS` | 图片下载附加 Referer 的自定义 CDN 域名列表（逗号分隔） | — |
 | `CATSPARK_GITHUB_REPO` | GitHub 仓库（`owner/repo`）：About 页星数仓库与全部 Star CTA（设置页字段、Star 提示卡、Onboarding）的数据源；置空即全禁用 | `cat-office/catoffice` |
+| `CATSPARK_ASSET_BASE` | 素材中心目录端点（A2/A3，见第六节） | `$CATSPARK_API_BASE/api/asset_center` |
+| `CATSPARK_OCR_BASE` | 云 OCR 端点（L3，见第七节） | `$CATSPARK_API_BASE/api/ocr` |
 
 兼容性说明：旧变量 `GSK_BASE_URL`（上游 CLI 引导）仍然生效，优先级在 `CATSPARK_API_BASE` 之后。
 
@@ -80,11 +82,54 @@
 - 用量页：`creditUsageUrl()`。
 - 图片 CDN：AI 生图/搜索图落在本域或 *.genspark.ai 时会带 `Referer: {origin}/`——自有 CDN 域名用 `CATSPARK_IMAGE_HOSTS` 登记，否则裸取可能被拒。
 
+## 六、素材中心（A2/A3，客户端已就绪）
+
+实现参考：`packages/catspark/src/asset-center.ts`（客户端）、`packages/catspark/src/mock/server.ts`（mock 行为）。覆盖变量：`CATSPARK_ASSET_BASE`（默认 `$CATSPARK_API_BASE/api/asset_center`）。
+
+| 方法与路径 | 查询参数 | 必需响应字段 |
+| --- | --- | --- |
+| `GET {asset_base}/templates` | `category`（govt/business/personal，可省）· `q`（搜 label+description 子串，可省） | `{templates: AssetTemplateEntry[]}` |
+
+`AssetTemplateEntry`：
+
+```jsonc
+{
+  "id": "notice",                    // 稳定 id；与本地内置目录同 id 的条目被客户端合并去重
+  "label": "通知",
+  "description": "传达事项、布置工作",
+  "fileName": "通知",                 // 新建文件名基底
+  "category": "govt",
+  "downloads": 12890,                // 流行度展示
+  "preset": {                        // 生成预设：模板=本地生成器产出的 docx，
+    "kind": "govt",                  // 无二进制下载腿；kind 未来扩 business/personal
+    "options": { "title": "关于××的通知" }   // 传给本地生成器（govtDocBlocks）的参数
+  }
+}
+```
+
+语义要点：**云条目是元数据+生成预设**，不是文件——「下载」即客户端本地用 preset 渲染 Block[] 并落 docx。本地内置 5 品类（同 id）永远可用且置顶（离线保底），云条目只做增强或补充；客户端对任何失败（网络/非 200/坏字段）resolve `[]`/null，画廊降级显示本地层。
+
+## 七、云 OCR（L3，客户端已就绪）
+
+实现参考：`packages/pdf2docx/src/ocr-async.ts`（预识别编排）、`packages/catspark/src/ocr.ts`（请求端）、`packages/catspark/src/mock/server.ts`（mock 行为）。覆盖变量：`CATSPARK_OCR_BASE`（默认 `$CATSPARK_API_BASE/api/ocr`）。
+
+| 方法与路径 | 请求 | 必需响应字段 |
+| --- | --- | --- |
+| `POST {ocr_base}/recognize` | **body 即页面渲染 PNG**（`Content-Type: image/png`，≥3 px/pt ≈216dpi 由客户端渲染） | `OcrRecognition` JSON：`{lines: [{text, confidence(0-1), box{x0,y0,x1,y1}}], paperShare?}`；box 为 0–1 归一化、原点左下 y 向上 |
+
+语义要点：
+
+- **异步预识别**：转换管线在同步 PDFium scope 内跑，客户端先 `recognizeScannedPages()` 探出扫描页、逐页并发调本端点，再把结果作为 `ConvertOptions.ocrRecognitions` 供给同步管线——后端只需实现无状态的「一张 PNG → 一次识别」。
+- **置信度闸门在客户端**（paperShare ≥0.45、行置信度 ≥0.3、均值 ≥0.55、覆盖率与最小字符数）——后端无需把关，低质量回答会被丢弃并回退位图。
+- 失败语义：网络错误/非 200/坏 JSON 一律视为「该页无云答案」，逐页回退（本地引擎或位图），绝不阻塞其余页面。
+
 ## 五、验收
 
 1. mock 模式：`pnpm --filter @catoffice/catspark test && pnpm --filter @genoffice/ai-search test`（登录流/三协议/slide_generate 端到端 + 罐头数据分支全绿）；应用侧 `pnpm run dev` 启动后设置页登录（mock 秒批）→ 模型对话返回 `[CatSpark mock]` 演示回复 → 首页出现样例云项目。
 2. 真实网关：设 `CATSPARK_API_BASE=https://your.gateway` 跑 `pnpm --filter @catoffice/catspark exec tsc --noEmit && pnpm --filter @genoffice/ai-search test && pnpm --filter @genoffice/ai-provider test`（全部应绿：测试不依赖具体 origin，只依赖接缝语义；vitest 下 mock 默认关，回归上游语义）。
 3. 手动冒烟（真实网关）：设置页登录 → 模型对话流式输出 → PDF→Word 云转换 → 首页云项目列表。mock 模式下 PDF→Word 有意报错（见第零节）。
+4. 素材中心（A2）：mock 下 Home「公文模板」→「从模板画廊新建…」→ 画廊显示本地 5 卡 + 2 个云独占（带使用次数）；选任一卡片落地完整 GB/T 9704 骨架。`pnpm --filter @catoffice/catspark test` 覆盖列表与查询契约（category/q），`pnpm --filter @genoffice/docs test` 覆盖合并规则。
+5. 云 OCR（L3）：mock 下（或 Linux 无本地引擎自动走云）转换扫描件 PDF → 得到可编辑 docx（`apps/shell/tests/cloud-ocr.test.ts` 端到端锁定）；真实后端换 `CATSPARK_API_BASE` 后同一路径生效。
 
 ### mock 夹具再生
 
