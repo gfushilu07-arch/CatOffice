@@ -266,6 +266,28 @@ function handleFileDownload(res: ServerResponse, origin: string, body: Buffer): 
   ])
 }
 
+/**
+ * Cloud OCR mock: body is the raw page PNG, response is an OcrRecognition
+ * JSON (lines with normalized 0-1 boxes, origin bottom-left). The canned
+ * lines stand in for real recognition so the pre-recognize → supply → gates
+ * path is testable end to end against the embedded server.
+ */
+function handleOcrRecognize(res: ServerResponse, body: Buffer): void {
+  const looksLikePng = body.length > 8 && body[0] === 0x89 && body[1] === 0x50
+  if (!looksLikePng) return void sendJson(res, 400, { message: 'mock: expected a PNG body' })
+  sendJson(res, 200, {
+    lines: [
+      { text: '扫描件文字识别测试', confidence: 0.92, box: { x0: 0.1, y0: 0.85, x1: 0.55, y1: 0.88 } },
+      {
+        text: 'Recognized by the CatSpark mock OCR',
+        confidence: 0.94,
+        box: { x0: 0.1, y0: 0.8, x1: 0.6, y1: 0.82 },
+      },
+    ],
+    paperShare: 0.95,
+  })
+}
+
 /** Matched against /mock-image/{1..3}.png; keep in sync with data.ts MOCK_IMAGES. */
 function handleMockImage(res: ServerResponse, path: string): boolean {
   const m = /^\/mock-image\/([123])\.png$/.exec(path)
@@ -334,6 +356,12 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     return void handleOpenAi(res, body)
   if (path.startsWith('/api/llm_proxy/gemini/v1beta/models/') && req.method === 'POST')
     return void handleGemini(res, path, body)
+
+  // cloud OCR (L3): raw PNG in, an OcrRecognition-shaped JSON out. The mock
+  // answer is a canned scanned-page text so the whole pre-recognize path is
+  // exercisable without a real backend.
+  if (path === '/api/ocr/recognize' && req.method === 'POST')
+    return void handleOcrRecognize(res, body)
 
   // tool_cli (contract section 3)
   if (path === '/api/tool_cli/slide_generate' && req.method === 'POST')

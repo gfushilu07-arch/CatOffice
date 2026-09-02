@@ -183,6 +183,32 @@ describe('mock server surface', () => {
     expect(bytes.readUInt32BE(20)).toBe(720) // IHDR height
   })
 
+  it('recognizes a PNG body on /api/ocr/recognize and rejects non-PNG', async () => {
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    )
+    const resp = await fetch(`${mock.origin}/api/ocr/recognize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/png' },
+      body: png,
+    })
+    expect(resp.status).toBe(200)
+    const recognition = (await resp.json()) as {
+      lines: Array<{ text: string; confidence: number; box: Record<string, number> }>
+      paperShare?: number
+    }
+    expect(recognition.lines.length).toBeGreaterThan(0)
+    expect(recognition.lines[0]!.confidence).toBeGreaterThan(0.55)
+    expect(recognition.paperShare).toBeGreaterThan(0.45)
+    const bad = await fetch(`${mock.origin}/api/ocr/recognize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/png' },
+      body: Buffer.from('not a png'),
+    })
+    expect(bad.status).toBe(400)
+  })
+
   it('404s unknown routes', async () => {
     const resp = await fetch(`${mock.origin}/api/unknown`)
     expect(resp.status).toBe(404)

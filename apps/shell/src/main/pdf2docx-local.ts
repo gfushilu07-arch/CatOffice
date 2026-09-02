@@ -10,10 +10,13 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { convertPdfToDocx, PdfLoadError } from '../../../../packages/pdf2docx/src'
 import type { ConvertResult, OcrEngine, PdfiumModule } from '../../../../packages/pdf2docx/src'
+import { recognizeScannedPages } from '../../../../packages/pdf2docx/src/ocr-async'
 import {
   createVisionOcrEngine,
   createWindowsOcrEngine,
 } from '../../../../packages/pdf2docx/src/ocr-vision'
+import { recognizeCloudOcr } from '@catoffice/catspark/ocr'
+import { cloudOrigin, isDefaultCloudOrigin, isMockMode } from '@catoffice/catspark'
 import { pdfiumWasmPath } from '../../../pdf/src/main/wasm-path'
 
 export type { ConvertResult, PageResult } from '../../../../packages/pdf2docx/src'
@@ -81,12 +84,40 @@ export async function convertPdfFileToDocxLocal(
   const bytes = readFileSync(pdfPath)
   const pdf = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const ocr = ensureOcrEngine()
+  // Cloud OCR (L3): platforms without a system engine (Linux) recover scanned
+  // pages through CatSpark instead; CATSPARK_CLOUD_OCR=1 opts in everywhere
+  // (mock mode serves a canned recognition, so the path is testable offline).
+  // A failed/empty pre-recognition degrades to the plain local conversion.
+  let ocrRecognitions: Map<number, import('../../../../packages/pdf2docx/src/ocr').OcrRecognition> | undefined
+  if ((!ocr || process.env.CATSPARK_CLOUD_OCR === '1') && cloudConfigured()) {
+    try {
+      ocrRecognitions = await recognizeScannedPages(
+        pdf,
+        { pdfium, ...(password !== undefined ? { password } : {}) },
+        recognizeCloudOcr,
+      )
+      if (ocrRecognitions.size === 0) ocrRecognitions = undefined
+    } catch {
+      ocrRecognitions = undefined
+    }
+  }
   return convertPdfToDocx(pdf, {
     pdfium,
     ...(ocr ? { ocr } : {}),
+    ...(ocrRecognitions ? { ocrRecognitions } : {}),
     ...(onProgress !== undefined ? { onProgress } : {}),
     ...(password !== undefined ? { password } : {}),
   })
+}
+
+/** True when the configured cloud is NOT the upstream default (a CatSpark
+ *  deployment, or mock mode): only then may conversions hit the network. */
+function cloudConfigured(): boolean {
+  try {
+    return isMockMode() || !isDefaultCloudOrigin(cloudOrigin())
+  } catch {
+    return false
+  }
 }
 
 /**
