@@ -2,7 +2,7 @@
 
 基于开源项目 [GenOffice](https://github.com/genspark-ai/genoffice)（Apache-2.0）二次开发的 AI 原生办公套件。品牌为「办公猫 / Cat Office」，上游为 GenOffice / Mainfunc, Inc.（商标归其所有，本项目按其 LICENSE 要求使用自己的品牌）。
 
-**产品路线**：以 [docs/catoffice/product-plan.md](docs/catoffice/product-plan.md) 为战略基准（v0.1 规划稿）。仓库现状与规划的对照见文末「Phase 0 差距看板」。品牌决策（2026-08-27）：中文名 **办公猫**，英文名 **CatOffice**。云端后端使用自研 **Catspark**（Rust/axle 研发）：功能清单见 [docs/catoffice/catspark-feature-list.md](docs/catoffice/catspark-feature-list.md)，客户端对接契约见 [docs/catoffice/catspark-integration.md](docs/catoffice/catspark-integration.md)，跨平台（macOS/Windows/Linux）与中文排版的开发顺序见 [docs/catoffice/cross-platform-plan.md](docs/catoffice/cross-platform-plan.md)，上游同步策略见 [docs/catoffice/upstream-sync.md](docs/catoffice/upstream-sync.md)，依赖许可证审计见 [docs/catoffice/license-audit.md](docs/catoffice/license-audit.md)。
+**产品路线**：以 [docs/catoffice/product-plan.md](docs/catoffice/product-plan.md) 为战略基准（v0.1 规划稿）。仓库现状与规划的对照见文末「Phase 0 差距看板」。品牌决策（2026-08-27）：中文名 **办公猫**，英文名 **CatOffice**。云端后端使用自研 **Catspark**（Rust/axle 研发）：功能清单见 [docs/catoffice/catspark-feature-list.md](docs/catoffice/catspark-feature-list.md)，客户端对接契约见 [docs/catoffice/catspark-integration.md](docs/catoffice/catspark-integration.md)，跨平台（macOS/Windows/Linux）与中文排版的开发顺序见 [docs/catoffice/cross-platform-plan.md](docs/catoffice/cross-platform-plan.md)，素材中心规划（对标稻壳儿，模板即 docx + 本地优先）见 [docs/catoffice/asset-center-plan.md](docs/catoffice/asset-center-plan.md)，上游同步策略见 [docs/catoffice/upstream-sync.md](docs/catoffice/upstream-sync.md)，依赖许可证审计见 [docs/catoffice/license-audit.md](docs/catoffice/license-audit.md)。
 
 ## 本地约定
 

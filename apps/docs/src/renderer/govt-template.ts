@@ -1,50 +1,52 @@
 /**
- * GB/T 9704-2012 official-document scaffold (党政机关公文格式) as docx-engine
+ * GB/T 9704-2012 official-document scaffold as docx-engine
  * Blocks — the same canonical model the editor consumes through convert.ts and
  * the OOXML writer emits through generateParagraphXml, so one array feeds both
  * the editing canvas and a direct save.
  *
- * Implemented here (first slice): 发文机关标志（红头）、发文字号、红色分隔线、
- * 标题、主送机关、正文（首行缩进 2 字 via w:firstLineChars）、附件说明、发文
- * 机关署名与成文日期。版心（A4 + 上37/下35/左28/右26mm 的 sectPr）与印章图形
- * 占位 belong to the section plumbing and are follow-ups.
+ * Implemented here (first slice): the red banner, the document number, the
+ * red separator rule, the title, recipients, body
+ * paragraphs (2-char first-line indent via w:firstLineChars), the attachment
+ * list, and the signature/date block. The page frame (A4 + 37/35/28/26mm
+ * margins as sectPr) and the seal placeholder belong to the section plumbing
+ * and are follow-ups.
  *
- * Placeholder text uses ×× so every field is obviously fill-in; fonts are the
- * GB/T faces (方正小标宋简体 for the banner/title, 仿宋_GB2312 for the body —
- * both resolve through the renderer's substitution chains).
+ * Placeholder text uses fullwidth ×× so every field is obviously fill-in;
+ * fonts are the GB faces (FZXiaoBiaoSong for the banner/title, FangSong_GB2312
+ * for the body — both resolve through the renderer's substitution chains).
  */
 
 import type { Block, ParaBorderLine, Run } from '@genoffice/docx-engine'
 
 export interface GovtTemplateOptions {
-  /** 发文机关标志 banner text (the "红头"), e.g. ××市人民政府文件 */
+  /** banner text (the red letterhead), e.g. a city government file header */
   banner?: string
-  /** 发文字号, e.g. ×政发〔2026〕1号 */
+  /** document number, e.g. a city-2026-1 issue number */
   docNumber?: string
-  /** 公文标题 */
+  /** document title */
   title?: string
-  /** 主送机关（顶格，冒号结尾） */
+  /** recipients line (flush left, ends with a colon) */
   recipients?: string
-  /** 正文段落（首行缩进 2 字自动加） */
+  /** body paragraphs (the 2-char first-line indent is applied automatically) */
   paragraphs?: string[]
-  /** 附件说明条目（不带「附件：」前缀） */
+  /** attachment names (without the leading label) */
   attachments?: string[]
-  /** 发文机关署名 */
+  /** issuing-agency signature */
   signer?: string
-  /** 成文日期（右空二字） */
+  /** issue date (indented two chars from the right margin) */
   date?: string
 }
 
 const BANNER_FONT = '方正小标宋简体'
 const BODY_FONT = '仿宋_GB2312'
 const RED = 'FF0000'
-/** GB/T 9704 body text: 3号 = 16pt = 32 half-points */
+/** body text: size-3 = 16pt = 32 half-points */
 const BODY_HALF_POINTS = 32
-/** 标题: 2号 = 22pt = 44 half-points */
+/** title: size-2 = 22pt = 44 half-points */
 const TITLE_HALF_POINTS = 44
-/** banner: 小初 ≈ 36pt = 72 half-points */
+/** banner: xiao-chu ≈ 36pt = 72 half-points */
 const BANNER_HALF_POINTS = 72
-/** one body char at 3号 = 320 twips; 2-char first-line indent = 640 twips */
+/** one body char at size-3 = 320 twips; 2-char first-line indent = 640 twips */
 const TWO_CHAR_TWIPS = 640
 
 let seq = 0
@@ -68,7 +70,7 @@ function redRuleBlock(): Block {
   })
 }
 
-/** 正文/附件 paragraphs: 3号仿宋, first line indented 2 chars (char-unit + twips fallback) */
+/** body/attachment paragraphs: size-3 FangSong, first line indented 2 chars (char-unit + twips fallback) */
 function bodyBlock(text: string): Block {
   return block({
     type: 'paragraph',
@@ -98,41 +100,41 @@ export function govtDocBlocks(options: GovtTemplateOptions = {}): Block[] {
   } = options
 
   const blocks: Block[] = [
-    // 发文机关标志（红头）：红色小标宋，居中
+    // red banner: red XiaoBiaoSong, centered
     block({
       type: 'paragraph',
       runs: [run(banner, { font: BANNER_FONT, sizeHalfPoints: BANNER_HALF_POINTS, color: RED })],
       format: { align: 'center' },
     }),
-    // 发文字号：3号仿宋居中
+    // document number: size-3 FangSong, centered
     block({
       type: 'paragraph',
       runs: [bodyRun(docNumber)],
       format: { align: 'center' },
     }),
-    // 红色分隔线（与版心同宽）
+    // red separator rule (text-frame wide)
     redRuleBlock(),
-    // 标题：2号小标宋居中，段前空一行量
+    // title: size-2 XiaoBiaoSong, centered, one blank line above
     block({
       type: 'paragraph',
       runs: [run(title, { font: BANNER_FONT, sizeHalfPoints: TITLE_HALF_POINTS })],
       format: { align: 'center', spaceBefore: 480, spaceAfter: 240 },
     }),
-    // 主送机关：顶格
+    // recipients: flush left
     block({ type: 'paragraph', runs: [bodyRun(recipients)] }),
-    // 正文
+    // body
     ...paragraphs.map(bodyBlock),
   ]
 
   if (attachments.length > 0) {
-    // 附件说明：正文下空一行，左空二字
+    // attachment list: one blank line below the body, two chars in from the left
     blocks.push(block({ type: 'paragraph', runs: [] }))
     attachments.forEach((name, i) => {
       blocks.push(bodyBlock(`${i === 0 ? '附件：' : '　　　　'}${i + 1}. ${name}`))
     })
   }
 
-  // 发文机关署名与成文日期：右空四字/二字（twips 近似，char-unit 右缩进待续）
+  // signature and issue date: right-aligned, four/two chars from the margin (twips approximation; char-unit right indent is a follow-up)
   blocks.push(block({ type: 'paragraph', runs: [] }))
   blocks.push(
     block({
