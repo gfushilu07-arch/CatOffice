@@ -156,8 +156,13 @@ const anchorAttrs = {
   /** w:snapToGrid: false only when explicitly off (opts out of docGrid snapping) */
   snapToGrid: { default: null as boolean | null },
   indentLeft: { default: null as number | null },
+  /** w:ind w:leftChars (hundredths of a char) — supersedes indentLeft in Word */
+  indentLeftChars: { default: null as number | null },
   indentRight: { default: null as number | null },
   indentFirstLine: { default: null as number | null },
+  /** w:ind w:firstLineChars / w:hangingChars, signed (negative = hanging) —
+      supersedes indentFirstLine; renders as an em indent (100 = 1 char) */
+  indentFirstLineChars: { default: null as number | null },
   spaceBefore: { default: null as number | null },
   spaceAfter: { default: null as number | null },
   /** w:beforeAutospacing / w:afterAutospacing: Word's HTML auto spacing (14pt) replaces
@@ -325,8 +330,10 @@ const CLIPBOARD_PARA_ATTR_TYPES: Record<string, 'string' | 'number' | 'boolean'>
   lineRawTwips: 'number',
   snapToGrid: 'boolean',
   indentLeft: 'number',
+  indentLeftChars: 'number',
   indentRight: 'number',
   indentFirstLine: 'number',
+  indentFirstLineChars: 'number',
   spaceBefore: 'number',
   spaceAfter: 'number',
   spaceBeforeAuto: 'boolean',
@@ -500,6 +507,18 @@ function blockAttrs(
   // area i.e. the number-marker width); negative text-indent is expressed by the marker box, no longer emitted directly
   // Logical (inline-start/end) margins: identical to left/right in LTR, and in bidi
   // paragraphs they mirror, matching Word's quirk that w:ind left/right swap sides.
+  // char-unit indents (w:firstLineChars/w:leftChars) supersede the twips pair
+  // per OOXML and scale with the East Asian font size — emit an em indent
+  // (100 units = 1 char). List geometry keeps the twips markers: the char-unit
+  // list case falls through to the twips value Word wrote alongside it.
+  if (includeIndent && node.attrs.indentLeftChars) {
+    styles.push(`margin-inline-start:${Number(node.attrs.indentLeftChars) / 100}em`)
+  }
+  if (node.attrs.indentFirstLineChars) {
+    const chars = Number(node.attrs.indentFirstLineChars)
+    if (!(listGeometry && includeIndent) && !(listGeometry && node.attrs.indentFirstLine))
+      styles.push(`text-indent:${chars / 100}em`)
+  }
   if (includeIndent && node.attrs.indentLeft) {
     styles.push(`margin-inline-start:${Number(node.attrs.indentLeft) / 20}pt`)
   } else if (listGeometry && node.attrs.indentLeft) {

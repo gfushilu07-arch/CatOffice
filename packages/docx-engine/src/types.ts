@@ -275,10 +275,22 @@ export interface ParaFormat {
   lineRawTwips?: number
   /** left indent in twips (w:ind w:left) */
   indentLeft?: number
+  /**
+   * left indent in hundredths of a character (w:ind w:leftChars) — the CJK
+   * char-unit form Word prefers over w:left when both are present; scales
+   * with the East Asian font size
+   */
+  indentLeftChars?: number
   /** right indent in twips (w:ind w:right) */
   indentRight?: number
   /** first-line indent in twips; positive = w:firstLine, negative = w:hanging */
   indentFirstLine?: number
+  /**
+   * first-line indent in hundredths of a character; positive = w:firstLineChars
+   * (e.g. 200 = the GB/T 9704-style 2-char indent), negative = w:hangingChars.
+   * Per OOXML the char-unit form supersedes the twips pair when both exist.
+   */
+  indentFirstLineChars?: number
   /** space above the paragraph in twips (w:spacing w:before) */
   spaceBefore?: number
   /** space below the paragraph in twips (w:spacing w:after) */
@@ -1329,6 +1341,9 @@ export interface StyleDisplay {
   indentLeftTwips?: number
   indentRightTwips?: number
   indentFirstLineTwips?: number
+  /** style-level char-unit indents (w:leftChars / w:firstLineChars, signed; negative = hangingChars) */
+  indentLeftChars?: number
+  indentFirstLineChars?: number
   /** F1: keepNext from style definition */
   keepNext?: boolean
   /** keepLines from style definition */

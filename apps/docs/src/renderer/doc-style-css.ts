@@ -409,7 +409,11 @@ export function docStyleCss(parsed: ParsedDocFull): string {
     }
     if (d.indentRightTwips)
       decls.push(`margin-inline-end:${(d.indentRightTwips / 20).toFixed(1)}pt`)
-    if (d.indentFirstLineTwips)
+    // char-unit form wins per OOXML and scales with the paragraph's em
+    // (w:firstLineChars 200 = the GB/T 9704-style 2-char first-line indent)
+    if (d.indentFirstLineChars)
+      decls.push(`text-indent:${(d.indentFirstLineChars / 100).toFixed(2)}em`)
+    else if (d.indentFirstLineTwips)
       decls.push(`text-indent:${(d.indentFirstLineTwips / 20).toFixed(1)}pt`)
     if (d.align) decls.push(`text-align:${d.align}`)
     if (

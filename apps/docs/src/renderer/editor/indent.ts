@@ -31,7 +31,9 @@ export function stepHangingIndent(editor: Editor, delta: 1 | -1): boolean {
         tr.setNodeMarkup(pos, undefined, {
           ...node.attrs,
           indentLeft: nextLeft || null,
+          indentLeftChars: null, // a user twips step must win over the char-unit form
           indentFirstLine: nextHanging || null,
+          indentFirstLineChars: null,
         })
         changed = true
       })
@@ -62,7 +64,11 @@ export function stepParagraphIndent(editor: Editor, delta: 1 | -1): boolean {
             ? Math.floor(cur / STEP) * STEP + STEP
             : Math.max(Math.ceil(cur / STEP) * STEP - STEP, 0)
         if (next === cur) return
-        tr.setNodeMarkup(pos, undefined, { ...node.attrs, indentLeft: next || null })
+        tr.setNodeMarkup(pos, undefined, {
+          ...node.attrs,
+          indentLeft: next || null,
+          indentLeftChars: null, // a user twips step must win over the char-unit form
+        })
         changed = true
       })
       if (changed && dispatch) dispatch(tr)

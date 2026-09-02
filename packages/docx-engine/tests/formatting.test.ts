@@ -118,6 +118,39 @@ describe('paragraph-level formatting (align / line spacing / indent)', () => {
     expect(hangingXml).toContain('<w:ind w:left="720" w:hanging="360"/>')
   })
 
+  it('parses and generates the char-unit indent form (Word CJK indents)', async () => {
+    // Word writes firstLineChars alongside firstLine for CJK char-unit indents
+    // (200 = 2 chars, the GB/T 9704 style); the char-unit form supersedes the
+    // twips pair and must survive a round trip.
+    const bytes = await buildDocx({
+      bodyXml:
+        '<w:p><w:pPr><w:ind w:firstLine="420" w:firstLineChars="200"/></w:pPr><w:r><w:t>缩进两字符</w:t></w:r></w:p>' +
+        '<w:p><w:pPr><w:ind w:hangingChars="200"/></w:pPr><w:r><w:t>字符悬挂</w:t></w:r></w:p>' +
+        '<w:p><w:pPr><w:ind w:left="720" w:leftChars="200"/></w:pPr><w:r><w:t>左缩进</w:t></w:r></w:p>',
+    })
+    const doc = await parseDocx(bytes)
+    expect(doc.blocks[0].format).toEqual({ indentFirstLine: 420, indentFirstLineChars: 200 })
+    expect(doc.blocks[1].format).toEqual({ indentFirstLineChars: -200 })
+    expect(doc.blocks[2].format).toEqual({ indentLeft: 720, indentLeftChars: 200 })
+
+    const charsXml = generateParagraphXml(
+      { type: 'paragraph', format: { indentFirstLine: 420, indentFirstLineChars: 200 }, runs: [{ text: 'a' }] },
+      GEN_CTX,
+    )
+    // both forms ride together so Word keeps scaling with the EA font size
+    expect(charsXml).toContain('<w:ind w:firstLine="420" w:firstLineChars="200"/>')
+    const hangingCharsXml = generateParagraphXml(
+      { type: 'paragraph', format: { indentFirstLineChars: -200 }, runs: [{ text: 'a' }] },
+      GEN_CTX,
+    )
+    expect(hangingCharsXml).toContain('<w:ind w:hangingChars="200"/>')
+    const leftCharsXml = generateParagraphXml(
+      { type: 'paragraph', format: { indentLeft: 720, indentLeftChars: 200 }, runs: [{ text: 'a' }] },
+      GEN_CTX,
+    )
+    expect(leftCharsXml).toContain('<w:ind w:left="720" w:leftChars="200"/>')
+  })
+
   it('round-trips negative indents (text extending into the margins)', async () => {
     // Word allows signed w:left/w:right; a rebuilt paragraph must not lose
     // them (they used to be dropped, shifting the paragraph on save — r116)

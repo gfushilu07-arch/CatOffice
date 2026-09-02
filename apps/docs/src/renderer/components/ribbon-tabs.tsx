@@ -91,6 +91,11 @@ export function setParaAttrs(
   // a stale auto flag would keep rendering 14pt over the user's value
   if ('spaceBefore' in attrs && !('spaceBeforeAuto' in attrs)) attrs.spaceBeforeAuto = false
   if ('spaceAfter' in attrs && !('spaceAfterAuto' in attrs)) attrs.spaceAfterAuto = false
+  // Word prefers the char-unit indent over the twips pair when both are set;
+  // a user-entered twips value would be silently ignored unless the stale
+  // char-unit attrs go with it (dialog edits are twips-valued)
+  if ('indentFirstLine' in attrs) attrs.indentFirstLineChars = null
+  if ('indentLeft' in attrs) attrs.indentLeftChars = null
   if (range) {
     const paraTypes = new Set(['docParagraph', 'docHeading', 'docListItem'])
     editor
@@ -130,8 +135,10 @@ const DIRECT_PARA_ATTRS: Record<string, unknown> = {
   lineRule: null,
   lineRawTwips: null,
   indentLeft: null,
+  indentLeftChars: null,
   indentRight: null,
   indentFirstLine: null,
+  indentFirstLineChars: null,
   spaceBefore: null,
   spaceAfter: null,
   spaceBeforeAuto: null,

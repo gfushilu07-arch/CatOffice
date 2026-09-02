@@ -14,6 +14,7 @@
 | 2026-08-31 | **T6 完成（第一刀）** | 禁则集抽成共享模块 `packages/pptx-render/src/kinsoku.ts`（子路径 `@genoffice/pptx-render/kinsoku`，pptx text-layout 与 docs 共用单一数据源）；离线分页 `simulateLines` 接入拉下式避头尾：行首禁闭符号/行尾禁开括号 → CJK 前驱下拉（与 pptx 布局同语义），单字行无法内断时悬挂溢出而非空行；9 个单元场景锁定行为（含 Latin 词不拉、段首豁免、keep-all 路径不动的边界）。**待续**：keep-all 硬断行的禁则、悬挂/挤压两种行尾策略与编辑画布 `line-break` 选型的一致性校验（归入 T5/T6 后续） |
 | 2026-08-31 | **T5 完成（第一阶段闭环）** | 规则单一化：`punctuation-squeeze.ts`（相邻全角闭标点 run，除末位外右缩半宽）；三面同源消费——① 分页 `simulateLines` 前瞻压缩（拉下 carried 序列重算压缩）；② 画布 `PunctSqueezeExtension` 逐文本节点 decoration（UTF-16 偏移映射）+ `.doc-punct-squeeze` CSS 负右边距；③ 8 个单测锁定模型/分页/装饰三方一致。**待续（第二阶段）**：行首/行尾标点压缩（需要断点信息，归属分页渲染路径）、全角开括号参与规则、与 Word compressPunctuation 模式的逐项对齐、跨 text node 的 run 处理 |
 | 2026-08-31 | **T5+T6 第二阶段（探针修正 + keep-all 禁则）** | **决定性实测**（`tools/probe-text-spacing-trim.mjs`）：Chromium 151 无 lang 时默认就对相邻全角闭标点做半宽修剪（`一。。。一`=500px），量恰与挤压装饰规则相同 → 画布装饰会**双重压缩**；lang=zh-CN 时原生还叠加行首/行尾修剪（400px）。**修复**：`.doc-page` 钉 `text-spacing-trim: space-all` 把原生修剪关为不修，装饰保持唯一显式压缩源（规则可控、模型可对齐）；分页打印路径未来反选启用原生并弃装饰。**keep-all 硬断行禁则**：hard-break 分割点套同一拉下规则（`가나다라마바사。` 断为 `가나다라마바`/`사。`），T6 待续项清零 |
+| 2026-09-01 | **首行缩进字符单位（M5 硬前置）** | `w:firstLineChars`/`w:hangingChars`/`w:leftChars` 全链路支持：docx-engine parse（signed 模型字段）+ generate 回写（双形式并存，Word 持续按 EA 字号缩放）+ 保真比较精化（模型未携带 chars 时视为未建模属性保留，仅显式建模且不同才触发重建）；渲染侧 OOXML 优先级 chars > twips，emit `em` 缩进（200 = 2 字，公文标准）；schema attrs/convert/Ctrl+Q/ribbon/indent.ts 全部接线，**用户 twips 编辑显式清除 chars 防双写吞编辑**。3 组回写测试；docx-engine 927/928 + docs 125/126（失败项均确认为既有并行 flake） |
 
 ## 一、基线盘点：已经有什么
 

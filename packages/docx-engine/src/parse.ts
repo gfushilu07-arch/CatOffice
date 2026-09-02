@@ -3352,12 +3352,20 @@ function extractParaFormat(pPr: XNode): ParaFormat | undefined {
     const left = parseInt(attrs['w:left'] ?? attrs['w:start'] ?? '', 10)
     // Negative indent (hanging past the left margin) is legal, keep it; 0 stays out of the model
     if (Number.isFinite(left) && left !== 0) format.indentLeft = left
+    const leftChars = parseInt(attrs['w:leftChars'] ?? '', 10)
+    if (Number.isFinite(leftChars) && leftChars !== 0) format.indentLeftChars = leftChars
     const right = parseInt(attrs['w:right'] ?? attrs['w:end'] ?? '', 10)
     if (Number.isFinite(right) && right !== 0) format.indentRight = right
     const firstLine = parseInt(attrs['w:firstLine'] ?? '', 10)
     const hanging = parseInt(attrs['w:hanging'] ?? '', 10)
     if (hanging > 0) format.indentFirstLine = -hanging
     else if (firstLine > 0) format.indentFirstLine = firstLine
+    // char-unit form (Word writes it for CJK indents, e.g. 200 = 2 chars);
+    // signed like the twips field — the renderer prefers it per OOXML precedence
+    const firstLineChars = parseInt(attrs['w:firstLineChars'] ?? '', 10)
+    const hangingChars = parseInt(attrs['w:hangingChars'] ?? '', 10)
+    if (hangingChars > 0) format.indentFirstLineChars = -hangingChars
+    else if (firstLineChars > 0) format.indentFirstLineChars = firstLineChars
   }
   {
     // tri-state: an explicit w:val="0" must override a style-chain true
@@ -7381,6 +7389,12 @@ function styleDisplayOf(
       const hanging = parseInt(a['w:hanging'] ?? '', 10)
       if (hanging > 0) display.indentFirstLineTwips = -hanging
       else if (firstLine > 0) display.indentFirstLineTwips = firstLine
+      const leftChars = parseInt(a['w:leftChars'] ?? '', 10)
+      if (Number.isFinite(leftChars) && leftChars !== 0) display.indentLeftChars = leftChars
+      const firstLineChars = parseInt(a['w:firstLineChars'] ?? '', 10)
+      const hangingChars = parseInt(a['w:hangingChars'] ?? '', 10)
+      if (hangingChars > 0) display.indentFirstLineChars = -hangingChars
+      else if (firstLineChars > 0) display.indentFirstLineChars = firstLineChars
     }
   }
   return Object.keys(display).length > 0 ? display : undefined

@@ -1081,11 +1081,20 @@ function formatPPrChildren(format: ParaFormat | undefined): PPrChild[] {
   // old > 0 guard silently dropped them, shifting rebuilt paragraphs
   // rightward on save (alpha ledger r116).
   if (format.indentLeft) indAttrs.push(`w:left="${Math.round(format.indentLeft)}"`)
+  if (format.indentLeftChars) indAttrs.push(`w:leftChars="${Math.round(format.indentLeftChars)}"`)
   if (format.indentRight) indAttrs.push(`w:right="${Math.round(format.indentRight)}"`)
   if (format.indentFirstLine) {
     if (format.indentFirstLine > 0)
       indAttrs.push(`w:firstLine="${Math.round(format.indentFirstLine)}"`)
     else indAttrs.push(`w:hanging="${Math.round(-format.indentFirstLine)}"`)
+  }
+  // char-unit form: emitted alongside the twips so Word keeps scaling the
+  // indent with the East Asian font size (the Chinese official-document 2-char idiom);
+  // signed like indentFirstLine — negative = w:hangingChars
+  if (format.indentFirstLineChars) {
+    if (format.indentFirstLineChars > 0)
+      indAttrs.push(`w:firstLineChars="${Math.round(format.indentFirstLineChars)}"`)
+    else indAttrs.push(`w:hangingChars="${Math.round(-format.indentFirstLineChars)}"`)
   }
   if (indAttrs.length > 0) out.push({ name: 'w:ind', xml: `<w:ind ${indAttrs.join(' ')}/>` })
   if (format.align) {
@@ -1216,14 +1225,27 @@ function rawIndUnchanged(raw: string | undefined, f: ParaFormat): boolean {
   const right = parseInt(rawAttr(raw, 'w:right') ?? rawAttr(raw, 'w:end') ?? '', 10)
   const firstLine = parseInt(rawAttr(raw, 'w:firstLine') ?? '', 10)
   const hanging = parseInt(rawAttr(raw, 'w:hanging') ?? '', 10)
+  const leftChars = parseInt(rawAttr(raw, 'w:leftChars') ?? '', 10)
+  const firstLineChars = parseInt(rawAttr(raw, 'w:firstLineChars') ?? '', 10)
+  const hangingChars = parseInt(rawAttr(raw, 'w:hangingChars') ?? '', 10)
   const rawLeft = Number.isFinite(left) && left !== 0 ? left : undefined
   const rawRight = Number.isFinite(right) && right !== 0 ? right : undefined
   const rawFirst = hanging > 0 ? -hanging : firstLine > 0 ? firstLine : undefined
+  const rawLeftC = Number.isFinite(leftChars) && leftChars !== 0 ? leftChars : undefined
+  const rawFirstC =
+    hangingChars > 0 ? -hangingChars : firstLineChars > 0 ? firstLineChars : undefined
   const norm = (v: number | undefined) => (v ? Math.round(v) : undefined)
+  // char-unit fields: a model that does not carry them treats the raw attrs as
+  // unmodeled data to preserve (a rebuild would drop them); only a modeled
+  // value that differs from the raw forces the rebuild
+  const charUnitsMatch = (modeled: number | undefined, raw: number | undefined) =>
+    modeled === undefined || modeled === raw
   return (
     rawLeft === norm(f.indentLeft) &&
     rawRight === norm(f.indentRight) &&
-    rawFirst === norm(f.indentFirstLine)
+    rawFirst === norm(f.indentFirstLine) &&
+    charUnitsMatch(norm(f.indentLeftChars), rawLeftC) &&
+    charUnitsMatch(norm(f.indentFirstLineChars), rawFirstC)
   )
 }
 
