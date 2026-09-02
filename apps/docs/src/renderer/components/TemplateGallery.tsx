@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { NewFileTemplate } from '../file-actions'
-import { GOVT_TEMPLATES, type GovtTemplateEntry } from '../govt-catalog'
+import { ALL_TEMPLATES, templateById, type TemplateEntry } from '../template-catalog'
 import { govtDocBlocks, govtDocSection } from '../govt-template'
 import type { AssetTemplateEntry } from '@catoffice/catspark/asset-center'
 import { isMockMode } from '@catoffice/catspark'
@@ -20,7 +20,8 @@ export interface GalleryRow {
   label: string
   description: string
   fileName: string
-  /** govt options for rendering the scaffold */
+  category: TemplateEntry['category']
+  /** the preset a fresh document starts with */
   options: Record<string, string>
   /** cloud-only rows carry the badge; local rows may carry download counts */
   cloudOnly: boolean
@@ -29,12 +30,13 @@ export interface GalleryRow {
 
 /** exported for tests: the local+cloud merge and ordering rules */
 export function mergeCatalog(cloud: AssetTemplateEntry[] | null): GalleryRow[] {
-  const local: GalleryRow[] = GOVT_TEMPLATES.map((entry) => ({
+  const local: GalleryRow[] = ALL_TEMPLATES.map((entry) => ({
     id: entry.id,
     label: entry.label,
     description: entry.description,
     fileName: entry.fileName,
-    options: entry.options as Record<string, string>,
+    category: entry.category,
+    options: entry.defaultOptions,
     cloudOnly: false,
   }))
   if (!cloud || cloud.length === 0) return local
@@ -51,20 +53,36 @@ export function mergeCatalog(cloud: AssetTemplateEntry[] | null): GalleryRow[] {
       label: entry.label,
       description: entry.description,
       fileName: entry.fileName,
+      category: entry.category === 'business' ? 'business' : 'govt',
       options: entry.preset.options,
       cloudOnly: true,
       downloads: entry.downloads,
     })
   }
-  // local rows first (offline-guaranteed), then cloud-only by downloads
+  // local rows first (offline-guaranteed): govt kinds, then office; cloud-only last by downloads
   return [...byId.values()].sort((a, b) => {
     if (a.cloudOnly !== b.cloudOnly) return a.cloudOnly ? 1 : -1
+    if (!a.cloudOnly && a.category !== b.category) return a.category === 'govt' ? -1 : 1
     return (b.downloads ?? 0) - (a.downloads ?? 0)
   })
 }
 
 /** a tiny live preview: the banner, doc number and title of the scaffold */
 function TemplatePreview({ row }: { row: GalleryRow }) {
+  if (row.category === 'business') {
+    // office typography: bold centered heading over plain line bars
+    return (
+      <div className="govt-tpl-preview" aria-hidden="true">
+        <div className="govt-tpl-title">{row.options.title ?? row.label}</div>
+        <div className="govt-tpl-body">
+          <span />
+          <span />
+          <span />
+          <span style={{ marginLeft: '16%' }} />
+        </div>
+      </div>
+    )
+  }
   const banner = row.options.banner ?? '××××文件'
   const docNumber = row.options.docNumber ?? '××发〔2026〕1号'
   return (
@@ -109,11 +127,15 @@ export function TemplateGallery({
   }, [])
 
   const pick = (row: GalleryRow) => {
-    onPick({
-      blocks: govtDocBlocks(row.options),
-      section: govtDocSection(),
-      fileName: row.fileName,
-    })
+    const entry = templateById(row.id)
+    const render = entry
+      ? entry.render(row.options)
+      : {
+          // a cloud-only row without a local generator: govt scaffold by contract
+          blocks: govtDocBlocks(row.options),
+          section: govtDocSection(),
+        }
+    onPick({ ...render, fileName: row.fileName })
   }
 
   return (

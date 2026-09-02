@@ -15,7 +15,7 @@ import { NodeSelection } from '@tiptap/pm/state'
 import { Dropdown } from '@genoffice/ui'
 import { markdownPasteHtml } from './editor/markdown-paste'
 import { govtDocBlocks, govtDocSection } from './govt-template'
-import { govtTemplateById } from './govt-catalog'
+import { templateById } from './template-catalog'
 import { TemplateGallery } from './components/TemplateGallery'
 
 /** the sentinel id the shell sends for "open the gallery" (asset center A2) */
@@ -1227,14 +1227,13 @@ export function App() {
             setShowTemplateGallery(true)
             await newFile()
           } else {
-            const template = govtTemplateId ? govtTemplateById(govtTemplateId) : undefined
-            await newFile(
-              template && {
-                blocks: govtDocBlocks(template.options),
-                section: govtDocSection(),
-                fileName: template.fileName,
-              },
-            )
+            const template = govtTemplateId ? templateById(govtTemplateId) : undefined
+            if (template) {
+              const render = template.render(template.defaultOptions)
+              await newFile({ ...render, fileName: template.fileName })
+            } else {
+              await newFile()
+            }
           }
         }
         if (aiContent && !pending) {
