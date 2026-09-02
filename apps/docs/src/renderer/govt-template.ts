@@ -16,7 +16,7 @@
  * for the body — both resolve through the renderer's substitution chains).
  */
 
-import type { Block, ParaBorderLine, Run } from '@genoffice/docx-engine'
+import type { Block, ParaBorderLine, Run, SectionSettings } from '@genoffice/docx-engine'
 
 export interface GovtTemplateOptions {
   /** banner text (the red letterhead), e.g. a city government file header */
@@ -151,4 +151,31 @@ export function govtDocBlocks(options: GovtTemplateOptions = {}): Block[] {
     }),
   )
   return blocks
+}
+
+// ─── Page frame (GB/T 9704 §5 text area) ─────────────────────────────────────
+// A4 with 37mm top / 35mm bottom / 28mm left / 26mm right margins; millimetres
+// converted at 1440 twips / 25.4 mm and rounded (Word's own values: 11906 x
+// 16838 A4, top 2098, bottom 1984, left 1587, right 1474).
+
+/** A4 page 210 x 297 mm in twips */
+export const GB_A4 = { width: 11906, height: 16838 } as const
+/** the four GB margins in twips: top 37 / bottom 35 / left 28 / right 26 mm */
+export const GB_MARGINS = { top: 2098, bottom: 1984, left: 1587, right: 1474 } as const
+
+/** Section settings for a GB/T 9704 document (A4, the mandated margins, 1 inch header/footer distance). */
+export function govtDocSection(): SectionSettings {
+  return {
+    pageWidth: GB_A4.width,
+    pageHeight: GB_A4.height,
+    orientation: 'portrait',
+    marginTop: GB_MARGINS.top,
+    marginRight: GB_MARGINS.right,
+    marginBottom: GB_MARGINS.bottom,
+    marginLeft: GB_MARGINS.left,
+    pageBorder: false,
+    columns: 1,
+    headerDist: 1440,
+    footerDist: 1440,
+  }
 }

@@ -8,14 +8,16 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  applySectionSettings,
   generateParagraphXml,
   parseDocx,
+  sectionSettingsFromXml,
   type Block,
   type GeneratedBlock,
   type GenerateContext,
 } from '@genoffice/docx-engine'
 import { buildDocx } from '../../../packages/docx-engine/tests/helpers/build-docx'
-import { govtDocBlocks } from '../src/renderer/govt-template'
+import { GB_A4, GB_MARGINS, govtDocBlocks, govtDocSection } from '../src/renderer/govt-template'
 
 const GEN_CTX: GenerateContext = {
   headingStyleIds: new Map([[1, 'Heading1']]),
@@ -103,5 +105,45 @@ describe('GB/T 9704 template', () => {
     expect(texts.join('')).not.toContain('附件：')
     const signer = blocks.find((b) => b.runs?.[0]?.text.startsWith('猫办公室署名'))
     expect(signer!.format?.align).toBe('right')
+  })
+})
+
+describe('GB/T 9704 page frame', () => {
+  it('uses the GB margins on A4', () => {
+    const s = govtDocSection()
+    expect(s.pageWidth).toBe(GB_A4.width)
+    expect(s.pageHeight).toBe(GB_A4.height)
+    expect(s.marginTop).toBe(GB_MARGINS.top)
+    expect(s.marginBottom).toBe(GB_MARGINS.bottom)
+    expect(s.marginLeft).toBe(GB_MARGINS.left)
+    expect(s.marginRight).toBe(GB_MARGINS.right)
+    // GB/T 9704 §5: 210x297mm page; top 37 / bottom 35 / left 28 / right 26 mm
+    expect(s.pageWidth).toBe(11906)
+    expect(s.pageHeight).toBe(16838)
+    expect(s.marginTop).toBe(2098)
+    expect(s.marginBottom).toBe(1984)
+    expect(s.marginLeft).toBe(1587)
+    expect(s.marginRight).toBe(1474)
+  })
+
+  it('round-trips the section settings through the engine', () => {
+    // applySectionSettings patches a paired sectPr (the shape the engine and
+    // Word both write); patching a US-Letter base must overwrite every value,
+    // and sectionSettingsFromXml must read the GB page frame back — proving
+    // the settings survive a save/reopen cycle.
+    const base =
+      '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/>' +
+      '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>'
+    const settings = govtDocSection()
+    const patched = applySectionSettings(base, settings)
+    const readBack = sectionSettingsFromXml(patched)
+    expect(readBack.pageWidth).toBe(settings.pageWidth)
+    expect(readBack.pageHeight).toBe(settings.pageHeight)
+    expect(readBack.marginTop).toBe(settings.marginTop)
+    expect(readBack.marginBottom).toBe(settings.marginBottom)
+    expect(readBack.marginLeft).toBe(settings.marginLeft)
+    expect(readBack.marginRight).toBe(settings.marginRight)
+    expect(readBack.headerDist).toBe(settings.headerDist)
+    expect(readBack.footerDist).toBe(settings.footerDist)
   })
 })
