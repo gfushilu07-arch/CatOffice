@@ -48,6 +48,7 @@ import {
   windowMenuTemplate,
 } from '@genoffice/electron-utils'
 import { readAppSettings, writeAppSetting, writeAppSettings } from './app-settings'
+import { applyLinuxOzoneSwitch } from './linux-ozone'
 import {
   ANALYTICS_ENABLED_KEY,
   analyticsEnabledFrom,
@@ -4123,6 +4124,9 @@ async function installMainProcessProxy(): Promise<void> {
 // ---- lifecycle (the shell is the only owner) ----
 
 let pendingLaunchPath = supportedFileIn(process.argv) ?? unsupportedFileIn(process.argv)
+
+// Linux desktop-session switch (L4): must run before app.whenReady()
+applyLinuxOzoneSwitch()
 
 // show() does not un-minimize, and on macOS ⌘W destroys the shell window while the
 // app keeps running — either way a file opened from Finder would land out of sight.
