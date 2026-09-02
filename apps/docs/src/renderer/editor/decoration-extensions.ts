@@ -7,7 +7,7 @@ import { t } from '../i18n/locale'
 import { type TabStop } from '@genoffice/docx-engine'
 import {
   punctuationCompressionEnabled,
-  squeezeRightsEm,
+  squeezeRightsAcrossEm,
 } from '../punctuation-squeeze'
 
 /**
@@ -990,7 +990,9 @@ export const PPrChangeExtension = Extension.create({
 // set --doc-squeeze-em on exactly those chars; CSS turns the var into a right
 // margin. The rule lives in punctuation-squeeze.ts — the offline pagination
 // model (line-metrics simulateLines) consumes the same function, so page
-// breaks track what the canvas shows.
+// breaks track what the canvas shows. The scan is per textblock: adjacency
+// across formatting boundaries (bold runs etc.) compresses too, and any
+// non-text inline node (hard break, inline image) ends the run.
 
 export const PunctSqueezeExtension = Extension.create({
   name: 'punctSqueeze',
@@ -998,25 +1000,41 @@ export const PunctSqueezeExtension = Extension.create({
     const key = new PluginKey<DecorationSet>('punctSqueeze')
     const punctSqueezeDecos = (doc: ProseMirrorNode): DecorationSet => {
       const decos: Decoration[] = []
+      if (!punctuationCompressionEnabled()) return DecorationSet.create(doc, [])
       doc.descendants((node, pos) => {
-        if (!node.isText || !node.text) return true
-        // document-level gate (w:characterSpacingControl doNotCompress)
-        if (!punctuationCompressionEnabled()) return true
-        const squeeze = squeezeRightsEm(node.text)
-        if (!squeeze.some((s) => s !== 0)) return true
-        const chars = [...node.text]
-        let utf16 = 0
-        for (let i = 0; i < chars.length; i++) {
-          if (squeeze[i] !== 0) {
-            decos.push(
-              Decoration.inline(pos + utf16, pos + utf16 + chars[i]!.length, {
-                class: 'doc-punct-squeeze',
-                style: '--doc-squeeze-em:-0.5',
-              }),
-            )
-          }
-          utf16 += chars[i]!.length
+        if (!node.isTextblock) return true
+        // inline children in document order; a non-text child (hard break,
+        // image, ...) breaks the run — pieces flush at each boundary
+        let pieces: Array<{ text: string; pos: number }> = []
+        const flush = () => {
+          if (pieces.length === 0) return
+          const squeezes = squeezeRightsAcrossEm(pieces.map((p) => p.text))
+          pieces.forEach((piece, i) => {
+            const squeeze = squeezes[i] ?? []
+            const chars = [...piece.text]
+            let utf16 = 0
+            for (let ci = 0; ci < chars.length; ci++) {
+              if ((squeeze[ci] ?? 0) !== 0) {
+                decos.push(
+                  Decoration.inline(piece.pos + utf16, piece.pos + utf16 + chars[ci]!.length, {
+                    class: 'doc-punct-squeeze',
+                    style: '--doc-squeeze-em:-0.5',
+                  }),
+                )
+              }
+              utf16 += chars[ci]!.length
+            }
+          })
+          pieces = []
         }
+        node.forEach((child, childOffset) => {
+          if (child.isText && child.text) {
+            pieces.push({ text: child.text, pos: pos + 1 + childOffset })
+          } else if (!child.isText) {
+            flush()
+          }
+        })
+        flush()
         return false
       })
       return DecorationSet.create(doc, decos)

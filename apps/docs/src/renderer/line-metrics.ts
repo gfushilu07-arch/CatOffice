@@ -29,7 +29,10 @@
 
 import { fontPlatform } from './font-platform'
 import { LINUX_LINE_FACTORS } from './font-linebox-linux.generated'
-import { punctuationCompressionEnabled, squeezeRightsEm } from './punctuation-squeeze'
+import {
+  punctuationCompressionEnabled,
+  squeezeRightsAcrossEm,
+} from './punctuation-squeeze'
 import type { DocGrid } from '@genoffice/docx-engine'
 import { isKinsokuNoEnd, isKinsokuNoStart } from '@genoffice/pptx-render/kinsoku'
 
@@ -1336,9 +1339,20 @@ export function simulateLines(
     italic: !!run.italic,
   })
 
+  // Punctuation compression across the whole paragraph: run/section boundaries
+  // do not break adjacency (Word compresses across formatting too), so the
+  // squeeze arrays are cut from ONE cross-run pass. [] = compression disabled
+  // by the document's w:characterSpacingControl.
+  const runSqueezes = punctuationCompressionEnabled()
+    ? squeezeRightsAcrossEm(runs.map((r) => r.text))
+    : []
+
+  let runIndex = -1
   for (const run of runs) {
+    runIndex++
     if (!run.text) continue
     const style = getStyle(run)
+    const runSqueeze = runSqueezes[runIndex] ?? []
     const m = metrics.metrics(style)
     // table-cell mode (cjkFactor=1.0): line-height cap = fontSizePx × 1.0,
     // matching the CJK chars' cjkH so Latin chars' font factor (1.2) doesn't raise the line.
@@ -1397,8 +1411,6 @@ export function simulateLines(
     }
 
     const runChars = [...run.text]
-    // document-level gate (w:characterSpacingControl): doNotCompress = no squeeze
-    const runSqueeze = punctuationCompressionEnabled() ? squeezeRightsEm(run.text) : []
     for (let ci = 0; ci < runChars.length; ci++) {
       const ch = runChars[ci]!
       const cp = ch.codePointAt(0) ?? 0
@@ -1439,8 +1451,10 @@ export function simulateLines(
         const cw = metrics.measure(ch, style)
         // Punctuation compression (same rule as PunctSqueezeExtension on the
         // canvas): a closing mark followed by another closing mark gives up its
-        // trailing half. Look-ahead stays inside the run, matching the
-        // decoration pass which only sees per-node adjacency.
+        // trailing half. The squeeze arrays come from ONE cross-run pass over
+        // the paragraph, so a closing mark at a run's end compresses when the
+        // next run starts with another mark (Word compresses across
+        // formatting boundaries too).
         const squeezeEm = runSqueeze[ci] ?? 0
         const adv = cw + squeezeEm * style.fontSizePx
         if (curLineW + adv > availWidthPx && curLineW > 0) {
@@ -1462,10 +1476,16 @@ export function simulateLines(
             curLineW -= lastW
             pending.unshift(lastChar)
           }
-          // carried chars keep their compression relative to the pending run
+          // carried chars keep their compression relative to the pending run;
+          // the overflowing char's own squeeze depends on what follows it on
+          // the new line, so the recompute pairs the carry with the paragraph
+          // remainder (from this run's tail through every later run)
           const pendingJoined = pending.join('')
+          const restOfParagraph =
+            runChars.slice(ci + 1).join('') +
+            runs.slice(runIndex + 1).map((r) => r.text).join('')
           const pendingSqueeze = punctuationCompressionEnabled()
-            ? squeezeRightsEm(pendingJoined)
+            ? squeezeRightsAcrossEm([pendingJoined, restOfParagraph])[0]!
             : []
           const pendingW = pending.reduce(
             (sum, c, k) => sum + metrics.measure(c, style) + (pendingSqueeze[k] ?? 0) * style.fontSizePx,

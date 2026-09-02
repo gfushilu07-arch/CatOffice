@@ -12,6 +12,7 @@ import {
   isCompressibleClose,
   punctuationCompressionEnabled,
   setPunctuationCompressionEnabled,
+  squeezeRightsAcrossEm,
   squeezeRightsEm,
 } from '../src/renderer/punctuation-squeeze'
 import { simulateLines, type FontMetricsProvider } from '../src/renderer/line-metrics'
@@ -39,6 +40,28 @@ describe('squeezeRightsEm rule', () => {
   })
 })
 
+describe('squeezeRightsAcrossEm (run-boundary adjacency)', () => {
+  it('compresses across a piece boundary when both sides are closing marks', () => {
+    expect(squeezeRightsAcrossEm(['一。', '。二'])).toEqual([[0, -0.5], [0, 0]])
+  })
+
+  it('keeps a whole run spanning three pieces consistent', () => {
+    // run 。。。 spread over three pieces: the first two compress
+    expect(squeezeRightsAcrossEm(['。', '。', '。'])).toEqual([[-0.5], [-0.5], [0]])
+  })
+
+  it('stops at non-compressible chars; one run over two pieces keeps only its last member free', () => {
+    expect(squeezeRightsAcrossEm(['一。二', '。三'])).toEqual([[0, 0, 0], [0, 0]])
+    // four consecutive marks over two pieces: all but the very last compress
+    expect(squeezeRightsAcrossEm(['。。', '。。'])).toEqual([[-0.5, -0.5], [-0.5, 0]])
+  })
+
+  it('matches the single-text result on one piece and handles empties', () => {
+    expect(squeezeRightsAcrossEm(['一。。。二'])).toEqual([squeezeRightsEm('一。。。二')])
+    expect(squeezeRightsAcrossEm(['一', '', '。', '。'])).toEqual([[0], [], [-0.5], [0]])
+  })
+})
+
 const stubMetrics: FontMetricsProvider = {
   metrics: () => ({ ascent: 8, descent: 4, lineHeight: 12 }),
   measure: (text: string) => [...text].length * 10,
@@ -50,6 +73,21 @@ describe('simulateLines applies the same rule', () => {
     // with the first two of 「。。。」 compressed (8px each at 12pt), the run
     // measures 64px and fits on one line.
     const lines = simulateLines([{ text: '一二三四五。。。' }], 70, stubMetrics, 12, 'SimSun')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]!.text).toBe('一二三四五。。。')
+  })
+
+  it('compresses across the run boundary (one pass over the paragraph)', () => {
+    // old per-run math: one trailing mark at the end of the first run stays
+    // uncompressed, so the runs measure 60px + 12px = 72px and wrap; the
+    // cross-run pass sees one 3-mark run and fits everything on one line
+    const lines = simulateLines(
+      [{ text: '一二三四五。' }, { text: '。。' }],
+      70,
+      stubMetrics,
+      12,
+      'SimSun',
+    )
     expect(lines).toHaveLength(1)
     expect(lines[0]!.text).toBe('一二三四五。。。')
   })
@@ -171,5 +209,51 @@ describe('canvas decorations mark exactly the compressed chars', () => {
     // append a third mark at the end: the previous final 。 becomes compressed
     editor.commands.insertContentAt(editor.state.doc.content.size - 1, '。')
     expect(decoCount(editor)).toBe(1)
+  })
+
+  it('compresses across formatting boundaries (bold run of closing marks)', () => {
+    const editor = new Editor({
+      element: document.createElement('div'),
+      extensions: editorExtensions,
+      content: {
+        type: 'doc',
+        content: [
+          {
+            type: 'docParagraph',
+            attrs: { docxIndex: null },
+            content: [
+              { type: 'text', text: '一。' },
+              { type: 'text', marks: [{ type: 'bold' }], text: '。' },
+              { type: 'text', text: '二' },
+            ],
+          },
+        ],
+      } as never,
+    })
+    editors.add(editor)
+    expect(markedTexts(editor)).toEqual(['。'])
+  })
+
+  it('a hard break ends the run (no compression across lines)', () => {
+    const editor = new Editor({
+      element: document.createElement('div'),
+      extensions: editorExtensions,
+      content: {
+        type: 'doc',
+        content: [
+          {
+            type: 'docParagraph',
+            attrs: { docxIndex: null },
+            content: [
+              { type: 'text', text: '一。' },
+              { type: 'hardBreak' },
+              { type: 'text', text: '。二' },
+            ],
+          },
+        ],
+      } as never,
+    })
+    editors.add(editor)
+    expect(decoCount(editor)).toBe(0)
   })
 })
