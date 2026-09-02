@@ -2738,10 +2738,12 @@ function surfaceNewTabError(err: unknown): void {
   showErrorDialog(shellWindow, tm('errNewTabFailed'), err)
 }
 
-/** Asset center A1: the built-in GB/T 9704 kinds offered by the Home picker.
- *  Labels live here (not imported from the renderer module) because the
- *  shell main bundles independently of the docs renderer. */
+/** Asset center A2: entries offered by the Home picker. The gallery id opens
+ *  the in-editor TemplateGallery (local + cloud merge) instead of a direct
+ *  scaffold. Labels live here (not imported from the renderer module) because
+ *  the shell main bundles independently of the docs renderer. */
 const GOVT_TEMPLATE_MENU: Array<{ id: string; label: string; description: string }> = [
+  { id: '__gallery', label: '从模板画廊新建…', description: '浏览全部公文模板' },
   { id: 'notice', label: '通知', description: '传达事项、布置工作' },
   { id: 'request', label: '请示', description: '向上级机关请求指示、批准' },
   { id: 'report', label: '报告', description: '向上级机关汇报工作、反映情况' },
