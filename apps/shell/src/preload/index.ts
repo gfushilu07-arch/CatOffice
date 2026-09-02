@@ -85,6 +85,9 @@ const homeApi: HomeApi = {
   async newSheet(opts) {
     await ipcRenderer.invoke(HOME_CHANNELS.newSheet, opts)
   },
+  async sheetTemplates() {
+    return ipcRenderer.invoke(HOME_CHANNELS.sheetTemplates)
+  },
   async newSlide(opts) {
     await ipcRenderer.invoke(HOME_CHANNELS.newSlide, opts)
   },

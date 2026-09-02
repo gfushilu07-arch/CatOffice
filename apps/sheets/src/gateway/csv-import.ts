@@ -208,6 +208,14 @@ export async function blankXlsxBuffer(sheetName = 'Sheet1'): Promise<Buffer> {
   return xlsxBufferFromRows([], sheetName)
 }
 
+/** Build a workbook from row arrays (template presets, asset center S1). */
+export async function rowsToXlsxBuffer(
+  rows: readonly (readonly string[])[],
+  sheetName = 'Sheet1',
+): Promise<Buffer> {
+  return xlsxBufferFromRows(rows, sheetName)
+}
+
 async function xlsxBufferFromRows(
   rows: readonly (readonly string[])[],
   sheetName: string,

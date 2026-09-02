@@ -44,6 +44,7 @@ const GREET_ASK_KEYS = [
 const FILE_ICONS: Record<string, string> = {
   docx: iconDocx,
   govt: iconDocx, // the GB/T 9704 template picker card reuses the docs icon
+  xlsht: iconXlsx, // the sheet-template picker card reuses the sheets icon
   xlsx: iconXlsx,
   xlsm: iconXlsx,
   pptx: iconPptx,
@@ -1487,6 +1488,11 @@ export function Home() {
     void window.aiOffice.newSheet(selectedProjectId ? { projectId: selectedProjectId } : undefined)
   }
 
+  // asset center S1: the native sheet-template picker (budget / roster / ledger)
+  const handleNewSheetTemplate = () => {
+    void window.aiOffice.sheetTemplates()
+  }
+
   const handleNewSlide = () => {
     void window.aiOffice.newSlide(selectedProjectId ? { projectId: selectedProjectId } : undefined)
   }
@@ -1510,6 +1516,12 @@ export function Home() {
       action: handleNewGovtDoc,
     },
     { ext: 'xlsx', title: t('newSheet'), sub: '.xlsx', action: handleNewSheet },
+    {
+      ext: 'xlsht',
+      title: '表格模板',
+      sub: '预算 / 排班 / 台账',
+      action: handleNewSheetTemplate,
+    },
     { ext: 'pptx', title: t('newSlide'), sub: '.pptx', action: handleNewSlide },
     { ext: 'md', title: t('newMarkdown'), sub: '.md', action: handleNewMarkdown },
     { ext: 'pdf', title: t('newPdf'), sub: '.pdf', action: handleNewPdf },

@@ -77,7 +77,9 @@ export interface HomeApi {
    *  the picked template arrives at the new docs tab via queueDocsGovtTemplate */
   govtTemplates(): Promise<void>
   /** open a sheets window */
-  newSheet(opts?: { projectId?: string }): Promise<void>
+  newSheet(opts?: { projectId?: string; sheetTemplateId?: string }): Promise<void>
+  /** native sheet-template picker (asset center S1) */
+  sheetTemplates(): Promise<void>
   /** open a slides tab at its start screen (open-a-pptx) */
   newSlide(opts?: { projectId?: string }): Promise<void>
   /** open a blank markdown editor tab */
@@ -278,6 +280,7 @@ export const HOME_CHANNELS = {
   newDoc: 'home:new-doc',
   govtTemplates: 'home:govt-templates',
   newSheet: 'home:new-sheet',
+  sheetTemplates: 'home:sheet-templates',
   newSlide: 'home:new-slide',
   newMarkdown: 'home:new-markdown',
   newPdf: 'home:new-pdf',

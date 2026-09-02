@@ -124,7 +124,8 @@ import {
   defaultSaveDir,
   uniquePathIn,
 } from '../../../docs/src/main/docs-main'
-import { blankXlsxBuffer } from '../../../sheets/src/gateway/csv-import'
+import { blankXlsxBuffer, rowsToXlsxBuffer } from '../../../sheets/src/gateway/csv-import'
+import { SHEET_TEMPLATE_MENU, sheetTemplateById } from '../../../sheets/src/gateway/sheet-templates'
 import { blankPdfBuffer } from '../../../pdf/src/main/blank-pdf'
 import {
   configureSheetsRuntime,
@@ -2707,10 +2708,17 @@ function routeDocumentPath(filePath: string): boolean {
  * pipeline, so the file must exist before edits. Falls back to the old blank
  * tab if the write fails.
  */
-async function newSheetTab(): Promise<void> {
+async function newSheetTab(sheetTemplateId?: string): Promise<void> {
   try {
-    const filePath = uniquePathIn(defaultSaveDir(), `${tm('untitledSheet')}.xlsx`)
-    writeFileSync(filePath, await blankXlsxBuffer())
+    const template = sheetTemplateId ? sheetTemplateById(sheetTemplateId) : undefined
+    const filePath = uniquePathIn(
+      defaultSaveDir(),
+      `${template ? template.fileName : tm('untitledSheet')}.xlsx`,
+    )
+    writeFileSync(
+      filePath,
+      template ? await rowsToXlsxBuffer(template.rows, template.sheetName) : await blankXlsxBuffer(),
+    )
     // eligible for content-derived auto-rename after the first AI generation
     markSheetsUntitledPath(filePath)
     // route directly (not via openDocumentPath) so creating a sheet emits
@@ -2968,11 +2976,31 @@ function registerHomeIpc(): void {
     menu.popup({ window: win, x: cursor.x, y: cursor.y })
   })
 
-  ipcMain.handle(HOME_CHANNELS.newSheet, (_event, opts?: { projectId?: string }) => {
-    if (opts?.projectId && opts.projectId !== 'default') {
-      pendingNewFileProject.set('sheet', opts.projectId)
-    }
-    void newSheetTab()
+  ipcMain.handle(
+    HOME_CHANNELS.newSheet,
+    (_event, opts?: { projectId?: string; sheetTemplateId?: string }) => {
+      if (opts?.projectId && opts.projectId !== 'default') {
+        pendingNewFileProject.set('sheet', opts.projectId)
+      }
+      void newSheetTab(opts?.sheetTemplateId)
+    },
+  )
+
+  // asset center S1: the native sheet-template picker (same UX as the docs one)
+  ipcMain.handle(HOME_CHANNELS.sheetTemplates, () => {
+    const manager = tabManager
+    const win = shellWindow
+    if (!manager || !win) return
+    const menu = Menu.buildFromTemplate(
+      SHEET_TEMPLATE_MENU.map((entry) => ({
+        label: `${entry.label} — ${entry.description}`,
+        click: () => {
+          void newSheetTab(entry.id).catch(surfaceNewTabError)
+        },
+      })),
+    )
+    const cursor = screen.getCursorScreenPoint()
+    menu.popup({ window: win, x: cursor.x, y: cursor.y })
   })
 
   ipcMain.handle(HOME_CHANNELS.newSlide, (_event, opts?: { projectId?: string }) => {
