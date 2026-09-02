@@ -14,6 +14,8 @@ import { DOMParser as PmDOMParser, type Mark as PmMark } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import { Dropdown } from '@genoffice/ui'
 import { markdownPasteHtml } from './editor/markdown-paste'
+import { govtDocBlocks, govtDocSection } from './govt-template'
+import { govtTemplateById } from './govt-catalog'
 import {
   BLANK_BULLET_NUM_ID,
   BLANK_ORDERED_NUM_ID,
@@ -199,6 +201,7 @@ import {
   exportPdf as exportPdfImpl,
   loadFile as loadFileImpl,
   newFile as newFileImpl,
+  type NewFileTemplate,
   printDoc as printDocImpl,
   save as saveImpl,
   writeRecoveryCopy as writeRecoveryCopyImpl,
@@ -405,7 +408,9 @@ export function App() {
   const { lang } = useI18n()
   const [doc, setDoc] = useState<DocState | null>(null)
   /** true until the pending-open / new-blank boot checks settle; the start screen stays hidden meanwhile */
-  const bootPendingRef = useRef<Promise<[OpenDocxResult, boolean, AiDocContent | null]> | null>(
+  const bootPendingRef = useRef<
+    Promise<[OpenDocxResult, boolean, AiDocContent | null, string | null]> | null
+  >(
     null,
   )
   const bootHandledRef = useRef(false)
@@ -1199,9 +1204,11 @@ export function App() {
       // Still consume the one-shot new-blank flag so it doesn't leak into the next open
       window.desktop.consumeNewBlankDoc(),
       window.desktop.consumeAiDocContent(),
+      // asset center A1: a template id queued by the shell's new-document entry
+      window.desktop.consumeGovtTemplate(),
     ])
     void bootPendingRef.current
-      .then(async ([pending, , aiContent]) => {
+      .then(async ([pending, , aiContent, govtTemplateId]) => {
         if (bootHandledRef.current) return
         bootHandledRef.current = true
         // A failed open (corrupt file etc.) falls back to a blank document —
@@ -1209,7 +1216,20 @@ export function App() {
         // line explaining why (github.com/genspark-ai/genoffice issue #102).
         // 'password': the prompt is up; its cancel path lands on blank instead.
         const outcome = pending ? await loadFile(pending) : 'canceled'
-        if (outcome === 'failed' || outcome === 'canceled') await newFile()
+        const template = !pending
+          ? govtTemplateId
+            ? govtTemplateById(govtTemplateId)
+            : undefined
+          : undefined
+        if (outcome === 'failed' || outcome === 'canceled') {
+          await newFile(
+            template && {
+              blocks: govtDocBlocks(template.options),
+              section: govtDocSection(),
+              fileName: template.fileName,
+            },
+          )
+        }
         if (aiContent && !pending) {
           // fileCtxRef refreshes per render: wait until newFile's setDoc landed
           for (let i = 0; i < 100 && !fileCtxRef.current.doc; i++) {
@@ -1236,7 +1256,10 @@ export function App() {
   }, [loadFile])
 
   /** new document from the built-in blank template (AI can then generate into it) */
-  const newFile = useCallback(() => newFileImpl(fileCtxRef.current), [])
+  const newFile = useCallback(
+    (template?: NewFileTemplate) => newFileImpl(fileCtxRef.current, template),
+    [],
+  )
 
   const openRecent = useCallback(
     async (path: string) => {

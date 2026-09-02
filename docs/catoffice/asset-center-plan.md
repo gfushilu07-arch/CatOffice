@@ -44,6 +44,12 @@ WPS 稻壳儿 = 模板/素材商城（在线模板库、会员体系、贡献者
 | A3 | CatSpark 真实云目录端点 + 搜索/分类（catspark-integration.md 增补契约段） | CatSpark 服务端（Rust/axle） |
 | A4 | 积分/会员计费、UGC 贡献生态 | 合规协议先行 |
 
+### 执行进度
+
+| 日期 | 任务 | 内容 |
+| --- | --- | --- |
+| 2026-09-02 | **A1 完成：本地公文模板 + 新建入口直选** | **五层贯通**：① `govt-catalog.ts`（renderer）——5 品类参数表（通知/请示/报告/函/纪要，title 带 ×× 占位、文件名基底、id 稳定）；② 引擎 `buildBlankDocx` 新增 `section` 选项（GB 版心随空白文档 emit，`applySectionSettings` 应用，2 个回读测试）；③ docs `newFile(ctx, template?)` 新增 `NewFileTemplate{blocks,section,fileName}`——模板 blocks 替换空段但**保留 hidden 尾块**（sectPr 否则丢页框）、section 直注入 ctx（生成块无 originalXml 供 readSections 读）、文件名用模板基底；④ 四层 IPC：docs-main `queueDocsGovtTemplate`/`docs:consume-govt-template`（one-shot Map）→ preload `consumeGovtTemplate` → shared/ipc 类型；shell tab-manager `openDocsTab` 增 `govtTemplateId`、`home-api` 增 `govtTemplates()`（原生菜单选择器）+ `newDoc` opts 透传、shell main `GOVT_TEMPLATE_MENU`（标签留 shell 侧——shell 与 docs renderer 独立打包）+ `newDocTab(govtTemplateId)`；⑤ Home.tsx 新增「公文模板 GB/T 9704」卡（复用 docs 图标）→ 原生菜单 5 项（光标处 popup）→ 新 docs tab 渲染器 boot 时消费模板 id → `govtDocBlocks(options)` + `govtDocSection()` 应用。**语义保全**：模板走 Block[]（非 AiDocContent html），字符缩进/红头/红线全保真；tab 标题首保存时由 fileName 同步（既有 saved hook）。测试：引擎 blank-section 2 + docs govt-catalog 3；shell 218/218、docs 1340（1 个既知环境 flake 除外）、engine 931。**待续（A2）**：模板画廊缩略图预览 + mock 云目录路由 |
+
 ## 五、与现有文档的关系
 
 - [product-plan.md](product-plan.md) §9.3「公文套版」AI 技能 = 素材中心的 AI 消费方；§8.1 文档模块的公文项（P1）= 内容供给线。

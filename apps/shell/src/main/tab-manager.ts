@@ -7,6 +7,7 @@ import {
   docsQueryDirty,
   markDocsNewBlank,
   queueDocsAiContent,
+  queueDocsGovtTemplate,
   requestDocsClose,
   setActiveDocsResolver,
   teardownDocsRenderer,
@@ -154,12 +155,15 @@ export class TabManager {
 
   openDocsTab(
     openPath?: string,
-    options?: { newBlank?: boolean; aiContent?: AiDocContent },
+    options?: { newBlank?: boolean; aiContent?: AiDocContent; govtTemplateId?: string },
   ): string {
     const view = createDocsView(openPath)
     const id = `t${this.nextId++}`
     if (options?.newBlank) markDocsNewBlank(view.webContents.id)
     if (options?.aiContent) queueDocsAiContent(view.webContents.id, options.aiContent)
+    if (options?.govtTemplateId) {
+      queueDocsGovtTemplate(view.webContents.id, options.govtTemplateId)
+    }
     this.shellWindow.contentView.addChildView(view)
     view.setVisible(false)
     this.trackHtmlFullScreen(id, view)
@@ -167,6 +171,8 @@ export class TabManager {
       id,
       kind: 'docs',
       view,
+      // a template tab's real name lands with the doc's fileName on first save
+      // (setDocsFileSavedHook); the untitled label is fine until then
       title: openPath ? basename(openPath) : this.untitled('docs', 'Cat Office Docs'),
       filePath: openPath,
     })

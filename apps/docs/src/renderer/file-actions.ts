@@ -368,11 +368,31 @@ export async function loadFile(
 }
 
 /** new document from the built-in blank template (AI can then generate into it) */
-export async function newFile(ctx: FileActionContext): Promise<boolean | undefined> {
+export interface NewFileTemplate {
+  /** pre-rendered template blocks (asset center A1: govtDocBlocks output) */
+  blocks: Block[]
+  /** page setup applied to the fresh document's sectPr (e.g. govtDocSection()) */
+  section: SectionSettings
+  /** file name base for the untitled draft (extension added by callers) */
+  fileName: string
+}
+
+export async function newFile(
+  ctx: FileActionContext,
+  template?: NewFileTemplate,
+): Promise<boolean | undefined> {
   if (!ctx.editor) return
   try {
-    const bytes = await buildBlankDocx({ eastAsiaFont: defaultEastAsiaFontFor(getLang()) })
+    const bytes = await buildBlankDocx({
+      eastAsiaFont: defaultEastAsiaFontFor(getLang()),
+      ...(template ? { section: template.section } : {}),
+    })
     const parsed = await parseDocx(bytes)
+    // A template's blocks replace the single empty paragraph before the PM
+    // doc is built; the hidden trailing blocks (sectPr — carrying the
+    // template's page setup — plus header/footer stubs) must survive, or
+    // readSections falls back to defaults and the GB page frame is lost.
+    if (template) parsed.blocks = [...template.blocks, ...parsed.blocks.filter((b) => b.hidden)]
     setDocFontTable(parsed.fontTable)
     ctx.editor.storage.listNumbering.styles = parsed.styles
     ctx.editor.storage.listNumbering.docDefaults = parsed.docDefaults
@@ -381,7 +401,13 @@ export async function newFile(ctx: FileActionContext): Promise<boolean | undefin
     ctx.editor.commands.setContent(blocksToPmDoc(parsed.blocks, readSections(parsed)) as never)
     resetEditorHistory(ctx.editor)
     noteDocumentSwapped()
-    ctx.setDoc({ parsed, filePath: null, fileName: t('appUntitledDocx'), hash: '', isBlank: true })
+    ctx.setDoc({
+      parsed,
+      filePath: null,
+      fileName: template ? `${template.fileName}.docx` : t('appUntitledDocx'),
+      hash: '',
+      isBlank: true,
+    })
     // a fresh blank draft starts unencrypted: drop any pending password left by
     // the previous draft (its DocState, including the encrypted flag, is gone)
     discardStalePasswordIntents()
@@ -390,8 +416,16 @@ export async function newFile(ctx: FileActionContext): Promise<boolean | undefin
     // Asian-typography punctuation compression gate (w:characterSpacingControl):
     // absent keeps this fork's CJK default (compress); doNotCompress turns it off
     setPunctuationCompressionEnabled(parsed.characterSpacingControl !== 'doNotCompress')
-    ctx.setSection(readSectionSettings(parsed))
-    ctx.setSections(readSections(parsed))
+    // A template's section settings live on the NewFileTemplate (the generated
+    // blocks carry no originalXml for readSections to find), so they are
+    // injected directly; a blank draft re-reads them from the parsed doc.
+    if (template) {
+      ctx.setSection(template.section)
+      ctx.setSections([])
+    } else {
+      ctx.setSection(readSectionSettings(parsed))
+      ctx.setSections(readSections(parsed))
+    }
     ctx.setSectionDirty(false)
     ctx.setPageColor(readPageColor(parsed))
     ctx.setPageColorDirty(false)

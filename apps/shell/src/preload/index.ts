@@ -79,6 +79,9 @@ const homeApi: HomeApi = {
   async newDoc(opts) {
     await ipcRenderer.invoke(HOME_CHANNELS.newDoc, opts)
   },
+  async govtTemplates() {
+    return ipcRenderer.invoke(HOME_CHANNELS.govtTemplates)
+  },
   async newSheet(opts) {
     await ipcRenderer.invoke(HOME_CHANNELS.newSheet, opts)
   },

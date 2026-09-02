@@ -72,7 +72,10 @@ export interface HomeApi {
   /** file picker accepting every supported extension, then routes */
   browse(): Promise<void>
   /** open a docs window at its start screen */
-  newDoc(opts?: { projectId?: string }): Promise<void>
+  newDoc(opts?: { projectId?: string; govtTemplateId?: string }): Promise<void>
+  /** ask the shell to show the native government-template picker (asset center A1);
+   *  the picked template arrives at the new docs tab via queueDocsGovtTemplate */
+  govtTemplates(): Promise<void>
   /** open a sheets window */
   newSheet(opts?: { projectId?: string }): Promise<void>
   /** open a slides tab at its start screen (open-a-pptx) */
@@ -273,6 +276,7 @@ export const HOME_CHANNELS = {
   openPath: 'home:open-path',
   browse: 'home:browse',
   newDoc: 'home:new-doc',
+  govtTemplates: 'home:govt-templates',
   newSheet: 'home:new-sheet',
   newSlide: 'home:new-slide',
   newMarkdown: 'home:new-markdown',

@@ -1959,6 +1959,14 @@ export function markDocsNewBlank(wcId: number): void {
   pendingNewBlankIds.add(wcId)
 }
 
+/** government-template ids waiting for their create_document tab, keyed by webContents id (asset center A1) */
+const pendingGovtTemplateIds = new Map<number, string>()
+
+/** queue a govt template id for a fresh docs tab (called by the shell after creating the view) */
+export function queueDocsGovtTemplate(wcId: number, templateId: string): void {
+  pendingGovtTemplateIds.set(wcId, templateId)
+}
+
 /** AI-authored content waiting for its create_document tab, keyed by webContents id */
 const pendingAiDocContents = new Map<number, AiDocContent>()
 
@@ -3104,6 +3112,13 @@ export function registerDocsIpc(): void {
       return true
     }
     return false
+  })
+
+  /** one-shot govt template id queued by the shell's new-document entry (A1); null when none */
+  ipcMain.handle('docs:consume-govt-template', (event): string | null => {
+    const id = pendingGovtTemplateIds.get(event.sender.id) ?? null
+    pendingGovtTemplateIds.delete(event.sender.id)
+    return id
   })
 
   /** one-shot AI content queued by create_document for this tab; null when none */

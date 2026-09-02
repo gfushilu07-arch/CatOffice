@@ -212,6 +212,8 @@ export interface DesktopApi {
   consumePendingOpenDocx(): Promise<OpenDocxResult>
   /** returns true when this tab was created via "New Document" and should start blank */
   consumeNewBlankDoc(): Promise<boolean>
+  /** one-shot government-template id queued for this tab (asset center A1); null when none */
+  consumeGovtTemplate(): Promise<string | null>
   /** AI-authored content queued for this tab by create_document; one-shot, null when none */
   consumeAiDocContent(): Promise<AiDocContent | null>
   /** AI create_document: build a new standalone file and open it in a new tab */

@@ -43,6 +43,7 @@ const GREET_ASK_KEYS = [
 
 const FILE_ICONS: Record<string, string> = {
   docx: iconDocx,
+  govt: iconDocx, // the GB/T 9704 template picker card reuses the docs icon
   xlsx: iconXlsx,
   xlsm: iconXlsx,
   pptx: iconPptx,
@@ -1477,6 +1478,11 @@ export function Home() {
     void window.aiOffice.newDoc(selectedProjectId ? { projectId: selectedProjectId } : undefined)
   }
 
+  // asset center A1: the native picker lists the built-in GB/T 9704 kinds
+  const handleNewGovtDoc = () => {
+    void window.aiOffice.govtTemplates()
+  }
+
   const handleNewSheet = () => {
     void window.aiOffice.newSheet(selectedProjectId ? { projectId: selectedProjectId } : undefined)
   }
@@ -1497,6 +1503,12 @@ export function Home() {
 
   const NEW_ITEMS = [
     { ext: 'docx', title: t('newDoc'), sub: '.docx', action: handleNewDoc },
+    {
+      ext: 'govt',
+      title: '公文模板',
+      sub: 'GB/T 9704',
+      action: handleNewGovtDoc,
+    },
     { ext: 'xlsx', title: t('newSheet'), sub: '.xlsx', action: handleNewSheet },
     { ext: 'pptx', title: t('newSlide'), sub: '.pptx', action: handleNewSlide },
     { ext: 'md', title: t('newMarkdown'), sub: '.md', action: handleNewMarkdown },

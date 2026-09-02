@@ -1,5 +1,7 @@
 import JSZip from 'jszip'
 
+import { applySectionSettings } from './section'
+
 /**
  * Blank document template for "new document" and AI from-scratch generation.
  *
@@ -148,6 +150,12 @@ export interface BlankDocxOptions {
    * Word/our renderer then substitute per script when CJK text appears.
    */
   eastAsiaFont?: string
+  /**
+   * Page setup for the fresh document (asset-center A1: GB/T 9704 templates
+   * need the GB text area, not US-Letter-style defaults). Applied via
+   * applySectionSettings, so every SectionSettings field is honored.
+   */
+  section?: import('./types').SectionSettings
 }
 
 /** Build a minimal valid .docx: one empty paragraph, A4 portrait, standard styles. */
@@ -183,10 +191,13 @@ export async function buildBlankDocx(options?: BlankDocxOptions): Promise<Uint8A
   zip.file('word/styles.xml', stylesXml(options?.eastAsiaFont))
   zip.file('word/numbering.xml', NUMBERING_XML)
 
-  const sectPr =
+  const defaultSectPr =
     '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>' +
     '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/>' +
     '</w:sectPr>'
+  const sectPr = options?.section
+    ? applySectionSettings(defaultSectPr, options.section)
+    : defaultSectPr
   zip.file(
     'word/document.xml',
     `${XML_DECL}<w:document ${DOC_NS}><w:body><w:p/>${sectPr}</w:body></w:document>`,

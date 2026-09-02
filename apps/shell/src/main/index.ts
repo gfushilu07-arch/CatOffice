@@ -17,6 +17,7 @@ import {
   ipcMain,
   nativeImage,
   nativeTheme,
+  screen,
   session,
   shell,
   webContents,
@@ -2737,9 +2738,20 @@ function surfaceNewTabError(err: unknown): void {
   showErrorDialog(shellWindow, tm('errNewTabFailed'), err)
 }
 
-function newDocTab(): void {
+/** Asset center A1: the built-in GB/T 9704 kinds offered by the Home picker.
+ *  Labels live here (not imported from the renderer module) because the
+ *  shell main bundles independently of the docs renderer. */
+const GOVT_TEMPLATE_MENU: Array<{ id: string; label: string; description: string }> = [
+  { id: 'notice', label: '通知', description: '传达事项、布置工作' },
+  { id: 'request', label: '请示', description: '向上级机关请求指示、批准' },
+  { id: 'report', label: '报告', description: '向上级机关汇报工作、反映情况' },
+  { id: 'letter', label: '函', description: '不相隶属机关之间商洽工作' },
+  { id: 'minutes', label: '纪要', description: '记载会议主要情况和议定事项' },
+]
+
+function newDocTab(govtTemplateId?: string): void {
   try {
-    tabManager?.openDocsTab(undefined, { newBlank: true })
+    tabManager?.openDocsTab(undefined, { newBlank: true, govtTemplateId })
     // creating a document is as much a value moment as opening one
     recordStarPromptDocOpen()
     analytics.track('file_new', { kind: 'docx' })
@@ -2923,11 +2935,35 @@ function registerHomeIpc(): void {
     if (!result.canceled) for (const path of result.filePaths) openDocumentPath(path)
   })
 
-  ipcMain.handle(HOME_CHANNELS.newDoc, (_event, opts?: { projectId?: string }) => {
+  ipcMain.handle(HOME_CHANNELS.newDoc, (_event, opts?: { projectId?: string; govtTemplateId?: string }) => {
     if (opts?.projectId && opts.projectId !== 'default') {
       pendingNewFileProject.set('doc', opts.projectId)
     }
-    newDocTab()
+    newDocTab(opts?.govtTemplateId)
+  })
+
+  // asset center A1: the native government-template picker; the picked id
+  // rides queueDocsGovtTemplate into the fresh docs tab's renderer
+  ipcMain.handle(HOME_CHANNELS.govtTemplates, () => {
+    const manager = tabManager
+    const win = shellWindow
+    if (!manager || !win) return
+    const menu = Menu.buildFromTemplate(
+      GOVT_TEMPLATE_MENU.map((entry) => ({
+        label: `${entry.label} — ${entry.description}`,
+        click: () => {
+          try {
+            manager.openDocsTab(undefined, { newBlank: true, govtTemplateId: entry.id })
+            analytics.track('file_new', { kind: 'docx', template: entry.id })
+          } catch (err) {
+            surfaceNewTabError(err)
+          }
+        },
+      })),
+    )
+    // anchor at the pointer (the click that opened this picker lives on Home)
+    const cursor = screen.getCursorScreenPoint()
+    menu.popup({ window: win, x: cursor.x, y: cursor.y })
   })
 
   ipcMain.handle(HOME_CHANNELS.newSheet, (_event, opts?: { projectId?: string }) => {
