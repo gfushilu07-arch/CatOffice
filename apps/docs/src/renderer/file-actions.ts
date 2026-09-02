@@ -64,6 +64,7 @@ import { isDocDirty } from './doc-dirty'
 import { createSaveSerializer } from './save-until-persisted'
 import { checkMissingFonts, collectDocFonts } from './font-check'
 import { setDocFontTable } from './line-metrics'
+import { setPunctuationCompressionEnabled } from './punctuation-squeeze'
 import { defaultEastAsiaFontFor } from './font-list'
 import { hasPrintableHeaderFooter } from './pagination'
 import { showToast } from './components/toast-bus'
@@ -277,6 +278,9 @@ export async function loadFile(
     discardStalePasswordIntents()
     ctx.setAiPanelKey((k) => k + 1)
     ctx.setDocCss(docStyleCss(parsed))
+    // Asian-typography punctuation compression gate (w:characterSpacingControl):
+    // absent keeps this fork's CJK default (compress); doNotCompress turns it off
+    setPunctuationCompressionEnabled(parsed.characterSpacingControl !== 'doNotCompress')
     ctx.setSection(readSectionSettings(parsed))
     ctx.setSections(readSections(parsed))
     ctx.setSectionDirty(false)
@@ -383,6 +387,9 @@ export async function newFile(ctx: FileActionContext): Promise<boolean | undefin
     discardStalePasswordIntents()
     ctx.setAiPanelKey((k) => k + 1)
     ctx.setDocCss(docStyleCss(parsed))
+    // Asian-typography punctuation compression gate (w:characterSpacingControl):
+    // absent keeps this fork's CJK default (compress); doNotCompress turns it off
+    setPunctuationCompressionEnabled(parsed.characterSpacingControl !== 'doNotCompress')
     ctx.setSection(readSectionSettings(parsed))
     ctx.setSections(readSections(parsed))
     ctx.setSectionDirty(false)

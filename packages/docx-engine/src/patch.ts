@@ -42,6 +42,7 @@ import {
 import { buildChartPartXml, buildChartWorkbookXlsxBase64, CHART_WORKBOOK_REL_TYPE } from './chart'
 import type {
   CommentInfo,
+  CharacterSpacingControl,
   DocProtection,
   WriteProtection,
   GeneratedBlock,
@@ -122,6 +123,11 @@ export interface SaveOptions {
   sectionHf?: Array<{ lastBlockIndex: number; kind: 'header' | 'footer'; hf: HeaderFooter }>
   /** "different odd & even pages": set/remove settings.xml w:evenAndOddHeaders */
   evenAndOddHeaders?: boolean
+  /**
+   * Asian-typography punctuation compression (settings.xml
+   * w:characterSpacingControl). undefined = keep the document's tag as-is.
+   */
+  characterSpacingControl?: CharacterSpacingControl
   /**
    * Inject the newly created header/footer references into EVERY body sectPr
    * that has none (not just the trailing one). Generated multi-section
@@ -410,6 +416,7 @@ export async function saveDocx(
     options.numbering === undefined &&
     (options.styleUpserts === undefined || options.styleUpserts.length === 0) &&
     options.evenAndOddHeaders === undefined &&
+    options.characterSpacingControl === undefined &&
     options.comments === undefined &&
     options.protection === undefined &&
     options.writeProtection === undefined &&
@@ -1048,7 +1055,8 @@ export async function saveDocx(
     options.protection !== undefined ||
     options.writeProtection !== undefined ||
     options.removePersonalInfo !== undefined ||
-    options.evenAndOddHeaders !== undefined
+    options.evenAndOddHeaders !== undefined ||
+    options.characterSpacingControl !== undefined
   ) {
     const file = zip.file(settingsPath)
     let xml: string
@@ -1090,6 +1098,10 @@ export async function saveDocx(
     }
     if (options.evenAndOddHeaders !== undefined) {
       xml = applyEvenAndOddHeaders(xml, options.evenAndOddHeaders)
+      touched = true
+    }
+    if (options.characterSpacingControl !== undefined) {
+      xml = applyCharacterSpacingControl(xml, options.characterSpacingControl)
       touched = true
     }
     if (touched) settingsXml = xml
@@ -1831,6 +1843,12 @@ function applyTitlePg(sectPrXml: string, on: boolean): string {
 function applyEvenAndOddHeaders(xml: string, on: boolean): string {
   const out = xml.replace(/<w:evenAndOddHeaders[^>]*\/>/, '')
   return on ? out.replace(/(<w:settings[^>]*>)/, '$1<w:evenAndOddHeaders/>') : out
+}
+
+/** set or replace w:characterSpacingControl right after the settings root opens */
+function applyCharacterSpacingControl(xml: string, mode: CharacterSpacingControl): string {
+  const out = xml.replace(/<w:characterSpacingControl[^>]*\/>/, '')
+  return out.replace(/(<w:settings[^>]*>)/, `$1<w:characterSpacingControl w:val="${mode}"/>`)
 }
 
 /** Set, replace or remove <w:background> (must be the first child of w:document). */

@@ -1481,6 +1481,20 @@ export interface WriteProtection {
   algorithmSid?: number
 }
 
+/**
+ * settings.xml w:characterSpacingControl — how fullwidth punctuation
+ * compresses (Word's Asian typography "punctuation compression"). The
+ * compression rules live in the renderer's punctuation-squeeze model; this
+ * value only gates them.
+ */
+export type CharacterSpacingControl =
+  /** no compression (Word's spec default) */
+  | 'doNotCompress'
+  /** compress fullwidth punctuation: adjacent closing marks and line-edge faces */
+  | 'compressPunctuation'
+  /** the same, plus Japanese kana */
+  | 'compressPunctuationAndJapaneseKana'
+
 /** One bibliography source (subset of the Word b:Sources schema). */
 export interface SourceInfo {
   /** unique tag (b:Tag), e.g. "Wang2024" */
@@ -1601,6 +1615,13 @@ export interface ParsedDoc {
   balanceDbcsSpacing?: boolean
   /** settings.xml w:defaultTabStop in twips (absent = Word's 720); 0 = zero-width default tabs */
   defaultTabStopTwips?: number
+  /**
+   * settings.xml w:characterSpacingControl — Word's Asian-typography
+   * punctuation compression. Absent = the tag is not written; the renderer
+   * keeps its own CJK default (compress) unless the document says
+   * doNotCompress explicitly.
+   */
+  characterSpacingControl?: CharacterSpacingControl
   /** first-page header/footer parts (w:type="first"), null when absent */
   headerFirst?: HfPartInfo | null
   footerFirst?: HfPartInfo | null

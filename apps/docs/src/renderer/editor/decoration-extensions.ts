@@ -5,7 +5,10 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { isInTable } from '@tiptap/pm/tables'
 import { t } from '../i18n/locale'
 import { type TabStop } from '@genoffice/docx-engine'
-import { squeezeRightsEm } from '../punctuation-squeeze'
+import {
+  punctuationCompressionEnabled,
+  squeezeRightsEm,
+} from '../punctuation-squeeze'
 
 /**
  * Custom schema mirroring the docx-engine Block model 1:1.
@@ -997,6 +1000,8 @@ export const PunctSqueezeExtension = Extension.create({
       const decos: Decoration[] = []
       doc.descendants((node, pos) => {
         if (!node.isText || !node.text) return true
+        // document-level gate (w:characterSpacingControl doNotCompress)
+        if (!punctuationCompressionEnabled()) return true
         const squeeze = squeezeRightsEm(node.text)
         if (!squeeze.some((s) => s !== 0)) return true
         const chars = [...node.text]

@@ -26,6 +26,7 @@ import { assertZipWithinLimits, loadDocxZip } from './zip-load'
 import type {
   Block,
   ChartDisplay,
+  CharacterSpacingControl,
   CommentInfo,
   DiagramDisplay,
   DiagramShape,
@@ -5258,15 +5259,24 @@ async function parseLayoutSettings(zip: JSZip): Promise<{
   autoHyphenation?: boolean
   defaultTabStopTwips?: number
   balanceDbcsSpacing?: boolean
+  characterSpacingControl?: CharacterSpacingControl
 }> {
   const file = zip.file('word/settings.xml')
   if (!file) return {}
   const xml = await file.async('string')
   const tab = /<w:defaultTabStop[^>]*w:val="(-?\d+)"/.exec(xml)
+  const spacing = /<w:characterSpacingControl[^>]*w:val="([^"]+)"/.exec(xml)?.[1]
+  const spacingControl =
+    spacing === 'doNotCompress' ||
+    spacing === 'compressPunctuation' ||
+    spacing === 'compressPunctuationAndJapaneseKana'
+      ? (spacing as CharacterSpacingControl)
+      : undefined
   return {
     ...(xmlFlagOn(xml, 'w:autoHyphenation') ? { autoHyphenation: true } : {}),
     ...(tab ? { defaultTabStopTwips: parseInt(tab[1], 10) } : {}),
     ...(xmlFlagOn(xml, 'w:balanceSingleByteDoubleByteWidth') ? { balanceDbcsSpacing: true } : {}),
+    ...(spacingControl ? { characterSpacingControl: spacingControl } : {}),
   }
 }
 

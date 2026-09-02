@@ -8,7 +8,12 @@
 import { describe, expect, it } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { editorExtensions } from '../src/renderer/editor/extensions'
-import { isCompressibleClose, squeezeRightsEm } from '../src/renderer/punctuation-squeeze'
+import {
+  isCompressibleClose,
+  punctuationCompressionEnabled,
+  setPunctuationCompressionEnabled,
+  squeezeRightsEm,
+} from '../src/renderer/punctuation-squeeze'
 import { simulateLines, type FontMetricsProvider } from '../src/renderer/line-metrics'
 
 describe('squeezeRightsEm rule', () => {
@@ -51,6 +56,60 @@ describe('simulateLines applies the same rule', () => {
 
   it('keeps the uncompressed line break for non-run text', () => {
     expect(simulateLines([{ text: '一二三四五六七八' }], 70, stubMetrics, 12, 'SimSun')).toHaveLength(2)
+  })
+})
+
+describe('document-level compression gate (w:characterSpacingControl)', () => {
+  it('doNotCompress disables pagination squeeze; the default restores it', () => {
+    // 8 chars on a 70px line: with squeeze the run measures 64px and fits one
+    // line; with doNotCompress the third full stop hits 80px, and kinsoku (a
+    // full stop must not start a line) pulls the hanzi before it down as well.
+    setPunctuationCompressionEnabled(false)
+    try {
+      expect(punctuationCompressionEnabled()).toBe(false)
+      const off = simulateLines([{ text: '一二三四五。。。' }], 70, stubMetrics, 12, 'SimSun')
+      expect(off.map((l) => l.text)).toEqual(['一二三四', '五。。。'])
+      // and the squeeze-driven one-line fit is gone
+      expect(off).toHaveLength(2)
+    } finally {
+      setPunctuationCompressionEnabled(true)
+    }
+    expect(punctuationCompressionEnabled()).toBe(true)
+    expect(simulateLines([{ text: '一二三四五。。。' }], 70, stubMetrics, 12, 'SimSun')).toHaveLength(1)
+  })
+
+  it('doNotCompress also suppresses the canvas decorations', () => {
+    const build = () =>
+      new Editor({
+        element: document.createElement('div'),
+        extensions: editorExtensions,
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'docParagraph',
+              attrs: { docxIndex: null },
+              content: [{ type: 'text', text: '一。。。二' }],
+            },
+          ],
+        } as never,
+      })
+    const pluginOf = (editor: Editor) =>
+      editor.state.plugins.find((p) => String((p as { key?: unknown }).key).includes('punctSqueeze'))!
+    const editor = build()
+    try {
+      expect(pluginOf(editor).getState(editor.state)!.find()).toHaveLength(2)
+      setPunctuationCompressionEnabled(false)
+      const off = build()
+      try {
+        expect(pluginOf(off).getState(off.state)!.find()).toHaveLength(0)
+      } finally {
+        off.destroy()
+      }
+    } finally {
+      setPunctuationCompressionEnabled(true)
+      editor.destroy()
+    }
   })
 })
 

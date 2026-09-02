@@ -14,6 +14,12 @@
  * The renderer also pins `text-spacing-trim: space-all` on the page (see
  * styles.css): Chromium's native trimming would stack with these decorations
  * and double-compress every run. Pure data, no imports.
+ *
+ * The model is gated by the document's settings.xml w:characterSpacingControl
+ * (Word's Asian-typography punctuation compression): absent keeps this fork's
+ * CJK default (compress — the value Word itself writes for zh documents), an
+ * explicit doNotCompress turns every consumer off via
+ * setPunctuationCompressionEnabled.
  */
 
 /** Fullwidth closing marks that participate in compression runs. */
@@ -27,6 +33,22 @@ const COMPRESSIBLE_CLOSE = new Set([
 /** True when `ch` is a fullwidth closing mark that can compress inside a run. */
 export function isCompressibleClose(ch: string): boolean {
   return COMPRESSIBLE_CLOSE.has(ch)
+}
+
+let compressionEnabled = true
+
+/**
+ * Document-level switch (settings.xml w:characterSpacingControl): the open
+ * path calls this with `parsed.characterSpacingControl !== 'doNotCompress'`.
+ * Both consumers (simulateLines, PunctSqueezeExtension) read the same flag so
+ * pagination prediction and the canvas never disagree.
+ */
+export function setPunctuationCompressionEnabled(on: boolean): void {
+  compressionEnabled = on
+}
+
+export function punctuationCompressionEnabled(): boolean {
+  return compressionEnabled
 }
 
 /**

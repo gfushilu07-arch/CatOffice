@@ -1,5 +1,6 @@
+import JSZip from 'jszip'
 import { describe, expect, it } from 'vitest'
-import { parseDocx } from '../src/index'
+import { parseDocx, saveDocx } from '../src/index'
 import { buildDocx } from './helpers/build-docx'
 
 const XML_DECL = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n'
@@ -155,6 +156,61 @@ describe('settings.xml layout flags', () => {
     )
     expect(doc.autoHyphenation).toBeUndefined()
     expect(doc.defaultTabStopTwips).toBe(709)
+  })
+
+  it('parses w:characterSpacingControl; absent = undefined', async () => {
+    const withTag = await parseDocx(
+      await buildDocx({
+        bodyXml: '<w:p><w:r><w:t>x</w:t></w:r></w:p>',
+        extraParts: [settingsPart('<w:characterSpacingControl w:val="compressPunctuation"/>')],
+      }),
+    )
+    expect(withTag.characterSpacingControl).toBe('compressPunctuation')
+    const doNot = await parseDocx(
+      await buildDocx({
+        bodyXml: '<w:p><w:r><w:t>x</w:t></w:r></w:p>',
+        extraParts: [settingsPart('<w:characterSpacingControl w:val="doNotCompress"/>')],
+      }),
+    )
+    expect(doNot.characterSpacingControl).toBe('doNotCompress')
+    const without = await parseDocx(
+      await buildDocx({ bodyXml: '<w:p><w:r><w:t>x</w:t></w:r></w:p>' }),
+    )
+    expect(without.characterSpacingControl).toBeUndefined()
+  })
+
+  it('round-trips characterSpacingControl through saveDocx (set, replace, remove-keep)', async () => {
+    const body = '<w:p><w:r><w:t>x</w:t></w:r></w:p>'
+    // set on a document without the tag
+    const plain = await parseDocx(await buildDocx({ bodyXml: body }))
+    const setSaved = await saveDocx(plain, [{ kind: 'original', docxIndex: 0 }], {
+      characterSpacingControl: 'doNotCompress',
+    })
+    const zip1 = await JSZip.loadAsync(setSaved)
+    expect(await zip1.file('word/settings.xml')!.async('string')).toContain(
+      '<w:characterSpacingControl w:val="doNotCompress"/>',
+    )
+    expect((await parseDocx(setSaved)).characterSpacingControl).toBe('doNotCompress')
+    // replace an existing value
+    const withCompress = await parseDocx(
+      await buildDocx({
+        bodyXml: body,
+        extraParts: [settingsPart('<w:characterSpacingControl w:val="compressPunctuation"/>')],
+      }),
+    )
+    const replaced = await saveDocx(withCompress, [{ kind: 'original', docxIndex: 0 }], {
+      characterSpacingControl: 'compressPunctuationAndJapaneseKana',
+    })
+    const zip2 = await JSZip.loadAsync(replaced)
+    const settings2 = await zip2.file('word/settings.xml')!.async('string')
+    expect(settings2).toContain('w:val="compressPunctuationAndJapaneseKana"')
+    expect(settings2).not.toContain('compressPunctuation"')
+    // undefined = keep the document's tag untouched (byte-stable save)
+    const kept = await saveDocx(withCompress, [{ kind: 'original', docxIndex: 0 }])
+    const zip3 = await JSZip.loadAsync(kept)
+    expect(await zip3.file('word/settings.xml')!.async('string')).toContain(
+      '<w:characterSpacingControl w:val="compressPunctuation"/>',
+    )
   })
 })
 

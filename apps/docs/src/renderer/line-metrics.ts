@@ -29,7 +29,7 @@
 
 import { fontPlatform } from './font-platform'
 import { LINUX_LINE_FACTORS } from './font-linebox-linux.generated'
-import { squeezeRightsEm } from './punctuation-squeeze'
+import { punctuationCompressionEnabled, squeezeRightsEm } from './punctuation-squeeze'
 import type { DocGrid } from '@genoffice/docx-engine'
 import { isKinsokuNoEnd, isKinsokuNoStart } from '@genoffice/pptx-render/kinsoku'
 
@@ -1397,7 +1397,8 @@ export function simulateLines(
     }
 
     const runChars = [...run.text]
-    const runSqueeze = squeezeRightsEm(run.text)
+    // document-level gate (w:characterSpacingControl): doNotCompress = no squeeze
+    const runSqueeze = punctuationCompressionEnabled() ? squeezeRightsEm(run.text) : []
     for (let ci = 0; ci < runChars.length; ci++) {
       const ch = runChars[ci]!
       const cp = ch.codePointAt(0) ?? 0
@@ -1463,7 +1464,9 @@ export function simulateLines(
           }
           // carried chars keep their compression relative to the pending run
           const pendingJoined = pending.join('')
-          const pendingSqueeze = squeezeRightsEm(pendingJoined)
+          const pendingSqueeze = punctuationCompressionEnabled()
+            ? squeezeRightsEm(pendingJoined)
+            : []
           const pendingW = pending.reduce(
             (sum, c, k) => sum + metrics.measure(c, style) + (pendingSqueeze[k] ?? 0) * style.fontSizePx,
             0,
