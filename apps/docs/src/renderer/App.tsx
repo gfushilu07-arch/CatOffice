@@ -16,6 +16,10 @@ import { Dropdown } from '@genoffice/ui'
 import { markdownPasteHtml } from './editor/markdown-paste'
 import { govtDocBlocks, govtDocSection } from './govt-template'
 import { govtTemplateById } from './govt-catalog'
+import { TemplateGallery } from './components/TemplateGallery'
+
+/** the sentinel id the shell sends for "open the gallery" (asset center A2) */
+const TEMPLATE_GALLERY_ID = '__gallery'
 import {
   BLANK_BULLET_NUM_ID,
   BLANK_ORDERED_NUM_ID,
@@ -723,6 +727,7 @@ export function App() {
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [showTableModal, setShowTableModal] = useState(false)
   const [showEquationModal, setShowEquationModal] = useState(false)
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false)
   const [eqEditTarget, setEqEditTarget] = useState<{
     pos: number
     latex: string
@@ -1216,19 +1221,21 @@ export function App() {
         // line explaining why (github.com/genspark-ai/genoffice issue #102).
         // 'password': the prompt is up; its cancel path lands on blank instead.
         const outcome = pending ? await loadFile(pending) : 'canceled'
-        const template = !pending
-          ? govtTemplateId
-            ? govtTemplateById(govtTemplateId)
-            : undefined
-          : undefined
         if (outcome === 'failed' || outcome === 'canceled') {
-          await newFile(
-            template && {
-              blocks: govtDocBlocks(template.options),
-              section: govtDocSection(),
-              fileName: template.fileName,
-            },
-          )
+          if (govtTemplateId === TEMPLATE_GALLERY_ID) {
+            // asset center A2: open the gallery instead of a direct scaffold
+            setShowTemplateGallery(true)
+            await newFile()
+          } else {
+            const template = govtTemplateId ? govtTemplateById(govtTemplateId) : undefined
+            await newFile(
+              template && {
+                blocks: govtDocBlocks(template.options),
+                section: govtDocSection(),
+                fileName: template.fileName,
+              },
+            )
+          }
         }
         if (aiContent && !pending) {
           // fileCtxRef refreshes per render: wait until newFile's setDoc landed
@@ -4357,6 +4364,15 @@ export function App() {
       )}
       {showEquationModal && editor && (
         <EquationModal editor={editor} onClose={() => setShowEquationModal(false)} />
+      )}
+      {showTemplateGallery && (
+        <TemplateGallery
+          onPick={(template) => {
+            setShowTemplateGallery(false)
+            void newFile(template)
+          }}
+          onClose={() => setShowTemplateGallery(false)}
+        />
       )}
       {eqEditTarget && editor && (
         <EquationModal

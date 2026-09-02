@@ -218,3 +218,23 @@ describe('mock server surface', () => {
     expect(isMockMode()).toBe(true)
   })
 })
+
+describe('asset center mock (A2)', () => {
+  it('lists template metadata with govt presets', async () => {
+    const resp = await fetch(`${mock.origin}/api/asset_center/templates`)
+    expect(resp.status).toBe(200)
+    const body = (await resp.json()) as {
+      templates: Array<{ id: string; label: string; preset: { kind: string; options: Record<string, string> } }>
+    }
+    const ids = body.templates.map((t) => t.id)
+    // mirrors the local catalog...
+    expect(ids).toContain('notice')
+    expect(ids).toContain('minutes')
+    // ...and carries cloud-exclusive extras for the tiering story
+    expect(ids).toContain('govt-joint')
+    for (const t of body.templates) {
+      expect(t.preset.kind).toBe('govt')
+      expect(Object.keys(t.preset.options).length).toBeGreaterThan(0)
+    }
+  })
+})

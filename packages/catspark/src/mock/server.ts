@@ -267,6 +267,82 @@ function handleFileDownload(res: ServerResponse, origin: string, body: Buffer): 
 }
 
 /**
+ * Asset-center mock (A2): the template gallery. The five govt kinds mirror
+ * the local catalog (proving the cloud-local merge dedupes by id); the joint-
+ * issue and landscape-banner variants are cloud-exclusive extras exercising
+ * the tiering story.
+ */
+function handleAssetTemplates(res: ServerResponse): void {
+  sendJson(res, 200, {
+    templates: [
+      {
+        id: 'notice',
+        label: '通知',
+        description: '传达事项、布置工作（印发/转发/事项通知）',
+        fileName: '通知',
+        category: 'govt',
+        downloads: 12890,
+        preset: { kind: 'govt', options: { title: '关于××的通知' } },
+      },
+      {
+        id: 'request',
+        label: '请示',
+        description: '向上级机关请求指示、批准',
+        fileName: '请示',
+        category: 'govt',
+        downloads: 7341,
+        preset: { kind: 'govt', options: { title: '关于××的请示' } },
+      },
+      {
+        id: 'report',
+        label: '报告',
+        description: '向上级机关汇报工作、反映情况',
+        fileName: '报告',
+        category: 'govt',
+        downloads: 6102,
+        preset: { kind: 'govt', options: { title: '关于××的报告' } },
+      },
+      {
+        id: 'letter',
+        label: '函',
+        description: '不相隶属机关之间商洽工作、询问和答复',
+        fileName: '函',
+        category: 'govt',
+        downloads: 4577,
+        preset: { kind: 'govt', options: { title: '关于××的函' } },
+      },
+      {
+        id: 'minutes',
+        label: '纪要',
+        description: '记载会议主要情况和议定事项',
+        fileName: '纪要',
+        category: 'govt',
+        downloads: 3891,
+        preset: { kind: 'govt', options: { title: '××会议纪要' } },
+      },
+      {
+        id: 'govt-joint',
+        label: '联合发文（云）',
+        description: '多机关联合行文：双落款版式',
+        fileName: '联合发文',
+        category: 'govt',
+        downloads: 942,
+        preset: { kind: 'govt', options: { title: '关于××的联合通知' } },
+      },
+      {
+        id: 'govt-horizontal',
+        label: '横版红头（云）',
+        description: '横版 A4 红头信纸样式',
+        fileName: '横版红头',
+        category: 'govt',
+        downloads: 613,
+        preset: { kind: 'govt', options: { title: '××文件' } },
+      },
+    ],
+  })
+}
+
+/**
  * Cloud OCR mock: body is the raw page PNG, response is an OcrRecognition
  * JSON (lines with normalized 0-1 boxes, origin bottom-left). The canned
  * lines stand in for real recognition so the pre-recognize → supply → gates
@@ -362,6 +438,12 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   // exercisable without a real backend.
   if (path === '/api/ocr/recognize' && req.method === 'POST')
     return void handleOcrRecognize(res, body)
+
+  // asset center (A2): the template gallery listing. Entries are metadata +
+  // a govt generation preset — the renderer applies presets locally, so
+  // there is no binary download leg.
+  if (path === '/api/asset_center/templates' && req.method === 'GET')
+    return void handleAssetTemplates(res)
 
   // tool_cli (contract section 3)
   if (path === '/api/tool_cli/slide_generate' && req.method === 'POST')
