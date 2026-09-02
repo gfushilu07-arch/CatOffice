@@ -81,7 +81,9 @@ export interface HomeApi {
   /** native sheet-template picker (asset center S1) */
   sheetTemplates(): Promise<void>
   /** open a slides tab at its start screen (open-a-pptx) */
-  newSlide(opts?: { projectId?: string }): Promise<void>
+  newSlide(opts?: { projectId?: string; deckTemplateId?: string }): Promise<void>
+  /** native deck-template picker (asset center S2) */
+  deckTemplates(): Promise<void>
   /** open a blank markdown editor tab */
   newMarkdown(opts?: { projectId?: string }): Promise<void>
   /** create a blank single-page PDF in the default save folder and open it */
@@ -282,6 +284,7 @@ export const HOME_CHANNELS = {
   newSheet: 'home:new-sheet',
   sheetTemplates: 'home:sheet-templates',
   newSlide: 'home:new-slide',
+  deckTemplates: 'home:deck-templates',
   newMarkdown: 'home:new-markdown',
   newPdf: 'home:new-pdf',
   removeRecent: 'home:remove-recent',

@@ -126,6 +126,11 @@ import {
 } from '../../../docs/src/main/docs-main'
 import { blankXlsxBuffer, rowsToXlsxBuffer } from '../../../sheets/src/gateway/csv-import'
 import { SHEET_TEMPLATE_MENU, sheetTemplateById } from '../../../sheets/src/gateway/sheet-templates'
+import {
+  DECK_TEMPLATE_MENU,
+  deckTemplateById,
+  deckTemplatePptx,
+} from '../../../slides/src/main/deck-templates'
 import { blankPdfBuffer } from '../../../pdf/src/main/blank-pdf'
 import {
   configureSheetsRuntime,
@@ -2770,8 +2775,20 @@ function newDocTab(govtTemplateId?: string): void {
   }
 }
 
-function newSlideTab(): void {
+function newSlideTab(deckTemplateId?: string): void {
   try {
+    const template = deckTemplateId ? deckTemplateById(deckTemplateId) : undefined
+    if (template) {
+      // asset center S2: render the skeleton to a template-named pptx and
+      // route it like an opened file (same flow as the sheet templates)
+      void deckTemplatePptx(template).then((bytes) => {
+        const filePath = uniquePathIn(defaultSaveDir(), `${template.fileName}.pptx`)
+        writeFileSync(filePath, bytes)
+        if (routeDocumentPath(filePath)) recordStarPromptDocOpen()
+        analytics.track('file_new', { kind: 'pptx', template: template.id })
+      })
+      return
+    }
     tabManager?.openSlidesTab()
     recordStarPromptDocOpen()
     analytics.track('file_new', { kind: 'pptx' })
@@ -3003,11 +3020,29 @@ function registerHomeIpc(): void {
     menu.popup({ window: win, x: cursor.x, y: cursor.y })
   })
 
-  ipcMain.handle(HOME_CHANNELS.newSlide, (_event, opts?: { projectId?: string }) => {
-    if (opts?.projectId && opts.projectId !== 'default') {
-      pendingNewFileProject.set('slide', opts.projectId)
-    }
-    newSlideTab()
+  ipcMain.handle(
+    HOME_CHANNELS.newSlide,
+    (_event, opts?: { projectId?: string; deckTemplateId?: string }) => {
+      if (opts?.projectId && opts.projectId !== 'default') {
+        pendingNewFileProject.set('slide', opts.projectId)
+      }
+      newSlideTab(opts?.deckTemplateId)
+    },
+  )
+
+  // asset center S2: the native deck-template picker (same UX as docs/sheets)
+  ipcMain.handle(HOME_CHANNELS.deckTemplates, () => {
+    const manager = tabManager
+    const win = shellWindow
+    if (!manager || !win) return
+    const menu = Menu.buildFromTemplate(
+      DECK_TEMPLATE_MENU.map((entry) => ({
+        label: `${entry.label} — ${entry.description}`,
+        click: () => newSlideTab(entry.id),
+      })),
+    )
+    const cursor = screen.getCursorScreenPoint()
+    menu.popup({ window: win, x: cursor.x, y: cursor.y })
   })
 
   ipcMain.handle(HOME_CHANNELS.newMarkdown, (_event, opts?: { projectId?: string }) => {

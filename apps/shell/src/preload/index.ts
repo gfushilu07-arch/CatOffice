@@ -91,6 +91,9 @@ const homeApi: HomeApi = {
   async newSlide(opts) {
     await ipcRenderer.invoke(HOME_CHANNELS.newSlide, opts)
   },
+  async deckTemplates() {
+    return ipcRenderer.invoke(HOME_CHANNELS.deckTemplates)
+  },
   async newMarkdown(opts) {
     await ipcRenderer.invoke(HOME_CHANNELS.newMarkdown, opts)
   },

@@ -45,6 +45,7 @@ const FILE_ICONS: Record<string, string> = {
   docx: iconDocx,
   govt: iconDocx, // the GB/T 9704 template picker card reuses the docs icon
   xlsht: iconXlsx, // the sheet-template picker card reuses the sheets icon
+  pptsht: iconPptx, // the deck-template picker card reuses the slides icon
   xlsx: iconXlsx,
   xlsm: iconXlsx,
   pptx: iconPptx,
@@ -1497,6 +1498,11 @@ export function Home() {
     void window.aiOffice.newSlide(selectedProjectId ? { projectId: selectedProjectId } : undefined)
   }
 
+  // asset center S2: the native deck-template picker (work report)
+  const handleNewDeckTemplate = () => {
+    void window.aiOffice.deckTemplates()
+  }
+
   const handleNewMarkdown = () => {
     void window.aiOffice.newMarkdown(
       selectedProjectId ? { projectId: selectedProjectId } : undefined,
@@ -1523,6 +1529,12 @@ export function Home() {
       action: handleNewSheetTemplate,
     },
     { ext: 'pptx', title: t('newSlide'), sub: '.pptx', action: handleNewSlide },
+    {
+      ext: 'pptsht',
+      title: '演示模板',
+      sub: '工作汇报',
+      action: handleNewDeckTemplate,
+    },
     { ext: 'md', title: t('newMarkdown'), sub: '.md', action: handleNewMarkdown },
     { ext: 'pdf', title: t('newPdf'), sub: '.pdf', action: handleNewPdf },
   ]
