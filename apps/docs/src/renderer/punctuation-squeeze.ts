@@ -30,9 +30,36 @@ const COMPRESSIBLE_CLOSE = new Set([
   ...'％', // fullwidth percent
 ])
 
+/** Fullwidth opening brackets/quotes (the symmetric compression class). */
+const COMPRESSIBLE_OPEN = new Set([
+  ...'（［｛｟｢', // opening brackets/braces
+  ...'〈《「『【〔〝', // CJK opening quotes/brackets
+])
+
 /** True when `ch` is a fullwidth closing mark that can compress inside a run. */
 export function isCompressibleClose(ch: string): boolean {
   return COMPRESSIBLE_CLOSE.has(ch)
+}
+
+/** True when `ch` is a fullwidth opening bracket that can compress inside a run. */
+export function isCompressibleOpen(ch: string): boolean {
+  return COMPRESSIBLE_OPEN.has(ch)
+}
+
+/**
+ * Per-code-point compression (em) of one maximal punctuation run: closing
+ * marks compress on the right (all but the run's last), opening brackets on
+ * the left (all but the run's first) — so a closed pair like an open bracket
+ * adjacent to a closing mark (no blank between the glyphs) keeps its natural
+ * spacing while runs of same-side marks halve the duplicated whitespace.
+ * The result is addressed by flat run position.
+ */
+function runAdjustments(run: string[]): Array<{ right: number; left: number }> {
+  const n = run.length
+  return run.map((ch, i) => {
+    if (isCompressibleClose(ch)) return { right: i === n - 1 ? 0 : -0.5, left: 0 }
+    return { right: 0, left: i === 0 ? 0 : -0.5 } // opening bracket
+  })
 }
 
 let compressionEnabled = true
@@ -57,22 +84,33 @@ export function punctuationCompressionEnabled(): boolean {
  * last is compressed to half width. The array is parallel to [...text].
  */
 export function squeezeRightsEm(text: string): number[] {
-  return squeezeRightsAcrossEm([text])[0]!
+  return squeezeAcrossEm([text])[0]!.right
+}
+
+/** Per-side compression (em) parallel to a piece's code points. */
+export interface SqueezeSide {
+  /** trailing-blank compression (closing marks inside a run) */
+  right: number[]
+  /** leading-blank compression (opening brackets inside a run) */
+  left: number[]
 }
 
 /**
- * Same rule applied across a sequence of adjacent text pieces (a paragraph's
- * runs / text nodes): a closing mark at the end of one piece compresses when
- * the next piece starts with another closing mark, and runs never merge
- * across a non-compressible character. Returns one array per piece, each
- * parallel to that piece's code points. Empty pieces yield empty arrays.
+ * The compression rule across a sequence of adjacent text pieces (a
+ * paragraph's runs / text nodes): a punctuation run may span piece
+ * boundaries, and closing marks compress on the right / opening brackets on
+ * the left per runAdjustments. Returns one result per piece, each parallel to
+ * that piece's code points. Empty pieces yield empty arrays.
  */
-export function squeezeRightsAcrossEm(pieces: string[]): number[][] {
+export function squeezeAcrossEm(pieces: string[]): SqueezeSide[] {
   const chars = pieces.map((p) => [...p])
-  const out = chars.map((c) => new Array<number>(c.length).fill(0))
+  const right = chars.map((c) => new Array<number>(c.length).fill(0))
+  const left = chars.map((c) => new Array<number>(c.length).fill(0))
   // walk the flat sequence with (piece, index) coordinates
   let pi = 0
   let ci = 0
+  const at = (p: number, c: number): string => chars[p]![c]!
+  const isMember = (ch: string): boolean => isCompressibleClose(ch) || isCompressibleOpen(ch)
   const next = (): [number, number] | null => {
     let p = pi
     let c = ci
@@ -87,24 +125,28 @@ export function squeezeRightsAcrossEm(pieces: string[]): number[][] {
     }
   }
   while (pi < chars.length) {
-    if (chars[pi]!.length === 0 || !isCompressibleClose(chars[pi]![ci]!)) {
+    if (chars[pi]!.length === 0 || !isMember(at(pi, ci))) {
       const n = next()
       if (!n) break
       ;[pi, ci] = n
       continue
     }
-    // collect the maximal run of adjacent closing marks across pieces
+    // collect the maximal mixed run of closing marks / opening brackets
     const run: Array<[number, number]> = [[pi, ci]]
     for (;;) {
       const n = next()
-      if (!n || !isCompressibleClose(chars[n[0]]![n[1]]!)) break
+      if (!n || !isMember(at(n[0], n[1]))) break
       run.push(n)
       ;[pi, ci] = n
     }
-    for (const [p, c] of run.slice(0, -1)) out[p]![c] = -0.5
+    const adjustments = runAdjustments(run.map(([p, c]) => at(p, c)))
+    run.forEach(([p, c], k) => {
+      right[p]![c] = adjustments[k]!.right
+      left[p]![c] = adjustments[k]!.left
+    })
     const n = next()
     if (!n) break
     ;[pi, ci] = n
   }
-  return out
+  return right.map((r, p) => ({ right: r, left: left[p]! }))
 }

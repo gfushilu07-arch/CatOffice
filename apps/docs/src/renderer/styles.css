@@ -9914,11 +9914,17 @@ tr > .page-gap-cut {
 
 /* ---- punctuation compression (T5) -------------------------------- */
 /* Consecutive fullwidth closing marks: every member but the last gives up
-   its trailing half (Word CJK default). The var is set per char by the
+   its trailing half (Word CJK default). Opening brackets are the symmetric
+   class: inside a mixed run every member but the first gives up its leading
+   half (doc-punct-squeeze-left). The vars are set per char by the
    punctSqueeze decorations; the offline pagination model applies the same
    rule in simulateLines. */
-..doc-punct-squeeze {
+.doc-punct-squeeze {
   margin-right: calc(var(--doc-squeeze-em, 0) * 1em);
+}
+
+.doc-punct-squeeze-left {
+  margin-left: calc(var(--doc-squeeze-em, 0) * 1em);
 }
 
 /* Chromium (>=~117) applies native CJK punctuation trimming by default

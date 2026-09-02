@@ -10,9 +10,10 @@ import { Editor } from '@tiptap/core'
 import { editorExtensions } from '../src/renderer/editor/extensions'
 import {
   isCompressibleClose,
+  isCompressibleOpen,
   punctuationCompressionEnabled,
   setPunctuationCompressionEnabled,
-  squeezeRightsAcrossEm,
+  squeezeAcrossEm,
   squeezeRightsEm,
 } from '../src/renderer/punctuation-squeeze'
 import { simulateLines, type FontMetricsProvider } from '../src/renderer/line-metrics'
@@ -40,25 +41,59 @@ describe('squeezeRightsEm rule', () => {
   })
 })
 
+describe('opening brackets (symmetric compression class)', () => {
+  it('compresses every member of an opening run except the first, on the left', () => {
+    expect(squeezeAcrossEm(['（（'])).toEqual([{ right: [0, 0], left: [0, -0.5] }])
+    expect(squeezeAcrossEm(['「「「'])[0]!.left).toEqual([0, -0.5, -0.5])
+    expect(isCompressibleOpen('（')).toBe(true)
+    expect(isCompressibleOpen('。')).toBe(false)
+  })
+
+  it('a close-open pair compresses both duplicated halves', () => {
+    // 。（: the blank right half of 。 faces the blank left half of （ —
+    // the closing mark is not run-last and the bracket not run-first
+    expect(squeezeAcrossEm(['。（'])).toEqual([{ right: [-0.5, 0], left: [0, -0.5] }])
+  })
+
+  it('an open-close pair has no blank between the glyphs and stays untouched', () => {
+    // （。: the bracket's blank is on its left (outside the pair)
+    expect(squeezeAcrossEm(['（。'])).toEqual([{ right: [0, 0], left: [0, 0] }])
+  })
+
+  it('mixed runs split sides by class and position', () => {
+    // ）（: the duplicated blank between the glyphs compresses on both sides
+    expect(squeezeAcrossEm(['）（'])).toEqual([{ right: [-0.5, 0], left: [0, -0.5] }])
+    expect(squeezeAcrossEm(['。（。'])).toEqual([{ right: [-0.5, 0, 0], left: [0, -0.5, 0] }])
+  })
+})
+
 describe('squeezeRightsAcrossEm (run-boundary adjacency)', () => {
   it('compresses across a piece boundary when both sides are closing marks', () => {
-    expect(squeezeRightsAcrossEm(['一。', '。二'])).toEqual([[0, -0.5], [0, 0]])
+    expect(squeezeAcrossEm(['一。', '。二'])).toEqual([
+      { right: [0, -0.5], left: [0, 0] },
+      { right: [0, 0], left: [0, 0] },
+    ])
   })
 
   it('keeps a whole run spanning three pieces consistent', () => {
     // run 。。。 spread over three pieces: the first two compress
-    expect(squeezeRightsAcrossEm(['。', '。', '。'])).toEqual([[-0.5], [-0.5], [0]])
+    expect(squeezeAcrossEm(['。', '。', '。']).map((s) => s.right)).toEqual([[-0.5], [-0.5], [0]])
   })
 
   it('stops at non-compressible chars; one run over two pieces keeps only its last member free', () => {
-    expect(squeezeRightsAcrossEm(['一。二', '。三'])).toEqual([[0, 0, 0], [0, 0]])
+    expect(squeezeAcrossEm(['一。二', '。三']).map((s) => s.right)).toEqual([[0, 0, 0], [0, 0]])
     // four consecutive marks over two pieces: all but the very last compress
-    expect(squeezeRightsAcrossEm(['。。', '。。'])).toEqual([[-0.5, -0.5], [-0.5, 0]])
+    expect(squeezeAcrossEm(['。。', '。。']).map((s) => s.right)).toEqual([[-0.5, -0.5], [-0.5, 0]])
   })
 
   it('matches the single-text result on one piece and handles empties', () => {
-    expect(squeezeRightsAcrossEm(['一。。。二'])).toEqual([squeezeRightsEm('一。。。二')])
-    expect(squeezeRightsAcrossEm(['一', '', '。', '。'])).toEqual([[0], [], [-0.5], [0]])
+    expect(squeezeAcrossEm(['一。。。二'])[0]!.right).toEqual(squeezeRightsEm('一。。。二'))
+    expect(squeezeAcrossEm(['一', '', '。', '。']).map((s) => s.right)).toEqual([
+      [0],
+      [],
+      [-0.5],
+      [0],
+    ])
   })
 })
 
@@ -255,5 +290,17 @@ describe('canvas decorations mark exactly the compressed chars', () => {
     })
     editors.add(editor)
     expect(decoCount(editor)).toBe(0)
+  })
+
+  it('opening brackets in a run carry the left-side class', () => {
+    const editor = editorWith('一（（二')
+    const decos = punctSqueezePlugin(editor).getState(editor.state)!.find()
+    expect(decos).toHaveLength(1)
+    const d = decos[0]!
+    // Decoration.inline exposes its attrs via the type property
+    expect((d as { type?: { attrs?: { class?: string } } }).type?.attrs?.class).toBe(
+      'doc-punct-squeeze-left',
+    )
+    expect(editor.state.doc.textBetween(d.from, d.to)).toBe('（')
   })
 })

@@ -31,7 +31,7 @@ import { fontPlatform } from './font-platform'
 import { LINUX_LINE_FACTORS } from './font-linebox-linux.generated'
 import {
   punctuationCompressionEnabled,
-  squeezeRightsAcrossEm,
+  squeezeAcrossEm,
 } from './punctuation-squeeze'
 import type { DocGrid } from '@genoffice/docx-engine'
 import { isKinsokuNoEnd, isKinsokuNoStart } from '@genoffice/pptx-render/kinsoku'
@@ -1341,10 +1341,10 @@ export function simulateLines(
 
   // Punctuation compression across the whole paragraph: run/section boundaries
   // do not break adjacency (Word compresses across formatting too), so the
-  // squeeze arrays are cut from ONE cross-run pass. [] = compression disabled
-  // by the document's w:characterSpacingControl.
+  // squeeze arrays are cut from ONE cross-run pass. Compression disabled
+  // (document's w:characterSpacingControl) yields all-zero arrays.
   const runSqueezes = punctuationCompressionEnabled()
-    ? squeezeRightsAcrossEm(runs.map((r) => r.text))
+    ? squeezeAcrossEm(runs.map((r) => r.text))
     : []
 
   let runIndex = -1
@@ -1352,7 +1352,7 @@ export function simulateLines(
     runIndex++
     if (!run.text) continue
     const style = getStyle(run)
-    const runSqueeze = runSqueezes[runIndex] ?? []
+    const runSqueeze = runSqueezes[runIndex] ?? { right: [], left: [] }
     const m = metrics.metrics(style)
     // table-cell mode (cjkFactor=1.0): line-height cap = fontSizePx × 1.0,
     // matching the CJK chars' cjkH so Latin chars' font factor (1.2) doesn't raise the line.
@@ -1455,7 +1455,7 @@ export function simulateLines(
         // the paragraph, so a closing mark at a run's end compresses when the
         // next run starts with another mark (Word compresses across
         // formatting boundaries too).
-        const squeezeEm = runSqueeze[ci] ?? 0
+        const squeezeEm = (runSqueeze.right[ci] ?? 0) + (runSqueeze.left[ci] ?? 0)
         const adv = cw + squeezeEm * style.fontSizePx
         if (curLineW + adv > availWidthPx && curLineW > 0) {
           // Kinsoku — same rule as the pptx text layout: a forbidden-start char
@@ -1485,10 +1485,13 @@ export function simulateLines(
             runChars.slice(ci + 1).join('') +
             runs.slice(runIndex + 1).map((r) => r.text).join('')
           const pendingSqueeze = punctuationCompressionEnabled()
-            ? squeezeRightsAcrossEm([pendingJoined, restOfParagraph])[0]!
-            : []
+            ? squeezeAcrossEm([pendingJoined, restOfParagraph])[0]!
+            : { right: [], left: [] }
           const pendingW = pending.reduce(
-            (sum, c, k) => sum + metrics.measure(c, style) + (pendingSqueeze[k] ?? 0) * style.fontSizePx,
+            (sum, c, k) =>
+              sum +
+              metrics.measure(c, style) +
+              ((pendingSqueeze.right[k] ?? 0) + (pendingSqueeze.left[k] ?? 0)) * style.fontSizePx,
             0,
           )
           if (curText === '') {

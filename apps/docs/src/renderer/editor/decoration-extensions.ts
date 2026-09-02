@@ -7,7 +7,7 @@ import { t } from '../i18n/locale'
 import { type TabStop } from '@genoffice/docx-engine'
 import {
   punctuationCompressionEnabled,
-  squeezeRightsAcrossEm,
+  squeezeAcrossEm,
 } from '../punctuation-squeeze'
 
 /**
@@ -1008,19 +1008,27 @@ export const PunctSqueezeExtension = Extension.create({
         let pieces: Array<{ text: string; pos: number }> = []
         const flush = () => {
           if (pieces.length === 0) return
-          const squeezes = squeezeRightsAcrossEm(pieces.map((p) => p.text))
+          const squeezes = squeezeAcrossEm(pieces.map((p) => p.text))
           pieces.forEach((piece, i) => {
-            const squeeze = squeezes[i] ?? []
+            const squeeze = squeezes[i] ?? { right: [], left: [] }
             const chars = [...piece.text]
             let utf16 = 0
             for (let ci = 0; ci < chars.length; ci++) {
-              if ((squeeze[ci] ?? 0) !== 0) {
-                decos.push(
-                  Decoration.inline(piece.pos + utf16, piece.pos + utf16 + chars[ci]!.length, {
-                    class: 'doc-punct-squeeze',
-                    style: '--doc-squeeze-em:-0.5',
-                  }),
-                )
+              // right compression (closing marks) pulls the following text in;
+              // left compression (opening brackets) pulls the glyph itself back
+              const sides: Array<[number, string]> = [
+                [squeeze.right[ci] ?? 0, 'doc-punct-squeeze'],
+                [squeeze.left[ci] ?? 0, 'doc-punct-squeeze-left'],
+              ]
+              for (const [em, cls] of sides) {
+                if (em !== 0) {
+                  decos.push(
+                    Decoration.inline(piece.pos + utf16, piece.pos + utf16 + chars[ci]!.length, {
+                      class: cls,
+                      style: '--doc-squeeze-em:-0.5',
+                    }),
+                  )
+                }
               }
               utf16 += chars[ci]!.length
             }
