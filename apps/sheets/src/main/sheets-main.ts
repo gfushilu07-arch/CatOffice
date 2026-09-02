@@ -3720,7 +3720,16 @@ function resolveSidecarPath(): string {
   const executable = process.platform === 'win32' ? 'xlsx-sidecar.exe' : 'xlsx-sidecar'
   if (runtime.sidecarPath) return runtime.sidecarPath
   if (process.env.XLSX_SIDECAR_PATH) return process.env.XLSX_SIDECAR_PATH
-  if (app.isPackaged) return join(process.resourcesPath, 'native', executable)
+  if (app.isPackaged) {
+    // arm64 Linux packs stage the cross-built sidecar under a suffixed name
+    // (one extraResources set serves both arch packs); fall back to the
+    // arch-less name for older layouts / non-arm64 packs
+    if (process.platform === 'linux' && process.arch === 'arm64') {
+      const arm64 = join(process.resourcesPath, 'native', `${executable}-arm64`)
+      if (existsSync(arm64)) return arm64
+    }
+    return join(process.resourcesPath, 'native', executable)
+  }
   return join(app.getAppPath(), 'native', 'xlsx-engine', 'target', 'release', executable)
 }
 

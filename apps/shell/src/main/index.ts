@@ -251,8 +251,19 @@ const PDF_OUT = app.isPackaged
 const MARKDOWN_OUT = app.isPackaged
   ? join(process.resourcesPath, 'modules', 'markdown')
   : join(APPS_ROOT, 'markdown', 'out')
+// arm64 Linux packs stage the cross-built sidecar under a suffixed name
+// (one extraResources set serves both arch packs)
+function packagedSidecarBin(): string {
+  const base = join(process.resourcesPath, 'native', SIDECAR_EXE)
+  if (process.platform === 'linux' && process.arch === 'arm64') {
+    const arm64 = join(process.resourcesPath, 'native', `${SIDECAR_EXE}-arm64`)
+    if (existsSync(arm64)) return arm64
+  }
+  return base
+}
+
 const SIDECAR_BIN = app.isPackaged
-  ? join(process.resourcesPath, 'native', SIDECAR_EXE)
+  ? packagedSidecarBin()
   : join(APPS_ROOT, 'sheets', 'native', 'xlsx-engine', 'target', 'release', SIDECAR_EXE)
 
 configureDocsRuntime({

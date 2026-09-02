@@ -60,6 +60,18 @@ const fontCdnUrl = normalizeHttpsBaseUrl(
 // switch.
 const includeMacX64 = process.env.GENOFFICE_MAC_X64 === '1'
 
+// GENOFFICE_LINUX_ARM64=1 — additionally package the arm64 Linux targets
+// (AppImage/deb/rpm) alongside x64. The arm64 sidecar must be built first
+// with the mingw-style cross toolchain:
+//   cargo build --release --target aarch64-unknown-linux-gnu
+// (CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc; the
+// gcc-aarch64-linux-gnu apt package on CI). The x64 sidecar stays at cargo's
+// host-native target/release path, so a mixed-arch pack needs both builds.
+// Off by default until the release CI job opts in: an arm64 pack without the
+// cross-built sidecar would silently ship a workbook editor that cannot open
+// any file.
+const includeLinuxArm64 = process.env.GENOFFICE_LINUX_ARM64 === '1'
+
 // The gsk CLI tree below is copied verbatim from node_modules, and the
 // nested commander path depends on npm's current hoisting layout — fail the
 // build with a clear message if an install ever changes it, instead of
@@ -385,22 +397,23 @@ const config = {
     ],
   },
   // Unlike win (which cross-compiles the sidecar to an explicit target
-  // triple), linux takes it from cargo's host-native target/release/ — the
-  // same source mac uses. So no `arch` is pinned here: electron-builder
-  // defaults to the build host's architecture, which is the only one the
-  // sidecar was actually built for. Packaging arm64 on an x64 host, or the
-  // reverse, needs a matching `cargo build --target` first.
+  // triple), linux takes x64 from cargo's host-native target/release/. The
+  // arm64 opt-in (GENOFFICE_LINUX_ARM64=1) instead reads the cross-built
+  // binary from target/aarch64-unknown-linux-gnu/release/ — both must exist
+  // for a mixed-arch pack (extraResources cannot branch per arch, so each
+  // arch pack carries BOTH sidecar files and the launcher picks by ELF
+  // machine; the absent one fails the build via the existsSync assert below).
   linux: {
     // AppImage (self-contained, any distro) + deb (apt install, pulls in the
     // GTK/NSS runtime deps) + rpm (dnf/zypper install on Fedora / RHEL /
     // openSUSE). Default artifact names are kept on purpose —
-    // GenOffice-<v>.AppImage / genoffice_<v>_amd64.deb — because the public
+    // GenOffice-<v>.AppImage / catoffice_<v>_amd64.deb — because the public
     // README download links and the already-published linux-v0.5.149 release
     // use them.
     target: [
-      { target: 'AppImage', arch: ['x64'] },
-      { target: 'deb', arch: ['x64'] },
-      { target: 'rpm', arch: ['x64'] },
+      { target: 'AppImage', arch: includeLinuxArm64 ? ['x64', 'arm64'] : ['x64'] },
+      { target: 'deb', arch: includeLinuxArm64 ? ['x64', 'arm64'] : ['x64'] },
+      { target: 'rpm', arch: includeLinuxArm64 ? ['x64', 'arm64'] : ['x64'] },
     ],
     // deb control metadata; values match the manually published 0.5.149 deb
     // so apt sees the new packages as the same lineage. Homepage comes from
@@ -430,10 +443,22 @@ const config = {
     // compares case-sensitively, so the taskbar shows an unlinked window.
     syncDesktopName: true,
     extraResources: [
+      // x64 launcher: host-native cargo output
       {
         from: '../sheets/native/xlsx-engine/target/release/xlsx-sidecar',
         to: 'native/xlsx-sidecar',
       },
+      // arm64 launcher: the cross-built binary, staged under its target triple
+      // (an arm64 build without the cross-compiled sidecar fails the pack
+      // right here instead of shipping a workbook editor that cannot open)
+      ...(includeLinuxArm64
+        ? [
+            {
+              from: '../sheets/native/xlsx-engine/target/aarch64-unknown-linux-gnu/release/xlsx-sidecar',
+              to: 'native/xlsx-sidecar-arm64',
+            },
+          ]
+        : []),
     ],
   },
   // Same "@genoffice/shell" problem as executableName above: the default deb
@@ -470,6 +495,21 @@ const config = {
   },
   beforePack: async (context) => {
     assertModuleTreesPresent()
+    // electron-builder silently skips an absent extraResources source, so the
+    // arm64 pack must be loud here instead of shipping without its sidecar
+    if (context.electronPlatformName === 'linux' && includeLinuxArm64) {
+      const arm64Sidecar = join(
+        __dirname,
+        '../sheets/native/xlsx-engine/target/aarch64-unknown-linux-gnu/release/xlsx-sidecar',
+      )
+      if (!existsSync(arm64Sidecar)) {
+        throw new Error(
+          'GENOFFICE_LINUX_ARM64=1 but the cross-built arm64 xlsx-sidecar is missing — ' +
+            'run: cargo build --release --target aarch64-unknown-linux-gnu ' +
+            '(CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc)',
+        )
+      }
+    }
     if (context.electronPlatformName === 'darwin' && includeMacX64) {
       assertUniversalSidecar()
       assertUniversalVisionOcr()

@@ -1,0 +1,96 @@
+name: dist-linux
+
+# Linux packaging (L2): AppImage + deb + rpm, x64 by default, arm64 opt-in
+# via the workflow input (GENOFFICE_LINUX_ARM64=1 + the aarch64 cross
+# toolchain; see the builder config comment for the sidecar contract).
+# Artifacts are uploaded for inspection only — no publish feed is configured
+# here (GENOFFICE_UPDATE_URL stays unset, so the packs carry no updater).
+# Release promotion to the CDN/Releases is a separate, manual step until W3
+# (signing/release automation) lands.
+
+on:
+  workflow_dispatch:
+    inputs:
+      arm64:
+        description: 'Also build arm64 packages (cross toolchain + cross sidecar)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: dist-linux-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dist:
+    # 22.04 for build-tool stability (rpmbuild, and the same pinned image the
+    # e2e job uses)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable branch, 2026-07
+        with:
+          toolchain: stable
+          targets: ${{ inputs.arm64 && 'aarch64-unknown-linux-gnu' || '' }}
+
+      - name: Cache cargo (xlsx-sidecar)
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: apps/sheets/native/xlsx-engine
+
+      - name: Install system build deps
+        run: |
+          sudo apt-get update
+          # rpm -> rpmbuild for the rpm target
+          sudo apt-get install -y --no-install-recommends rpm
+          if [ '${{ inputs.arm64 }}' = 'true' ]; then
+            sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build xlsx-sidecar (x64, host-native)
+        run: npm run native:build -w @genoffice/sheets
+
+      - name: Build xlsx-sidecar (arm64, cross)
+        if: ${{ inputs.arm64 }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: |
+          cargo build --release --manifest-path apps/sheets/native/xlsx-engine/Cargo.toml \
+            --target aarch64-unknown-linux-gnu
+
+      - name: Package (AppImage + deb + rpm)
+        env:
+          GENOFFICE_LINUX_ARM64: ${{ inputs.arm64 && '1' || '' }}
+        run: npm run dist:linux
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-packages
+          path: |
+            apps/shell/release/*.AppImage
+            apps/shell/release/*.deb
+            apps/shell/release/*.rpm
+          if-no-files-found: error
+          retention-days: 14
