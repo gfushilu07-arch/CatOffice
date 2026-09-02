@@ -4,12 +4,13 @@
  * the OOXML writer emits through generateParagraphXml, so one array feeds both
  * the editing canvas and a direct save.
  *
- * Implemented here (first slice): the red banner, the document number, the
+ * Implemented here: the red banner, the document number, the
  * red separator rule, the title, recipients, body
- * paragraphs (2-char first-line indent via w:firstLineChars), the attachment
- * list, and the signature/date block. The page frame (A4 + 37/35/28/26mm
- * margins as sectPr) and the seal placeholder belong to the section plumbing
- * and are follow-ups.
+ * paragraphs (2-char first-line indent via w:firstLineChars), and the
+ * signature/date block. The page frame (GB_A4/GB_MARGINS/govtDocSection)
+ * lives at the bottom of this file; the seal placeholder is govt-seal.ts
+ * (govtSealImage -> NewImage save path). Still open: the UI entry point
+ * (asset center A1) and the P2 record footer block are still open.
  *
  * Placeholder text uses fullwidth ×× so every field is obviously fill-in;
  * fonts are the GB faces (FZXiaoBiaoSong for the banner/title, FangSong_GB2312
