@@ -1206,6 +1206,15 @@ function isHangul(cp: number): boolean {
 // adjacent CJK letter and a Latin letter/digit — never next to spaces or
 // punctuation — matching where Chromium applies its native gap.
 
+/**
+ * The CJK-Latin autospace gap the offline model adds per boundary (em of the
+ * run's font size). The canvas delivers Word's ~1/4em as native
+ * text-autospace (1/8em) + a .doc-autospace-pad span margin (this constant,
+ * mirrored in styles.css) — simulateLines must count the same extra advance
+ * or its break points drift from what the canvas actually renders.
+ */
+export const AUTOSPACE_PAD_EM = 0.125
+
 /** Han/kana/hangul letters; CJK punctuation and full/halfwidth forms get no gap */
 function isCjkAutospaceSide(cp: number): boolean {
   if (cp >= 0x3000 && cp <= 0x303f) return false
@@ -1235,6 +1244,11 @@ function lastCodePoint(text: string): number {
     return text.codePointAt(text.length - 2)!
   }
   return tail
+}
+
+/** last code POINT of text as a string (surrogate-pair aware) */
+function lastCharOf(text: string): string {
+  return String.fromCodePoint(lastCodePoint(text))
 }
 
 /** pad between two adjacent stretches of text (last char of prev vs first of next) */
@@ -1347,6 +1361,11 @@ export function simulateLines(
     ? squeezeAcrossEm(runs.map((r) => r.text))
     : []
 
+  // CJK-Latin autospace adjacency state: paragraph-scoped because a pad
+  // crosses run boundaries (formatting does not hide the gap); reset to
+  // undefined at every visual line break — no pad crosses lines.
+  let prevChar: string | undefined
+
   let runIndex = -1
   for (const run of runs) {
     runIndex++
@@ -1362,20 +1381,28 @@ export function simulateLines(
 
     let buf = ''
     let bufCjkH = 0 // CJK line-height floor of buffered chars (keep-all mode)
+    // CJK-Latin autospace: the canvas inserts a 0.125em pad at every
+    // CJK/Latin-alnum boundary; the model must count the same advance.
+    const padW = AUTOSPACE_PAD_EM * style.fontSizePx
+    const padBefore = (text: string): number =>
+      prevChar !== undefined && autospacePadBetween(prevChar, text) ? padW : 0
     const flushWord = () => {
       if (!buf) return
       const wordH = Math.max(lineH, bufCjkH)
       bufCjkH = 0
-      const w = metrics.measure(buf, style)
+      const w = metrics.measure(buf, style) + autospaceBoundaries(buf).length * padW + padBefore(buf)
       if (curLineW + w > availWidthPx && curLineW > 0) {
         pushLine(Math.max(curLineH, lineH))
         curLineH = lineH
+        prevChar = undefined
       }
       if (curLineW === 0 && w > availWidthPx) {
         // hard-break an overlong word
         let fragment = ''
         for (const ch of buf) {
-          const cw = metrics.measure(fragment + ch, style)
+          const cw =
+            metrics.measure(fragment + ch, style) +
+            autospaceBoundaries(fragment + ch).length * padW
           if (fragment && cw > availWidthPx) {
             // kinsoku on the fragment boundary (same rule as the flow path):
             // the next fragment must not start with a closing mark and this
@@ -1398,13 +1425,15 @@ export function simulateLines(
           }
         }
         if (fragment) {
-          curLineW += metrics.measure(fragment, style)
+          curLineW += metrics.measure(fragment, style) + autospaceBoundaries(fragment).length * padW
           curLineH = Math.max(curLineH, wordH)
           curText = fragment
+          prevChar = lastCharOf(fragment)
         }
       } else {
         curLineW += w
         curLineH = Math.max(curLineH, wordH)
+        prevChar = lastCharOf(buf)
         curText += buf
       }
       buf = ''
@@ -1418,6 +1447,7 @@ export function simulateLines(
         flushWord()
         pushLine(Math.max(curLineH, lineH))
         curLineH = lineH
+        prevChar = undefined
         continue
       }
       if (ch === ' ' || ch === '\t') {
@@ -1426,11 +1456,13 @@ export function simulateLines(
         if (curLineW + spW > availWidthPx && curLineW > 0) {
           pushLine(Math.max(curLineH, lineH))
           curLineH = lineH
+          prevChar = undefined
           // swallow the space at line start
         } else {
           curLineW += spW
           curLineH = Math.max(curLineH, lineH)
           curText += ch
+          prevChar = ch
         }
         continue
       }
@@ -1456,7 +1488,8 @@ export function simulateLines(
         // next run starts with another mark (Word compresses across
         // formatting boundaries too).
         const squeezeEm = (runSqueeze.right[ci] ?? 0) + (runSqueeze.left[ci] ?? 0)
-        const adv = cw + squeezeEm * style.fontSizePx
+        const pad = padBefore(ch)
+        const adv = cw + squeezeEm * style.fontSizePx + pad
         if (curLineW + adv > availWidthPx && curLineW > 0) {
           // Kinsoku — same rule as the pptx text layout: a forbidden-start char
           // must not begin the new line and a forbidden-end char must not end
@@ -1471,7 +1504,11 @@ export function simulateLines(
             if (!isCjk(lastCp)) break
             const lastChar = String.fromCodePoint(lastCp)
             if (!isKinsokuNoStart(head) && !isKinsokuNoEnd(lastChar)) break
-            const lastW = metrics.measure(lastChar, style)
+            const lastW =
+              metrics.measure(lastChar, style) +
+              (pending.length === 1 && prevChar !== undefined && autospacePadBetween(prevChar, pending[0]!)
+                ? padW
+                : 0)
             curText = curText.slice(0, curText.length - lastChar.length)
             curLineW -= lastW
             pending.unshift(lastChar)
@@ -1491,7 +1528,8 @@ export function simulateLines(
             (sum, c, k) =>
               sum +
               metrics.measure(c, style) +
-              ((pendingSqueeze.right[k] ?? 0) + (pendingSqueeze.left[k] ?? 0)) * style.fontSizePx,
+              ((pendingSqueeze.right[k] ?? 0) + (pendingSqueeze.left[k] ?? 0)) * style.fontSizePx +
+              (k > 0 && autospacePadBetween(pending[k - 1]!, c) ? padW : 0),
             0,
           )
           if (curText === '') {
@@ -1501,6 +1539,7 @@ export function simulateLines(
             curLineW = pendingW
             curText = pendingJoined
             curLineH = Math.max(curLineH, cjkH)
+            prevChar = lastCharOf(pendingJoined)
             continue
           }
           pushLine(Math.max(curLineH, lineH))
@@ -1508,11 +1547,14 @@ export function simulateLines(
           curLineW = pendingW
           curText = pendingJoined
           curLineH = Math.max(curLineH, cjkH)
+          // the carried run starts a fresh visual line: no pad crosses the break
+          prevChar = lastCharOf(pendingJoined)
           continue
         }
         curLineW += adv
         curText += ch
         curLineH = Math.max(curLineH, cjkH)
+        prevChar = ch
         continue
       }
       buf += ch
