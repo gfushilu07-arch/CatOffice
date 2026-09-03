@@ -3044,6 +3044,7 @@ export function registerDocsIpc(): void {
       // only the document this renderer legitimately has open (same grant as saving)
       if (filePath && !canDocWrite(event.sender.id, filePath)) return { ok: false }
       setDocPassword(event.sender.id, filePath, password)
+      shellHooks?.audit?.(password ? 'doc.password.set' : 'doc.password.remove', filePath ?? 'unsaved draft', {})
       return { ok: true }
     },
   )
@@ -3447,6 +3448,7 @@ export function registerDocsIpc(): void {
     // (ok=false without error) and surfaces real failures.
     return new Promise<{ ok: boolean; error?: string }>((resolve) => {
       event.sender.print({ margins: { marginType: 'none' } }, (success, failureReason) => {
+        if (success) shellHooks?.audit?.('doc.print', 'active docs tab', {})
         resolve({
           ok: success,
           ...(failureReason && !/cancel/i.test(failureReason) ? { error: failureReason } : {}),
@@ -3491,6 +3493,7 @@ export function registerDocsIpc(): void {
         })
         writeFileSync(filePath, data)
         openGeneratedFile(filePath)
+        shellHooks?.audit?.('doc.export.pdf', filePath, {})
         return { ok: true, path: filePath }
       } catch (err) {
         return { ok: false, error: String(err) }
@@ -3597,6 +3600,16 @@ interface DocsShellHooks {
   closeActiveTab(): void
   /** Shell router used to open exported PDFs in a new GenOffice tab. */
   openGeneratedPath?(path: string): boolean
+  /** C1 audit sink: docs-side lifecycle events land in the shell-owned log */
+  audit?(
+    action:
+      | 'doc.print'
+      | 'doc.export.pdf'
+      | 'doc.password.set'
+      | 'doc.password.remove',
+    target: string,
+    detail?: Record<string, string | number | boolean>,
+  ): void
 }
 let shellHooks: DocsShellHooks | null = null
 export function setDocsShellHooks(hooks: DocsShellHooks | null): void {

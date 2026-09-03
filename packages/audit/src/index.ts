@@ -103,7 +103,7 @@ export interface AuditWriterOptions {
  * Resident audit writer: owns the append fd for the current day, rolls over
  * when the UTC date changes, and tracks the running hash chain. `flush` is
  * fire-and-forget by design — an audit write must never block or fail the
- * user action that produced it (compliance-plan.md §二).
+ * user action that produced it (compliance-plan.md section 2).
  */
 import type { FileHandle } from 'node:fs/promises'
 

@@ -49,6 +49,13 @@ import {
   windowMenuTemplate,
 } from '@genoffice/electron-utils'
 import { readAppSettings, writeAppSetting, writeAppSettings } from './app-settings'
+import {
+  auditAppQuit,
+  auditAppStart,
+  auditLog,
+  auditRead,
+  auditVerify,
+} from './audit-log'
 import { applyLinuxOzoneSwitch } from './linux-ozone'
 import {
   ANALYTICS_ENABLED_KEY,
@@ -386,6 +393,7 @@ function persistAnalyticsPreference(enabled: boolean): boolean {
   cachedAnalyticsEnabled = enabled
   try {
     writeAppSettings(APP_SETTINGS_PATH(), { [ANALYTICS_ENABLED_KEY]: enabled })
+    auditLog('settings.privacy.change', 'analytics', { enabled })
     return true
   } catch (error) {
     cachedAnalyticsEnabled = previous
@@ -2456,6 +2464,7 @@ function createShellWindow(): void {
     focusTab: (id) => manager.activateTab(id),
     closeActiveTab: () => manager.closeActiveTab(),
     openGeneratedPath: (path) => openGeneratedDocument(path),
+    audit: (action, target, detail) => auditLog(action, target, detail),
   })
   setSheetsCloseTabHook(() => manager.closeActiveTab())
   // ⌘W targets the focused window: in a detached slides editor window it closes
@@ -2482,6 +2491,7 @@ function createShellWindow(): void {
     manager.setTabFileFor(wc.id, path)
     recordRecentFile(path)
     applyPendingProject(path)
+    auditLog('doc.save', path)
   })
   // ⌘O / open-path inside a docs tab: sync the tab title immediately, same
   // contract as the sheets/slides opened hooks (a plain save to the original
@@ -2490,6 +2500,7 @@ function createShellWindow(): void {
     manager.setTabFileFor(wcId, path)
     recordRecentFile(path)
     applyPendingProject(path)
+    auditLog('doc.open', path)
   })
   // markdown untitled first save / Save As lands on a new path
   setMarkdownFileSavedHook((wc, path) => {
@@ -2863,6 +2874,14 @@ function startQueuedWorkbookNudge(): void {
 function statEntries(paths: string[]): RecentEntry[] {
   return statExistingPaths(paths, new Set(readStarredFiles()))
 }
+
+// C1 audit IPC: the shell main is the single writer; renderers forward
+// events and the settings page reads/verifies.
+ipcMain.on('audit:event', (_event, action: string, target: string, detail?: Record<string, string | number | boolean>) => {
+  auditLog(action as Parameters<typeof auditLog>[0], String(target), detail)
+})
+ipcMain.handle('audit:read', (_event, day?: string) => auditRead(day))
+ipcMain.handle('audit:verify', (_event, day?: string) => auditVerify(day))
 
 function registerHomeIpc(): void {
   // signed-in means CatOffice's own device-code login; the shared gsk CLI key
@@ -4308,6 +4327,8 @@ app.whenReady().then(async () => {
   // native menus/dialogs/scrollbars follow the persisted theme from first paint
   nativeTheme.themeSource = currentTheme()
   // stamp the star-prompt install-age clock on the first launch carrying the feature,
+  auditAppStart()
+
   // and detect upgrade launches (version changed since the previous run)
   try {
     const settings = readAppSettings(APP_SETTINGS_PATH())
@@ -4355,4 +4376,5 @@ app.on('before-quit', () => {
   // No close prompt may fall through to "Save" during shutdown
   markSheetsShuttingDown()
   stopSheetsSidecar()
+  void auditAppQuit()
 })
