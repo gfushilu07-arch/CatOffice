@@ -8,6 +8,7 @@ import {
   contractBlocks,
   meetingMinutesBlocks,
   officeDocSection,
+  resumeBlocks,
   weeklyReportBlocks,
 } from '../src/renderer/office-template'
 
@@ -61,5 +62,22 @@ describe('officeDocSection', () => {
     expect(s.marginTop).toBe(1440)
     expect(s.marginLeft).toBe(1797)
     expect(s.marginLeft).not.toBe(1587) // distinct from GB
+  })
+})
+
+describe('resume', () => {
+  it('renders contact, summary, experience, education, and skills', () => {
+    const text = textsOf(
+      resumeBlocks({
+        experience: [['2024.01—2026.01', '前端工程师', '××科技']],
+      }),
+    )
+    expect(text).toContain('个人简历')
+    expect(text).toContain('电话：×××')
+    expect(text).toContain('个人简介')
+    expect(text).toContain('工作经历')
+    expect(text).toContain('××科技　前端工程师')
+    expect(text).toContain('教育背景')
+    expect(text).toContain('技能特长')
   })
 })

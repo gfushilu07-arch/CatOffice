@@ -9,6 +9,7 @@ import { govtDocBlocks, type GovtTemplateOptions } from './govt-template'
 import {
   contractBlocks,
   meetingMinutesBlocks,
+  resumeBlocks,
   weeklyReportBlocks,
 } from './office-template'
 import type { Block, SectionSettings } from '@genoffice/docx-engine'
@@ -117,6 +118,14 @@ export const OFFICE_TEMPLATES: Array<Omit<TemplateEntry, 'render'>> = [
     category: 'business',
     defaultOptions: { title: '××××××会议纪要' },
   },
+  {
+    id: 'office-resume',
+    label: '简历',
+    description: '个人简介 / 经历 / 教育 / 技能',
+    fileName: '个人简历',
+    category: 'business',
+    defaultOptions: { title: '个人简历' },
+  },
 ]
 
 /** the union the gallery shows: govt first, office after */
@@ -146,6 +155,9 @@ export const ALL_TEMPLATES: TemplateEntry[] = [
       }
       if (entry.id === 'office-weekly') {
         return { blocks: weeklyReportBlocks(options), section: officeDocSection() }
+      }
+      if (entry.id === 'office-resume') {
+        return { blocks: resumeBlocks(options), section: officeDocSection() }
       }
       return { blocks: meetingMinutesBlocks(options), section: officeDocSection() }
     },

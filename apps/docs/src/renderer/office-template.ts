@@ -177,6 +177,54 @@ export function contractBlocks(options: ContractOptions = {}): Block[] {
   return blocks
 }
 
+export interface ResumeOptions {
+  title?: string
+  name?: string
+  /** one-line contact info: phone / email / city */
+  contact?: string
+  /** [period, role, org] experience rows */
+  experience?: Array<[string, string, string]>
+  education?: string[]
+  skills?: string[]
+  summary?: string
+}
+
+export function resumeBlocks(options: ResumeOptions = {}): Block[] {
+  seq = 0
+  const {
+    title = '个人简历',
+    name = '××',
+    contact = '电话：×××　·　邮箱：××@××.com　·　城市：××',
+    experience = [
+      ['××××.××—××××.××', '××岗位', '××公司'],
+      ['××××.××—××××.××', '××岗位', '××公司'],
+    ],
+    education = ['××××.××—××××.××　××大学　××专业　本科'],
+    skills = ['××××××；', '××××××。'],
+    summary = '××××××××××××××××××××。',
+  } = options
+  const blocks: Block[] = [
+    headBlock(title),
+    block({
+      type: 'paragraph',
+      runs: [bodyRun(`${name}　·　`)],
+      format: { align: 'center' },
+    }),
+    block({ type: 'paragraph', runs: [bodyRun(contact)], format: { align: 'center' } }),
+    labelBlock('个人简介'),
+    bodyBlock(summary),
+    labelBlock('工作经历'),
+  ]
+  for (const [period, role, org] of experience) {
+    blocks.push(bodyBlock(`${period}　${org}　${role}`))
+  }
+  blocks.push(labelBlock('教育背景'))
+  blocks.push(...education.map(bodyBlock))
+  blocks.push(labelBlock('技能特长'))
+  blocks.push(...skills.map(bodyBlock))
+  return blocks
+}
+
 /** Section settings for office templates: A4 with comfortable margins
  *  (2.54cm top/bottom, 3.17cm left/right — Word's zh defaults). */
 export function officeDocSection(): ReturnType<typeof govtDocSection> {

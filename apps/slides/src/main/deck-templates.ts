@@ -85,31 +85,52 @@ export interface DeckTemplateEntry {
   }
 }
 
-export const DECK_TEMPLATES: DeckTemplateEntry[] = [
-  {
-    id: 'deck-weekly-report',
-    label: '工作汇报',
-    description: '封面 / 目录 / 三节内容 / 结尾',
-    fileName: '工作汇报',
-    pages: {
-      coverTitle: '××××××工作汇报',
-      coverSubtitle: '汇报人：××　·　××××年××月',
-      agenda: ['一、工作进展', '二、问题与风险', '三、下一步计划'],
-      sections: [
-        { title: '一、工作进展', body: ['1. ××××××××；', '2. ××××××××；', '3. ××××××××。'] },
-        { title: '二、问题与风险', body: ['1. ××××××××；', '2. 需××××支持。'] },
-        { title: '三、下一步计划', body: ['1. ××××××××；', '2. ××××××××。'] },
-      ],
-      closing: '谢谢观看',
-    },
-  },
-]
-
 export function deckTemplateById(id: string): DeckTemplateEntry | undefined {
   return DECK_TEMPLATES.find((entry) => entry.id === id)
 }
 
+export const PROPOSAL_TEMPLATE: DeckTemplateEntry = {
+  id: 'deck-proposal',
+  label: '项目提案',
+  description: '封面 / 目录 / 背景目标 / 方案 / 排期资源 / 结尾',
+  fileName: '项目提案',
+  pages: {
+    coverTitle: '××××项目提案',
+    coverSubtitle: '提案人：××　·　××××年××月',
+    agenda: ['一、背景与目标', '二、方案概述', '三、排期与资源'],
+    sections: [
+      { title: '一、背景与目标', body: ['1. ××××××××；', '2. 目标：××××××××。'] },
+      { title: '二、方案概述', body: ['1. ××××××××；', '2. ××××××××。'] },
+      {
+        title: '三、排期与资源',
+        body: ['1. 排期：××××年××月—××月；', '2. 资源：××××××××。'],
+      },
+    ],
+    closing: '谢谢观看',
+  },
+}
+
 /** labels for the shell's native picker menu (independent bundle rule) */
+export const WEEKLY_REPORT_TEMPLATE: DeckTemplateEntry = {
+  id: 'deck-weekly-report',
+  label: '工作汇报',
+  description: '封面 / 目录 / 三节内容 / 结尾',
+  fileName: '工作汇报',
+  pages: {
+    coverTitle: '××××××工作汇报',
+    coverSubtitle: '汇报人：××　·　××××年××月',
+    agenda: ['一、工作进展', '二、问题与风险', '三、下一步计划'],
+    sections: [
+      { title: '一、工作进展', body: ['1. ××××××××；', '2. ××××××××；', '3. ××××××××。'] },
+      { title: '二、问题与风险', body: ['1. ××××××××；', '2. 需××××支持。'] },
+      { title: '三、下一步计划', body: ['1. ××××××××；', '2. ××××××××。'] },
+    ],
+    closing: '谢谢观看',
+  },
+}
+
+export const DECK_TEMPLATES: DeckTemplateEntry[] = [WEEKLY_REPORT_TEMPLATE, PROPOSAL_TEMPLATE]
+
 export const DECK_TEMPLATE_MENU = DECK_TEMPLATES.map((entry) => ({
   id: entry.id,
   label: entry.label,

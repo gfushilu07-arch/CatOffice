@@ -28,10 +28,12 @@ const slideTexts = (deck: { slides: SlideLike[] }): string[] =>
   )
 
 describe('deck template presets', () => {
-  it('ships the work-report skeleton with a stable id', () => {
-    expect(DECK_TEMPLATES.map((t) => t.id)).toEqual(['deck-weekly-report'])
+  it('ships the work-report and proposal skeletons with stable ids', () => {
+    expect(DECK_TEMPLATES.map((t) => t.id)).toEqual(['deck-weekly-report', 'deck-proposal'])
     expect(deckTemplateById('deck-weekly-report')?.label).toBe('工作汇报')
+    expect(deckTemplateById('deck-proposal')?.label).toBe('项目提案')
     expect(DECK_TEMPLATES[0]!.pages.sections).toHaveLength(3)
+    expect(DECK_TEMPLATES[1]!.pages.sections).toHaveLength(3)
   })
 
   it('renders six slides whose text survives save/reopen', async () => {

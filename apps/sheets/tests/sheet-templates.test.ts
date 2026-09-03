@@ -9,11 +9,13 @@ import { SHEET_TEMPLATES, SHEET_TEMPLATE_MENU, sheetTemplateById } from '../src/
 import { rowsToXlsxBuffer } from '../src/gateway/csv-import'
 
 describe('sheet template presets', () => {
-  it('ships budget / roster / ledger with unique ids', () => {
+  it('ships budget / roster / ledger / invoice / attendance with unique ids', () => {
     expect(SHEET_TEMPLATES.map((t) => t.id)).toEqual([
       'sheet-budget',
       'sheet-roster',
       'sheet-ledger',
+      'sheet-invoice',
+      'sheet-attendance',
     ])
     expect(SHEET_TEMPLATE_MENU).toHaveLength(SHEET_TEMPLATES.length)
     expect(sheetTemplateById('sheet-budget')?.label).toBe('预算表')
