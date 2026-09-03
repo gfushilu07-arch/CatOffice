@@ -92,7 +92,7 @@ export function rememberDocPassword(wcId: number, filePath: string, password: st
 }
 
 /**
- * Session lock (等保 C3): drop every cached password. Subsequent operations
+ * Session lock (compliance C3): drop every cached password. Subsequent operations
  * on encrypted documents re-prompt per document (the normal open path) —
  * nothing else is cleared, so unlocked plain documents are unaffected.
  * Returns how many documents were holding passwords.
