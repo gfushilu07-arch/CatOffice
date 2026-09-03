@@ -148,6 +148,11 @@ export function parseCsv(input: string, delimiter = sniffDelimiter(input)): stri
 
 /// Plain decimal numbers only; leading zeros ("007") stay text so codes and
 /// phone numbers survive the import.
+/** A cell value starting with '=' is a formula (template presets, CSV import). */
+export function isFormulaCell(value: string): boolean {
+  return value.length > 1 && value.startsWith('=')
+}
+
 export function isNumericCell(value: string): boolean {
   if (!/^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/.test(value)) return false
   return Number.isFinite(Number(value))
@@ -181,11 +186,17 @@ export function buildWorksheetXml(rows: readonly (readonly string[])[]): string 
       if (value === '') return
       maxColumns = Math.max(maxColumns, columnIndex + 1)
       const reference = `${columnLabel(columnIndex)}${rowIndex + 1}`
-      cells.push(
-        isNumericCell(value)
-          ? `<c r="${reference}"><v>${value}</v></c>`
-          : `<c r="${reference}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`,
-      )
+      if (isFormulaCell(value)) {
+        // a leading '=' is a formula, not text: emit a real formula cell
+        // (no cached <v> -> Excel/WPS recalculate on load)
+        cells.push(`<c r="${reference}"><f>${escapeXml(value.slice(1))}</f></c>`)
+      } else {
+        cells.push(
+          isNumericCell(value)
+            ? `<c r="${reference}"><v>${value}</v></c>`
+            : `<c r="${reference}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`,
+        )
+      }
     })
     if (cells.length > 0) lines.push(`<row r="${rowIndex + 1}">${cells.join('')}</row>`)
   })

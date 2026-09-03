@@ -36,3 +36,16 @@ describe('sheet template presets', () => {
     },
   )
 })
+
+describe('formula cells (budget template)', () => {
+  it('writes =-prefixed values as real <f> formula cells, never formula text', async () => {
+    const budget = sheetTemplateById('sheet-budget')!
+    const bytes = await rowsToXlsxBuffer(budget.rows, budget.sheetName)
+    const zip = await JSZip.loadAsync(bytes)
+    const xml = await zip.file('xl/worksheets/sheet1.xml')!.async('string')
+    expect(xml).toContain('<c r="D2"><f>B2-C2</f></c>')
+    expect(xml).toContain('<c r="B5"><f>SUM(B2:B4)</f></c>')
+    // a formula must never leak into an inlineStr text cell
+    expect(xml).not.toMatch(/t="inlineStr"><is><t[^>]*>=/)
+  })
+})
