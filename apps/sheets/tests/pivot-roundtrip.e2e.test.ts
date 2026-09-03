@@ -18,8 +18,24 @@ import type { SheetPivotAddition } from '../src/gateway/xlsx-gateway'
 /// re-parses the whole package, so a malformed pivot part fails the convert
 /// (or drops the parts). Runs only where soffice is installed.
 
-const SOFFICE = ['/opt/homebrew/bin/soffice', '/usr/local/bin/soffice', '/usr/bin/soffice']
-  .find((path) => existsSync(path))
+// A dangling homebrew wrapper symlink survives `existsSync` (the cask dir is
+// gone but the symlink file is there), which made skipIf lie and the job run
+// into a spawn failure. Probe that the binary actually executes.
+function findSoffice(): string | undefined {
+  const candidates = ['/opt/homebrew/bin/soffice', '/usr/local/bin/soffice', '/usr/bin/soffice']
+  for (const path of candidates) {
+    if (!existsSync(path)) continue
+    try {
+      execFileSync(path, ['--version'], { stdio: 'pipe', timeout: 30_000 })
+      return path
+    } catch {
+      // installed in name only — keep looking
+    }
+  }
+  return undefined
+}
+
+const SOFFICE = findSoffice()
 
 async function buildPivotSourceWorkbook(): Promise<Buffer> {
   const zip = new JSZip()

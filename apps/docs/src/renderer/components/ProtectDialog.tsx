@@ -55,6 +55,7 @@ export function ProtectDialog({
   removePersonalInfo,
   onCancel,
   onApply,
+  spinCount,
 }: {
   /** an open password is desired for the next save */
   encrypted: boolean
@@ -63,6 +64,9 @@ export function ProtectDialog({
   removePersonalInfo: boolean
   onCancel: () => void
   onApply: (result: ProtectDialogResult) => void
+  /** password-hash iterations (Word's default 100000); tests shrink this —
+   *  the stored value carries the count, so verification stays correct */
+  spinCount?: number
 }) {
   const { t } = useI18n()
   const hadModifyPwd = !!writeProtection?.hash
@@ -111,7 +115,10 @@ export function ProtectDialog({
             ? writeProtection?.recommended
               ? { recommended: true }
               : null
-            : { ...recommended, ...(await hashProtectionPassword(modifyPwd)) }
+            : {
+          ...recommended,
+          ...(await hashProtectionPassword(modifyPwd, spinCount)),
+        }
       }
 
       if (protectionChanged) {
@@ -131,7 +138,7 @@ export function ProtectDialog({
                   algorithmSid: protection.algorithmSid,
                 }
               : protectPwd && protectPwd !== KEEP
-                ? await hashProtectionPassword(protectPwd)
+                ? await hashProtectionPassword(protectPwd, spinCount)
                 : {}
           result.protection = { edit: mode, enforced: true, ...creds }
         }

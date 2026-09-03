@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fetchRemoteImage, remoteImageHeaders } from '../src/remote-image'
+import type { LookupAddress } from 'node:dns'
+
+/**
+ * Machines behind fake-ip proxies (Clash/Surge) resolve every host into
+ * 198.18.0.0/15, which the SSRF guard's blocklist rejects — these tests are
+ * about retry/header semantics, not DNS truth, so every case resolves the
+ * host to a fixed public address.
+ */
+const REAL_IP_LOOKUP = async (host: string): Promise<LookupAddress[]> => [
+  { address: '93.184.216.34', family: 4 },
+  ...(host ? [] : []),
+]
 
 const png = () => new Response('img', { status: 200 })
 
@@ -35,6 +47,7 @@ describe('fetchRemoteImage', () => {
     const resp = await fetchRemoteImage('https://sspark.genspark.ai/a.png', {
       fetchImpl,
       retryDelaysMs: [0, 0],
+      lookupImpl: REAL_IP_LOOKUP,
     })
     expect(resp?.ok).toBe(true)
     expect(fetchImpl).toHaveBeenCalledTimes(1)
@@ -51,6 +64,7 @@ describe('fetchRemoteImage', () => {
     const resp = await fetchRemoteImage('https://sspark.genspark.ai/a.png', {
       fetchImpl,
       retryDelaysMs: [0, 0],
+      lookupImpl: REAL_IP_LOOKUP,
     })
     expect(resp?.ok).toBe(true)
     expect(fetchImpl).toHaveBeenCalledTimes(3)
@@ -61,6 +75,7 @@ describe('fetchRemoteImage', () => {
     const resp = await fetchRemoteImage('https://sspark.genspark.ai/a.png', {
       fetchImpl,
       retryDelaysMs: [0],
+      lookupImpl: REAL_IP_LOOKUP,
     })
     expect(resp).toBeNull()
     expect(fetchImpl).toHaveBeenCalledTimes(2)
@@ -71,6 +86,7 @@ describe('fetchRemoteImage', () => {
     const resp = await fetchRemoteImage('https://sspark.genspark.ai/a.png', {
       fetchImpl,
       retryDelaysMs: [0, 0],
+      lookupImpl: REAL_IP_LOOKUP,
     })
     expect(resp?.status).toBe(404)
     expect(fetchImpl).toHaveBeenCalledTimes(1)

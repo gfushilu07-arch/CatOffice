@@ -37,9 +37,10 @@ describe.runIf(mac)(
       expect(m.displayFamily!(style('ＭＳ Ｐゴシック'))).toMatch(
         office ? /MS P?Gothic|Hiragino Sans/ : /^Hiragino Sans$/,
       )
-      expect(m.displayFamily!(style('游明朝'))).toMatch(
-        office ? /Yu Mincho|Hiragino Mincho/ : /^Hiragino Mincho ProN$/,
-      )
+      // macOS 17 pools YuMincho.ttc into the PrivateFrameworks font Subsets
+      // (PowerPoint uses it directly there too), so the real face wins on both
+      // sides; older systems without it fall back to Hiragino Mincho ProN.
+      expect(m.displayFamily!(style('游明朝'))).toMatch(/Yu ?Mincho|Hiragino Mincho/)
       expect(m.displayFamily!(style('MS Mincho'))).toMatch(
         office ? /MS Mincho|Hiragino Mincho/ : /^Hiragino Mincho ProN$/,
       )

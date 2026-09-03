@@ -14,6 +14,11 @@ const DEFAULTS: Omit<Props, 'onApply' | 'onCancel'> = {
   writeProtection: null,
   protection: null,
   removePersonalInfo: false,
+  // Word's default is 100k iterations (~10s/derivation under parallel load on
+  // this class of machine — the flake source); 2k keeps every derivation under
+  // 0.5s while remaining a real iterated-SHA-512 credential. The stored
+  // spinCount rides the credential, so verification correctness is unchanged.
+  spinCount: 2000,
 }
 
 async function mount(partial: Partial<Props>) {
@@ -41,12 +46,15 @@ async function mount(partial: Partial<Props>) {
       ;(el as HTMLElement).click()
     })
   }
-  // submit hashes/verifies passwords asynchronously (iterated SHA-512); keep
-  // flushing until the expected outcome shows up instead of guessing a delay
+  // submit hashes/verifies passwords asynchronously (iterated SHA-512, Word's
+  // 100k spinCount); keep flushing until the expected outcome shows up instead
+  // of guessing a delay. 10s was measured to sit on the line under parallel
+  // load on slower machines — 30s gives 3x headroom without weakening the
+  // assertion (the loop exits the moment the outcome appears).
   const submit = async (done: () => boolean) => {
     await click(host.querySelector('.btn-primary')!)
     const start = Date.now()
-    while (!done() && Date.now() - start < 10_000) {
+    while (!done() && Date.now() - start < 30_000) {
       await act(async () => {
         await new Promise((r) => setTimeout(r, 10))
       })

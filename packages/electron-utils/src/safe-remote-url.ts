@@ -56,7 +56,10 @@ export function isBlockedAddress(ip: string): boolean {
  * check and the request (rebinding). Pair it with per-hop revalidation via
  * `fetchWithSsrfGuard` rather than relying on a single up-front check.
  */
-export async function isSafeRemoteUrl(raw: unknown): Promise<boolean> {
+export async function isSafeRemoteUrl(
+  raw: unknown,
+  lookupImpl: typeof lookup = lookup,
+): Promise<boolean> {
   if (typeof raw !== 'string') return false
   let url: URL
   try {
@@ -75,7 +78,7 @@ export async function isSafeRemoteUrl(raw: unknown): Promise<boolean> {
   if (isIP(host)) return !isBlockedAddress(host)
   if (host === 'localhost' || BLOCKED_HOST_SUFFIXES.some((s) => host.endsWith(s))) return false
   try {
-    const addrs = await lookup(host, { all: true })
+    const addrs = await lookupImpl(host, { all: true })
     return addrs.length > 0 && addrs.every((a) => !isBlockedAddress(a.address))
   } catch {
     return false
@@ -88,6 +91,13 @@ export interface FetchWithSsrfGuardOptions {
   headers?: Record<string, string>
   /** Injectable for tests; defaults to global fetch. */
   fetchImpl?: typeof fetch
+  /**
+   * Injectable DNS resolver for tests (defaults to node's lookup). Machines
+   * behind fake-ip proxies resolve every host into 198.18.0.0/15, which the
+   * blocklist rejects — tests inject a resolver that answers with a real
+   * public address so the guard's decision matches production semantics.
+   */
+  lookupImpl?: typeof lookup
 }
 
 /**
@@ -99,10 +109,10 @@ export async function fetchWithSsrfGuard(
   rawUrl: string,
   options: FetchWithSsrfGuardOptions = {},
 ): Promise<Response | null> {
-  const { maxRedirects = 5, headers, fetchImpl = fetch } = options
+  const { maxRedirects = 5, headers, fetchImpl = fetch, lookupImpl = lookup } = options
   let current = rawUrl
   for (let hop = 0; hop <= maxRedirects; hop++) {
-    if (!(await isSafeRemoteUrl(current))) return null
+    if (!(await isSafeRemoteUrl(current, lookupImpl))) return null
     // headers stays absent rather than explicitly undefined (exactOptionalPropertyTypes)
     const resp = await fetchImpl(current, {
       ...(headers ? { headers } : {}),
