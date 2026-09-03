@@ -1,5 +1,5 @@
 /**
- * Local security audit log (等保 C1): the shell main process owns the single
+ * Local security audit log (compliance C1): the shell main process owns the single
  * AuditWriter instance (single-writer by contract — renderers go through
  * IPC), seeds it from userData/audit/, and exposes read/verify to the
  * settings page.

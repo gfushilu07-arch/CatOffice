@@ -1,5 +1,5 @@
 /**
- * Local security audit log (等保 C1, compliance-plan.md §二): an append-only
+ * Local security audit log (compliance C1, compliance-plan.md section 2): an append-only
  * JSONL file per day under `<auditDir>/YYYY-MM-DD.jsonl`, one event per line,
  * each line carrying a hash chain over the previous line so any after-the-fact
  * deletion or edit breaks the chain and is detectable.
