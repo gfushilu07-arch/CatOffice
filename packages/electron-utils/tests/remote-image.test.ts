@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fetchRemoteImage, remoteImageHeaders } from '../src/remote-image'
 import type { LookupAddress } from 'node:dns'
+import type { lookup } from 'node:dns/promises'
 
 /**
  * Machines behind fake-ip proxies (Clash/Surge) resolve every host into
@@ -8,10 +9,10 @@ import type { LookupAddress } from 'node:dns'
  * about retry/header semantics, not DNS truth, so every case resolves the
  * host to a fixed public address.
  */
-const REAL_IP_LOOKUP = async (host: string): Promise<LookupAddress[]> => [
-  { address: '93.184.216.34', family: 4 },
-  ...(host ? [] : []),
-]
+const REAL_IP_LOOKUP = (async (host: string, options?: { all: boolean }) =>
+  options?.all
+    ? [{ address: '93.184.216.34', family: 4 } as LookupAddress]
+    : ({ address: '93.184.216.34', family: 4 } as LookupAddress)) as unknown as typeof lookup
 
 const png = () => new Response('img', { status: 200 })
 

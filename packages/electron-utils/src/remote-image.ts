@@ -35,7 +35,7 @@ export function remoteImageHeaders(rawUrl: string): Record<string, string> {
  */
 export async function fetchRemoteImage(
   rawUrl: string,
-  options: Pick<FetchWithSsrfGuardOptions, 'fetchImpl'> & {
+  options: Pick<FetchWithSsrfGuardOptions, 'fetchImpl' | 'lookupImpl'> & {
     retryDelaysMs?: readonly number[]
   } = {},
 ): Promise<Response | null> {
