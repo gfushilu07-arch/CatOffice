@@ -37,12 +37,12 @@ export interface GovtTemplateOptions {
   /** issue date (indented two chars from the right margin) */
   date?: string
   /**
-   * subject keywords (主题词, GB/T 9704 P2): 3-5 phrases, rendered bold
+   * subject keywords (GB/T 9704 P2): 3-5 phrases, rendered bold
    * size-3 heiti flush left under the date. Empty/omitted = omitted.
    */
   keywords?: string[]
   /**
-   * the colophon block (版记, GB/T 9704 P2): cc line + print line between
+   * the colophon block (ban-ji, GB/T 9704 P2): cc line + print line between
    * full-width rules at the very end. Empty/omitted = omitted.
    */
   colophon?: { cc?: string; print?: string }
