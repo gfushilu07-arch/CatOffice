@@ -72,3 +72,5 @@ export async function auditVerify(day?: string): Promise<{
 export function auditDay(): string {
   return auditDayFile()
 }
+
+export { lockSession } from '../../../docs/src/main/docx-encryption'

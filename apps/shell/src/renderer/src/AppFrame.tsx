@@ -3,6 +3,7 @@ import { Home } from './Home'
 import { Onboarding } from './Onboarding'
 import { StarPromptCard } from './StarPromptCard'
 import { TabBar } from './TabBar'
+import { SessionLockOverlay } from './SessionLockOverlay'
 
 interface AppFrameProps {
   /** resolved before first paint (main.tsx) so home never flashes under the overlay */
@@ -59,6 +60,7 @@ export function AppFrame({ initialOnboardingSeen }: AppFrameProps) {
       {/* editor WebContentsViews paint above ALL shell DOM, so the overlay only
        * renders while the home tab is active — it comes back when home does */}
       {showOnboarding && homeActive && <Onboarding onDone={finishOnboarding} />}
+      <SessionLockOverlay />
       {starPromptDocOpens !== null && !showOnboarding && homeActive && (
         <StarPromptCard docOpens={starPromptDocOpens} onClose={() => setStarPromptDocOpens(null)} />
       )}

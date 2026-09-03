@@ -91,6 +91,19 @@ export function rememberDocPassword(wcId: number, filePath: string, password: st
   setDiskPassword(wcId, filePath, password)
 }
 
+/**
+ * Session lock (等保 C3): drop every cached password. Subsequent operations
+ * on encrypted documents re-prompt per document (the normal open path) —
+ * nothing else is cleared, so unlocked plain documents are unaffected.
+ * Returns how many documents were holding passwords.
+ */
+export function lockSession(): number {
+  let count = 0
+  for (const forWc of diskPasswords.values()) count += forWc.size
+  diskPasswords.clear()
+  return count
+}
+
 /** Password for the bytes currently on disk, or null for plain documents. */
 export function docPasswordFor(wcId: number, filePath: string | null | undefined): string | null {
   if (!filePath) return null

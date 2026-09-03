@@ -28,6 +28,7 @@ export type AuditAction =
   | 'ai.session.start'
   | 'ai.session.end'
   | 'settings.privacy.change'
+  | 'app.session.lock'
   | 'app.start'
   | 'app.quit'
 

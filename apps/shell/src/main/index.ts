@@ -56,6 +56,7 @@ import {
   auditRead,
   auditVerify,
 } from './audit-log'
+import { configureIdleLock, installIdleLock, unlockSession } from './idle-lock'
 import {
   CONSENT_KEY,
   hasConsent,
@@ -4356,6 +4357,8 @@ app.whenReady().then(async () => {
   nativeTheme.themeSource = currentTheme()
   // stamp the star-prompt install-age clock on the first launch carrying the feature,
   auditAppStart()
+  installIdleLock()
+  configureIdleLock(Number(readAppSettings(APP_SETTINGS_PATH()).sessionLockMinutes ?? 15))
 
   // and detect upgrade launches (version changed since the previous run)
   try {

@@ -297,7 +297,17 @@ function asCloudProjectsSnapshot(result: unknown): CloudProjectsSnapshot | null 
   return null
 }
 
+ipcRenderer.on('session-lock', (_event, locked: boolean) => {
+  for (const w of [window]) {
+    w.dispatchEvent(new CustomEvent('session-lock', { detail: locked }))
+  }
+})
 contextBridge.exposeInMainWorld('aiOffice', homeApi)
+contextBridge.exposeInMainWorld('sessionLock', {
+  getState: () => ipcRenderer.invoke('session-lock:state'),
+  unlock: () => ipcRenderer.send('session-lock:unlock'),
+  notifyActivity: () => ipcRenderer.send('session-lock:activity'),
+})
 
 const projectApi: ProjectHomeApi = {
   async listProjects() {

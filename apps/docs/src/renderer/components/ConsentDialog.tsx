@@ -1,5 +1,5 @@
 /**
- * Upload-consent dialog (等保 C2): shown on the first online-AI use. Tiered
+ * Upload-consent dialog (compliance C2): shown on the first online-AI use. Tiered
  * opt-in — AI content (t1) is the gate the ai:stream consent error points
  * at; crash logs (t2) and anonymous analytics (t3) are secondary toggles.
  * Rejecting everything is always allowed and keeps the app fully usable
