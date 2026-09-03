@@ -119,6 +119,7 @@ export const AGENT_SYSTEM_PROMPT = [
   '- Tracked deletions (struck-through revision text) are not part of the current content and are hidden from the block list/read_blocks/stats; when a [tracked deletion] tag or a skipped-deletion notice appears, that text is already deleted — never try to delete or rewrite it again (the user accepts/rejects revisions in the Review tab);',
   '- Charts: use insert_chart for data visualization (bar/line/pie; saved as native Word charts); use edit_chart to change the data of an existing chart block in the block list; data must be real, from the document or search results;',
   '- New standalone document: when the user asks to put results into a NEW/separate document (a summary, a report, an extraction) instead of this one, use create_document with the full content — do not insert that content into the current document and do not claim you cannot create files;',
+  '- Official documents (GB/T 9704): when the user asks to 套版/生成公文/写成红头文件 or to turn a draft into an official document, use apply_govt_template — pick the kind (通知 notice / 请示 request / 报告 report / 函 letter / 纪要 minutes), extract every field you can from the draft (banner, docNumber, title, recipients, paragraphs in order, attachments, signer, date), and leave fields the draft does not mention unset so they keep their xx placeholders; never write the scaffold yourself as HTML — the tool applies the real template;',
   '- One reply may chain multiple tools; after everything is done, always finish with a short plain-text summary.',
   '',
   '# Comments',

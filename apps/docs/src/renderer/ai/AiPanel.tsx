@@ -7,7 +7,12 @@ import { ATTACHMENT_IMAGE_EXTS } from '../../shared/ipc'
 import type { PmNode } from '../editor/convert'
 import { countWords, findNumId, type NumIds } from './protocol'
 import { DOC_NAV_SCHEME, navigateToBlock, parseDocNavHref } from './doc-nav'
-import { markDocSeen, type AiCommentsAccess, type AiHeaderFooterAccess } from './tools'
+import {
+  markDocSeen,
+  type AiCommentsAccess,
+  type AiHeaderFooterAccess,
+  type ApplyGovtTemplate,
+} from './tools'
 import { createDocsSkill } from './docs-skill'
 import { EditQueueCard } from './EditQueueCard'
 import {
@@ -283,6 +288,8 @@ interface AiPanelProps {
   commentsAccess?: AiCommentsAccess
   /** header/footer state for the set_header_footer tool and per-turn context */
   hfAccess?: AiHeaderFooterAccess
+  /** asset center apply path for the govt-template tool (renders + opens a new tab) */
+  onApplyGovtTemplate?: ApplyGovtTemplate
 }
 
 export function AiPanel({
@@ -296,6 +303,7 @@ export function AiPanel({
   onExpand,
   onCollapse,
   filePath,
+  onApplyGovtTemplate,
   editQueue = [],
   onQueueEditInstruction,
   onQueueRemove,
@@ -587,6 +595,7 @@ export function AiPanel({
           () => (trackChangesRef.current ? { author: AI_REVISION_AUTHOR } : undefined),
           () => commentsAccessRef.current,
           () => hfAccessRef.current,
+          onApplyGovtTemplate,
         ),
         createFilesSkill(availableAttachments),
       ]),

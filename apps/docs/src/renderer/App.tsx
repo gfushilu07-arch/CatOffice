@@ -14,7 +14,6 @@ import { DOMParser as PmDOMParser, type Mark as PmMark } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import { Dropdown } from '@genoffice/ui'
 import { markdownPasteHtml } from './editor/markdown-paste'
-import { govtDocBlocks, govtDocSection } from './govt-template'
 import { templateById } from './template-catalog'
 import { TemplateGallery } from './components/TemplateGallery'
 
@@ -44,6 +43,7 @@ import {
 import type { AiDocContent, AiSettings, OpenDocxResult } from '../shared/ipc'
 import { AI_PROVIDERS } from '../shared/ipc'
 import { AiPanel, AI_REVISION_AUTHOR } from './ai/AiPanel'
+import type { ApplyGovtTemplate } from './ai/tools'
 import type { AiCommentsAccess, AiHeaderFooterAccess } from './ai/tools'
 import { applyHfText, hfEditText } from './editor/hf-text'
 import { AiAskPopover } from './components/AiAskPopover'
@@ -1265,6 +1265,21 @@ export function App() {
   const newFile = useCallback(
     (template?: NewFileTemplate) => newFileImpl(fileCtxRef.current, template),
     [],
+  )
+
+  // asset center AI skill (apply_govt_template): render the LLM-filled fields
+  // through the real generator and land them via newFile in a fresh tab
+  const applyGovtTemplate = useCallback<ApplyGovtTemplate>(
+    async ({ templateId, fields }) => {
+      const entry = templateById(templateId)
+      if (!entry) return false
+      // the generators read string fields directly; array fields land on the
+      // template options' array-typed keys (paragraphs/attachments)
+      const options = fields as Record<string, string>
+      newFile({ ...entry.render(options), fileName: entry.fileName })
+      return true
+    },
+    [newFile],
   )
 
   const openRecent = useCallback(
@@ -4081,6 +4096,7 @@ export function App() {
               onQueueConsume={queueConsume}
               commentsAccess={aiCommentsAccess}
               hfAccess={aiHfAccess}
+              onApplyGovtTemplate={applyGovtTemplate}
             />
           </div>
         )}

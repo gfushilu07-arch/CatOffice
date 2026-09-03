@@ -316,6 +316,45 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       required: ['title', 'content'],
     },
   },
+  {
+    name: 'apply_govt_template',
+    description:
+      'Fill a GB/T 9704 official-document template (asset center) with content extracted from the conversation or a user draft, and open it in a new tab. ' +
+      'Extract the fields yourself from the draft: kind picks the document type, every other field replaces that part of the scaffold. ' +
+      'Use when the user asks to 套版/生成公文/写成红头文件 or to turn a draft into an official document. ' +
+      'Fields left out keep their xx fill-in placeholders.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kind: {
+          type: 'string',
+          enum: ['notice', 'request', 'report', 'letter', 'minutes'],
+          description:
+            'document kind: notice=通知 request=请示 report=报告 letter=函 minutes=纪要',
+        },
+        banner: { type: 'string', description: 'issuing-agency letterhead, e.g. ××市人民政府文件' },
+        docNumber: { type: 'string', description: 'document number, e.g. ×政发〔2026〕5号' },
+        title: { type: 'string', description: 'document title, e.g. 关于××的通知' },
+        recipients: {
+          type: 'string',
+          description: 'recipients line ending with a colon, e.g. 各区县人民政府：',
+        },
+        paragraphs: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'body paragraphs in order (the 2-char first-line indent is applied automatically)',
+        },
+        attachments: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'attachment names; omit for none',
+        },
+        signer: { type: 'string', description: 'issuing-agency signature' },
+        date: { type: 'string', description: 'issue date in Chinese, e.g. 2026年9月3日' },
+      },
+      required: ['kind', 'title'],
+    },
+  },
 ]
 
 /**
@@ -323,6 +362,17 @@ export const AGENT_TOOLS: AgentToolDef[] = [
  * same commit path as on-canvas editing (variant routing, per-section edits,
  * dirty flags), so the docx save path needs no changes.
  */
+/**
+ * Asset-center apply path for the govt-template tool: renders the filled
+ * preset through govtDocBlocks and lands it via newFile (full red-banner
+ * fidelity — not an HTML round-trip). App-injected; the AI tool layer stays
+ * free of file-actions imports.
+ */
+export type ApplyGovtTemplate = (options: {
+  templateId: string
+  fields: Record<string, string | string[]>
+}) => Promise<boolean>
+
 export interface AiHeaderFooterAccess {
   read(): AiHfState
   /** returns an error message, or null on success */
@@ -457,6 +507,7 @@ async function executeAsyncTool(
   editor: Editor,
   call: AgentToolCall,
   signal?: AbortSignal,
+  applyGovtTemplate?: ApplyGovtTemplate,
 ): Promise<ToolExecution> {
   switch (call.name) {
     case 'web_search': {
@@ -568,6 +619,40 @@ async function executeAsyncTool(
         summary: t('aiSumCreatedDocument', { name }),
       }
     }
+
+    case 'apply_govt_template': {
+      if (!applyGovtTemplate)
+        return fail(t('aiSumGovtTemplate'), 'the govt-template apply path is unavailable')
+      const kind = String(call.input.kind ?? '').trim()
+      if (!['notice', 'request', 'report', 'letter', 'minutes'].includes(kind))
+        return fail(
+          t('aiSumGovtTemplate'),
+          'kind must be one of notice/request/report/letter/minutes',
+        )
+      const title = String(call.input.title ?? '').trim()
+      if (!title) return fail(t('aiSumGovtTemplate'), 'title must not be empty')
+      // only forward fields the model actually filled; the rest keep their xx placeholders
+      const fields: Record<string, string | string[]> = { title }
+      for (const key of ['banner', 'docNumber', 'recipients', 'signer', 'date'] as const) {
+        const v = String(call.input[key] ?? '').trim()
+        if (v) fields[key] = v
+      }
+      if (Array.isArray(call.input.paragraphs)) {
+        const paras = call.input.paragraphs.map((p) => String(p)).filter((p) => p.trim() !== '')
+        if (paras.length > 0) fields.paragraphs = paras
+      }
+      if (Array.isArray(call.input.attachments)) {
+        const atts = call.input.attachments.map((a) => String(a)).filter((a) => a.trim() !== '')
+        if (atts.length > 0) fields.attachments = atts
+      }
+      const ok = await applyGovtTemplate({ templateId: kind, fields })
+      if (!ok) return fail(t('aiSumGovtTemplate'), 'applying the template failed')
+      return {
+        output: `已按 GB/T 9704 ${kind} 模板生成公文并在新标签页打开：${title}`,
+        mutated: false,
+        summary: t('aiSumGovtTemplate'),
+      }
+    }
     default:
       return fail(t('aiSumUnknownTool'), call.name)
   }
@@ -656,6 +741,7 @@ export function executeTool(
   frozen?: FrozenSelection | null,
   comments?: AiCommentsAccess,
   hf?: AiHeaderFooterAccess,
+  applyGovtTemplate?: ApplyGovtTemplate,
 ): ToolExecution | Promise<ToolExecution> {
   const scope = frozen && frozen.doc === editor.state.doc ? frozen.scope : null
   const staleSummary = INDEX_WRITE_SUMMARIES[call.name]
@@ -674,9 +760,10 @@ export function executeTool(
     call.name === 'image_search' ||
     call.name === 'insert_image' ||
     call.name === 'generate_image' ||
-    call.name === 'create_document'
+    call.name === 'create_document' ||
+    call.name === 'apply_govt_template'
   ) {
-    return executeAsyncTool(editor, call, signal)
+    return executeAsyncTool(editor, call, signal, applyGovtTemplate)
   }
   return settle(executeSyncTool(editor, call, numIds, track, scope, comments, hf))
 }

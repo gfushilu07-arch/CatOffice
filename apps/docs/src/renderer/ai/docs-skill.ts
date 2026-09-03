@@ -13,6 +13,7 @@ import {
   markDocSeen,
   type AiCommentsAccess,
   type AiHeaderFooterAccess,
+  type ApplyGovtTemplate,
   type FrozenSelection,
 } from './tools'
 
@@ -27,6 +28,7 @@ export function createDocsSkill(
   getTrack?: () => AiTrack | undefined,
   getComments?: () => AiCommentsAccess | undefined,
   getHf?: () => AiHeaderFooterAccess | undefined,
+  applyGovtTemplate?: ApplyGovtTemplate,
 ): AgentSkill {
   // Selection frozen per run: tools act on the range the prompt described,
   // not on wherever the user's live selection has wandered mid-run. The doc
@@ -52,6 +54,7 @@ export function createDocsSkill(
         frozen,
         getComments?.(),
         getHf?.(),
+        applyGovtTemplate,
       ),
   }
 }
