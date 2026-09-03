@@ -165,7 +165,7 @@ export function govtDocBlocks(options: GovtTemplateOptions = {}): Block[] {
     }),
   )
 
-  // subject keywords (主题词): bold size-3 heiti flush left, '××××词' label style
+  // subject keywords (zhuti-ci): bold size-3 heiti flush left
   if (keywords.length > 0) {
     blocks.push(block({ type: 'paragraph', runs: [] }))
     const kwLine = `关键词：${keywords.join('　')}`
@@ -177,7 +177,7 @@ export function govtDocBlocks(options: GovtTemplateOptions = {}): Block[] {
     )
   }
 
-  // colophon (版记): cc line + print line between full-width rules — an empty
+  // colophon (the GB record block): cc line + print line between full-width rules — an empty
   // paragraph carrying top+bottom borders draws the box lines
   if (colophon && (colophon.cc || colophon.print)) {
     blocks.push(block({ type: 'paragraph', runs: [] }))
