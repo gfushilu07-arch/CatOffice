@@ -8120,6 +8120,17 @@ body.docs-crop-active
 
 /* ---- print / export PDF: only the document itself ---- */
 
+/* Chromium (>=~117) applies native CJK punctuation trimming by default
+   (probe: tools/probe-text-spacing-trim.mjs — adjacent fullwidth closing
+   marks lose half width with NO lang attr). That would stack with the
+   .doc-punct-squeeze decorations, double-compressing every run. space-all
+   pins the native pass to no trimming so the decorations are the single
+   visible compression source; the paginated print path re-enables the
+   native behavior and drops the decorations instead. */
+.doc-page {
+  text-spacing-trim: space-all;
+}
+
 @media print {
   html,
   body,
@@ -8204,6 +8215,24 @@ body.docs-crop-active
 
   .page-break-before {
     break-before: page;
+  }
+
+  /* Punctuation trimming flips at the print boundary: the canvas keeps
+     text-spacing-trim:space-all (native pass OFF) and lets the
+     .doc-punct-squeeze decorations be the single compression source; print
+     re-enables the native pass and suppresses the decorations instead — the
+     native half-width faces match the model exactly (probe:
+     tools/probe-text-spacing-trim.mjs) and survive print's re-layout without
+     needing decoration spans. Both rules must stay exactly mutually exclusive:
+     trimming ON + decorations OFF, or double compression. */
+  .doc-page {
+    text-spacing-trim: normal;
+  }
+
+  .doc-punct-squeeze,
+  .doc-punct-squeeze-left {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
   }
 
   .doc-field-pagebreak {
@@ -9927,16 +9956,6 @@ tr > .page-gap-cut {
   margin-left: calc(var(--doc-squeeze-em, 0) * 1em);
 }
 
-/* Chromium (>=~117) applies native CJK punctuation trimming by default
-   (probe: tools/probe-text-spacing-trim.mjs — adjacent fullwidth closing
-   marks lose half width with NO lang attr). That would stack with the
-   .doc-punct-squeeze decorations, double-compressing every run. space-all
-   pins the native pass to no trimming so the decorations are the single
-   visible compression source; the paginated print path re-enables the
-   native behavior and drops the decorations instead. */
-.doc-page {
-  text-spacing-trim: space-all;
-}
 
 /* ---- template gallery (asset center A2) -------------------------- */
 .govt-gallery {

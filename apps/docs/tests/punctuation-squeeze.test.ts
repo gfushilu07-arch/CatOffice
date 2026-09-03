@@ -304,3 +304,27 @@ describe('canvas decorations mark exactly the compressed chars', () => {
     expect(editor.state.doc.textBetween(d.from, d.to)).toBe('（')
   })
 })
+
+describe('print boundary flips the compression source', () => {
+  it('the print stylesheet enables native trimming and neutralizes the decorations', async () => {
+    // jsdom does not apply @media print, so assert the rule text: the flip
+    // lives in the print media block and both sides must move together.
+    const { readFileSync } = await import('node:fs')
+    const { dirname, join } = await import('node:path')
+    const { fileURLToPath } = await import('node:url')
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../src/renderer/styles.css'),
+      'utf8',
+    )
+    const printBlock = css.slice(css.indexOf('@media print'))
+    expect(printBlock).toContain('text-spacing-trim: normal')
+    // the decoration margins are suppressed inside the same media block...
+    expect(printBlock).toMatch(/\.doc-punct-squeeze,[\s\S]*?margin-right: 0 !important/)
+    expect(printBlock).toMatch(/\.doc-punct-squeeze-left[\s\S]*?margin-left: 0 !important/)
+    // ...and the screen rule stays space-all (native pass off on the canvas).
+    // Use the LAST .doc-page rule: earlier blocks also style .doc-page.
+    const screenRule = css.slice(0, css.indexOf('@media print'))
+    const lastDocPage = screenRule.lastIndexOf('.doc-page {')
+    expect(screenRule.slice(lastDocPage)).toContain('text-spacing-trim: space-all')
+  })
+})
