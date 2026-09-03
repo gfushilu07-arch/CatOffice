@@ -93,5 +93,6 @@ OA 服务端（OA-0 底座 → OA-1 审批/套版/归档 → OA-2 CRM/任务/连
 | 日期 | 变更 |
 | --- | --- |
 | 2026-09-03 | 初版：四梯队 11 项 + 持续线 + 外部依赖清单 |
+| 2026-09-04 | **第一梯队完成**：C1 审计日志（@catoffice/audit 包 8 测试 + shell 单写者接线 + 埋点 open/save/print/export/password/privacy/app + 设置页 read/verify IPC）；C2 上传同意（catspark upload-consent/telemetry 子路径 + ai:stream 门控 + 19 locale 分层弹窗 + mock 路由 22 测试）；C3 空闲锁定（idle-lock 清密钥 + 覆盖层 + 审计）。全 workspace 7887/7887 绿。第二梯队（SA1 印章检测）为下一项 |
 | 2026-09-03 | 增补第五梯队 OA 集成线（W0 桥与契约 / W1 工作台）；新增
   [oa-plan.md](oa-plan.md) 与 [oa/](oa/)（OA 产品规划 / 架构设计 / 对接契约） |
