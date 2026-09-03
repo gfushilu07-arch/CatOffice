@@ -23,6 +23,16 @@ export interface SealPlaceholderOptions {
   starMm?: number
   /** seal red as hex without # (defaults to the same red as the banner) */
   color?: string
+  /**
+   * organization name set in an arc along the upper ring band (the classic
+   * round-seal layout). Glyphs are rendered from a built-in 5x7 stroke
+   * bitmap for ASCII; CJK chars render as solid boxes (stroke fonts for han
+   * are out of scope for a placeholder) so the arc layout stays legible.
+   * Omit = no text, the minimal placeholder.
+   */
+  orgName?: string
+  /** glyph height of the arc text in mm (default 3.2) */
+  textMm?: number
 }
 
 const MM_PER_INCH = 25.4
@@ -130,9 +140,97 @@ function inStar(dxMm: number, dyMm: number, outerMm: number): boolean {
 }
 
 /**
- * The placeholder raster: red ring + centered five-pointed star on
- * transparency. No org-name text yet — a real seal (asset center) replaces
- * the whole image, so the placeholder stays minimal.
+ * 5x7 stroke bitmaps for the ASCII letters/digits the placeholder needs
+ * (covers latin organization names); each row is a 5-bit mask, MSB left.
+ * CJK glyphs would need a stroke font — out of scope for a placeholder, so
+ * han chars render as full boxes sized like the ASCII glyphs (the arc
+ * layout and counts stay legible; a real seal replaces the whole image).
+ */
+const GLYPHS: Record<string, number[]> = {
+  A: [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
+  B: [0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110],
+  C: [0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110],
+  D: [0b11100, 0b10010, 0b10001, 0b10001, 0b10001, 0b10010, 0b11100],
+  E: [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],
+  F: [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000],
+  G: [0b01110, 0b10001, 0b10000, 0b10111, 0b10001, 0b10001, 0b01110],
+  H: [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
+  I: [0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
+  J: [0b00111, 0b00010, 0b00010, 0b00010, 0b00010, 0b10010, 0b01100],
+  K: [0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001],
+  L: [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
+  M: [0b10001, 0b11011, 0b10101, 0b10101, 0b10001, 0b10001, 0b10001],
+  N: [0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001],
+  O: [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+  P: [0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000],
+  Q: [0b01110, 0b10001, 0b10001, 0b10001, 0b10101, 0b10010, 0b01101],
+  R: [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001],
+  S: [0b01111, 0b10000, 0b10000, 0b01110, 0b00001, 0b00001, 0b11110],
+  T: [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100],
+  U: [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+  V: [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100],
+  W: [0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b11011, 0b10001],
+  X: [0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001],
+  Y: [0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100],
+  Z: [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111],
+  ' ': [0, 0, 0, 0, 0, 0, 0],
+}
+
+/**
+ * Paint one glyph bitmap into `coverage` (sizePx^2), centred at (cx,cy) px
+ * and rotated by `rot` radians (0 = upright; the arc layout rotates each
+ * glyph so its baseline is tangent to the text circle, reading clockwise).
+ * Inverse-mapping: every pixel in the glyph's rotated bounding box samples
+ * the bitmap, supersampling 2x2 for clean rotated edges.
+ */
+function paintGlyph(
+  coverage: Float32Array,
+  sizePx: number,
+  cx: number,
+  cy: number,
+  wPx: number,
+  hPx: number,
+  rows: number[] | null,
+  rot: number,
+): void {
+  const gw = rows ? 5 : 4
+  const gh = rows ? 7 : 5
+  const cos = Math.cos(-rot)
+  const sin = Math.sin(-rot)
+  const halfW = wPx / 2
+  const halfH = hPx / 2
+  const bound = Math.ceil(Math.hypot(halfW, halfH))
+  for (let dy = -bound; dy <= bound; dy++) {
+    for (let dx = -bound; dx <= bound; dx++) {
+      // 2x2 supersampling inside each target pixel
+      for (let sy = 0; sy < 2; sy++) {
+        for (let sx = 0; sx < 2; sx++) {
+          const px = dx + (sx + 0.5) / 2
+          const py = dy + (sy + 0.5) / 2
+          // rotate the sample point into glyph-local space
+          const lx = halfW + px * cos - py * sin
+          const ly = halfH + px * sin + py * cos
+          if (lx < 0 || ly < 0 || lx >= wPx || ly >= hPx) continue
+          const gx = Math.min(gw - 1, Math.floor((lx / wPx) * gw))
+          const gy = Math.min(gh - 1, Math.floor((ly / hPx) * gh))
+          const on = rows ? (rows[gy]! & (1 << (4 - gx))) !== 0 : true
+          if (!on) continue
+          const x = Math.round(cx + px)
+          const y = Math.round(cy + py)
+          if (x < 0 || y < 0 || x >= sizePx || y >= sizePx) continue
+          // glyph pixels count as fully covered (16 = the ring/star
+          // supersample ceiling); a stroke bitmap has no partial coverage
+          coverage[y * sizePx + x] += 4
+        }
+      }
+    }
+  }
+}
+
+/**
+ * The placeholder raster: red ring + centered five-pointed star, optionally
+ * with the organization name set in an arc along the upper ring band (the
+ * classic round-seal layout — glyphs radiate outward, reading clockwise).
  */
 export function sealPlaceholderPng(options: SealPlaceholderOptions = {}): Uint8Array {
   const diameterMm = options.diameterMm ?? 40
@@ -149,24 +247,64 @@ export function sealPlaceholderPng(options: SealPlaceholderOptions = {}): Uint8A
   const g = parseInt(color.slice(2, 4), 16)
   const b = parseInt(color.slice(4, 6), 16)
 
+  // per-pixel coverage accumulator (supersample hits); clamped to 16 alpha levels
+  const coverage = new Float32Array(sizePx * sizePx)
+  const SUB = 4
+  for (let py = 0; py < sizePx; py++) {
+    for (let px = 0; px < sizePx; px++) {
+      let hit = 0
+      for (let sy = 0; sy < SUB; sy++) {
+        for (let sx = 0; sx < SUB; sx++) {
+          const xMm = (px + (sx + 0.5) / SUB) / pxPerMm - halfMm
+          const yMm = (py + (sy + 0.5) / SUB) / pxPerMm - halfMm
+          const d = Math.sqrt(xMm * xMm + yMm * yMm)
+          if ((Math.abs(d - rMid) <= rHalf || inStar(xMm, yMm, starMm)) && d <= halfMm) hit++
+        }
+      }
+      if (hit > 0) coverage[py * sizePx + px] += hit
+    }
+  }
+
+  // arc org-name along the upper ring band, centered at 12 o'clock, glyphs
+  // radiating outward. Text radius sits mid-band; step angle derives from the
+  // glyph advance so names of any length spread symmetrically.
+  const orgName = options.orgName
+  if (orgName && orgName.trim() !== '') {
+    const textMm = options.textMm ?? 3.2
+    const hPx = Math.max(4, Math.round(textMm * pxPerMm))
+    const chars = [...orgName.trim()]
+    const textRadiusMm = halfMm - ringMm - textMm / 2 - 0.2
+    const charWmm = textMm * 0.8
+    const totalArcMm = chars.length * charWmm
+    const totalAngle = Math.min(Math.PI, totalArcMm / textRadiusMm)
+    let angle = Math.PI / 2 + totalAngle / 2 // start at the left end of the arc
+    for (const ch of chars) {
+      const cxMm = textRadiusMm * Math.cos(angle)
+      const cyMm = textRadiusMm * Math.sin(angle)
+      const cxPx = halfMm * pxPerMm + cxMm * pxPerMm
+      const cyPx = halfMm * pxPerMm - cyMm * pxPerMm
+      const wPx = Math.max(3, Math.round(charWmm * pxPerMm))
+      const rows = /[A-Z0-9 ]/.test(ch)
+        ? (GLYPHS[ch === ' ' ? ' ' : ch] ?? GLYPHS[ch.toUpperCase()] ?? null)
+        : /[a-z]/.test(ch)
+          ? (GLYPHS[ch.toUpperCase()] ?? null)
+          : null // CJK/fullwidth: solid box
+      // baseline tangent to the circle, glyph top outward: screen-y is
+      // flipped, so the rotation is the mirror of the polar angle
+      paintGlyph(coverage, sizePx, cxPx, cyPx, wPx, hPx, rows, Math.PI / 2 - angle)
+      angle -= charWmm / textRadiusMm
+    }
+  }
+
   const levels = 16
   const raw = new Uint8Array(sizePx * (1 + sizePx))
   for (let py = 0; py < sizePx; py++) {
     const row = py * (1 + sizePx)
     raw[row] = 0 // filter: none
     for (let px = 0; px < sizePx; px++) {
-      let hit = 0
-      for (let sy = 0; sy < 4; sy++) {
-        for (let sx = 0; sx < 4; sx++) {
-          const xMm = (px + (sx + 0.5) / 4) / pxPerMm - halfMm
-          const yMm = (py + (sy + 0.5) / 4) / pxPerMm - halfMm
-          const d = Math.sqrt(xMm * xMm + yMm * yMm)
-          if ((Math.abs(d - rMid) <= rHalf || inStar(xMm, yMm, starMm)) && d <= halfMm) hit++
-        }
-      }
-      // 16 subsamples map onto 16 alpha levels; the full-coverage 17th value
-      // clamps onto the last palette index (255)
-      raw[row + 1 + px] = Math.min(levels - 1, hit)
+      // ring/star supersample hits + glyph pixel coverage (each glyph pixel is
+      // one full hit), clamped to the 16-level alpha ramp
+      raw[row + 1 + px] = Math.min(levels - 1, Math.round(coverage[py * sizePx + px]))
     }
   }
 

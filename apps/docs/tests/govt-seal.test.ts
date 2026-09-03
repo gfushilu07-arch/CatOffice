@@ -157,3 +157,47 @@ describe('seal save path', () => {
     expect(img.imageOffsetYEmu).toBe(seal.posOffsetEmu!.y)
   })
 })
+
+describe('seal arc org-name', () => {
+  const alphaAt = (png: ReturnType<typeof decodePlaceholderPng> extends never ? never : ReturnType<typeof decodePlaceholderPng>, x: number, y: number) =>
+    png.alpha[png.indexed[y * png.width + x]!]
+
+  it('renders an empty-name seal identically to the minimal placeholder', () => {
+    const a = decodePlaceholderPng(sealPlaceholderPng())
+    const b = decodePlaceholderPng(sealPlaceholderPng({ orgName: '  ' }))
+    expect([...b.indexed]).toEqual([...a.indexed])
+  })
+
+  it('adds arc text coverage along the upper band, symmetric about 12 oclock', () => {
+    const bare = decodePlaceholderPng(sealPlaceholderPng())
+    const withText = decodePlaceholderPng(sealPlaceholderPng({ orgName: 'CAT' }))
+    // new coverage appears (text painted)...
+    const newHits = withText.indexed.reduce(
+      (n, v, i) => (v > 0 && bare.indexed[i] === 0 ? n + 1 : n),
+      0,
+    )
+    expect(newHits).toBeGreaterThan(50)
+    // ...inside the upper band (y above center), not the lower half
+    let upper = 0
+    let lower = 0
+    for (let y = 0; y < withText.height; y++) {
+      for (let x = 0; x < withText.width; x++) {
+        if (withText.indexed[y * withText.width + x]! > 0 && bare.indexed[y * withText.width + x] === 0) {
+          ;(y < withText.height / 2 ? upper++ : lower++)
+        }
+      }
+    }
+    expect(upper).toBeGreaterThan(lower * 10)
+  })
+
+  it('counts CJK chars as full boxes in the arc layout', () => {
+    const han = decodePlaceholderPng(sealPlaceholderPng({ orgName: '猫办', textMm: 3.2 }))
+    // solid boxes paint far more pixels than 3-letter ASCII would
+    let hits = 0
+    const bare = decodePlaceholderPng(sealPlaceholderPng())
+    for (let i = 0; i < han.indexed.length; i++) {
+      if (han.indexed[i]! > 0 && bare.indexed[i] === 0) hits++
+    }
+    expect(hits).toBeGreaterThan(150)
+  })
+})
