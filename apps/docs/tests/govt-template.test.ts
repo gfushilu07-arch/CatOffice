@@ -147,3 +147,45 @@ describe('GB/T 9704 page frame', () => {
     expect(readBack.footerDist).toBe(settings.footerDist)
   })
 })
+
+describe('GB/T 9704 tail blocks (P2)', () => {
+  const roundTripTail = async (options: Parameters<typeof govtDocBlocks>[0]) => {
+    const blocks = govtDocBlocks(options)
+    const bodyXml = blocks.map((b) => generateParagraphXml(toGenerated(b), GEN_CTX)).join('')
+    const bytes = await buildDocx({ bodyXml })
+    return parseDocx(bytes)
+  }
+
+  it('round-trips subject keywords as bold heiti', async () => {
+    const doc = await roundTripTail({ keywords: ['植树', '造林', '通知'] })
+    const texts = doc.blocks.map((b) => (b.runs ?? []).map((r) => r.text).join(''))
+    const kw = texts.find((t) => t.includes('关键词：'))
+    expect(kw).toContain('关键词：植树　造林　通知')
+    const kwBlock = doc.blocks.find((b) => (b.runs ?? []).some((r) => r.text.includes('关键词：')))
+    expect(kwBlock?.runs?.[0]?.bold).toBe(true)
+    expect(kwBlock?.runs?.[0]?.font).toBe('黑体')
+  })
+
+  it('omits keywords/colophon when unset', async () => {
+    const doc = await roundTripTail({})
+    const texts = doc.blocks.map((b) => (b.runs ?? []).map((r) => r.text).join(''))
+    expect(texts.join('')).not.toContain('关键词：')
+    expect(texts.join('')).not.toContain('抄送：')
+  })
+
+  it('round-trips the colophon between full-width rules', async () => {
+    const doc = await roundTripTail({
+      colophon: { cc: '各区县人民政府。', print: '猫办公室 2026年9月3日印发' },
+    })
+    const texts = doc.blocks.map((b) => (b.runs ?? []).map((r) => r.text).join(''))
+    expect(texts).toContain('抄送：各区县人民政府。')
+    expect(texts).toContain('猫办公室 2026年9月3日印发')
+    // both rule lines carry the tb borders
+    const ccBlock = doc.blocks.find((b) => (b.runs ?? []).some((r) => r.text.startsWith('抄送：')))
+    expect(ccBlock?.format?.borders).toBe('b')
+    const printBlock = doc.blocks.find((b) =>
+      (b.runs ?? []).some((r) => r.text.includes('印发')),
+    )
+    expect(printBlock?.format?.borders).toBe('tb')
+  })
+})

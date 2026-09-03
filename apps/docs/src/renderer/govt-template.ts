@@ -36,10 +36,21 @@ export interface GovtTemplateOptions {
   signer?: string
   /** issue date (indented two chars from the right margin) */
   date?: string
+  /**
+   * subject keywords (主题词, GB/T 9704 P2): 3-5 phrases, rendered bold
+   * size-3 heiti flush left under the date. Empty/omitted = omitted.
+   */
+  keywords?: string[]
+  /**
+   * the colophon block (版记, GB/T 9704 P2): cc line + print line between
+   * full-width rules at the very end. Empty/omitted = omitted.
+   */
+  colophon?: { cc?: string; print?: string }
 }
 
 const BANNER_FONT = '方正小标宋简体'
 const BODY_FONT = '仿宋_GB2312'
+const HEITI_FONT = '黑体'
 const RED = 'FF0000'
 /** body text: size-3 = 16pt = 32 half-points */
 const BODY_HALF_POINTS = 32
@@ -98,6 +109,8 @@ export function govtDocBlocks(options: GovtTemplateOptions = {}): Block[] {
     attachments = ['××××××××××××'],
     signer = '××××××××',
     date = '2026年9月1日',
+    keywords = [],
+    colophon,
   } = options
 
   const blocks: Block[] = [
@@ -151,6 +164,41 @@ export function govtDocBlocks(options: GovtTemplateOptions = {}): Block[] {
       format: { align: 'right', indentRight: 640 },
     }),
   )
+
+  // subject keywords (主题词): bold size-3 heiti flush left, '××××词' label style
+  if (keywords.length > 0) {
+    blocks.push(block({ type: 'paragraph', runs: [] }))
+    const kwLine = `关键词：${keywords.join('　')}`
+    blocks.push(
+      block({
+        type: 'paragraph',
+        runs: [run(kwLine, { font: HEITI_FONT, sizeHalfPoints: BODY_HALF_POINTS, bold: true })],
+      }),
+    )
+  }
+
+  // colophon (版记): cc line + print line between full-width rules — an empty
+  // paragraph carrying top+bottom borders draws the box lines
+  if (colophon && (colophon.cc || colophon.print)) {
+    blocks.push(block({ type: 'paragraph', runs: [] }))
+    const rule: ParaBorderLine = { color: '000000', szPt: 1 }
+    const ruleLine = (text: string, borders: 'b' | 'tb') =>
+      block({
+        type: 'paragraph',
+        runs: [bodyRun(text)],
+        format: { borders, borderLines: { t: rule, b: rule } },
+      })
+    if (colophon.cc) blocks.push(ruleLine(`抄送：${colophon.cc}`, 'b'))
+    if (colophon.print) {
+      blocks.push(
+        block({
+          type: 'paragraph',
+          runs: [bodyRun(colophon.print)],
+          format: { borders: 'tb', borderLines: { t: rule, b: rule } },
+        }),
+      )
+    }
+  }
   return blocks
 }
 

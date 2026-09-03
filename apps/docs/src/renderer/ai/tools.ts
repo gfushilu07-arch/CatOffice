@@ -351,6 +351,16 @@ export const AGENT_TOOLS: AgentToolDef[] = [
         },
         signer: { type: 'string', description: 'issuing-agency signature' },
         date: { type: 'string', description: 'issue date in Chinese, e.g. 2026年9月3日' },
+        keywords: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'subject keywords 主题词 (3-5 phrases); omit for none',
+        },
+        colophonCc: { type: 'string', description: 'colophon cc line content 抄送 (after the label); omit for none' },
+        colophonPrint: {
+          type: 'string',
+          description: 'colophon print line 印发, e.g. ××办公室 2026年9月3日印发; omit for none',
+        },
       },
       required: ['kind', 'title'],
     },
@@ -645,6 +655,13 @@ async function executeAsyncTool(
         const atts = call.input.attachments.map((a) => String(a)).filter((a) => a.trim() !== '')
         if (atts.length > 0) fields.attachments = atts
       }
+      if (Array.isArray(call.input.keywords)) {
+        const kws = call.input.keywords.map((k) => String(k)).filter((k) => k.trim() !== '')
+        if (kws.length > 0) fields.keywords = kws
+      }
+      const cc = String(call.input.colophonCc ?? '').trim()
+      const print = String(call.input.colophonPrint ?? '').trim()
+      if (cc || print) fields.colophon = { ...(cc ? { cc } : {}), ...(print ? { print } : {}) } as never
       const ok = await applyGovtTemplate({ templateId: kind, fields })
       if (!ok) return fail(t('aiSumGovtTemplate'), 'applying the template failed')
       return {
