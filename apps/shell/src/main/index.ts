@@ -2969,28 +2969,39 @@ function registerHomeIpc(): void {
     newDocTab(opts?.govtTemplateId)
   })
 
-  // asset center A1: the native government-template picker; the picked id
-  // rides queueDocsGovtTemplate into the fresh docs tab's renderer
-  ipcMain.handle(HOME_CHANNELS.govtTemplates, () => {
-    const manager = tabManager
-    const win = shellWindow
-    if (!manager || !win) return
-    const menu = Menu.buildFromTemplate(
-      GOVT_TEMPLATE_MENU.map((entry) => ({
-        label: `${entry.label} — ${entry.description}`,
-        click: () => {
-          try {
-            manager.openDocsTab(undefined, { newBlank: true, govtTemplateId: entry.id })
-            analytics.track('file_new', { kind: 'docx', template: entry.id })
-          } catch (err) {
-            surfaceNewTabError(err)
-          }
-        },
-      })),
-    )
-    // anchor at the pointer (the click that opened this picker lives on Home)
-    const cursor = screen.getCursorScreenPoint()
-    menu.popup({ window: win, x: cursor.x, y: cursor.y })
+  // Template pickers (asset center A1/S1/S2): one factory, three entries.
+  // Anchored at the pointer — the click that opened a picker lives on Home.
+  const registerTemplatePicker = (
+    channel: string,
+    entries: Array<{ id: string; label: string; description: string }>,
+    onPick: (id: string) => void,
+  ): void => {
+    ipcMain.handle(channel, () => {
+      const win = shellWindow
+      if (!win) return
+      const menu = Menu.buildFromTemplate(
+        entries.map((entry) => ({
+          label: `${entry.label} — ${entry.description}`,
+          click: () => {
+            try {
+              onPick(entry.id)
+            } catch (err) {
+              surfaceNewTabError(err)
+            }
+          },
+        })),
+      )
+      const cursor = screen.getCursorScreenPoint()
+      menu.popup({ window: win, x: cursor.x, y: cursor.y })
+    })
+  }
+
+  // A1: the picked docs-template id rides queueDocsGovtTemplate into the
+  // fresh docs tab's renderer (the __gallery sentinel opens the in-editor
+  // TemplateGallery overlay)
+  registerTemplatePicker(HOME_CHANNELS.govtTemplates, GOVT_TEMPLATE_MENU, (id) => {
+    tabManager?.openDocsTab(undefined, { newBlank: true, govtTemplateId: id })
+    analytics.track('file_new', { kind: 'docx', template: id })
   })
 
   ipcMain.handle(
@@ -3002,22 +3013,8 @@ function registerHomeIpc(): void {
       void newSheetTab(opts?.sheetTemplateId)
     },
   )
-
-  // asset center S1: the native sheet-template picker (same UX as the docs one)
-  ipcMain.handle(HOME_CHANNELS.sheetTemplates, () => {
-    const manager = tabManager
-    const win = shellWindow
-    if (!manager || !win) return
-    const menu = Menu.buildFromTemplate(
-      SHEET_TEMPLATE_MENU.map((entry) => ({
-        label: `${entry.label} — ${entry.description}`,
-        click: () => {
-          void newSheetTab(entry.id).catch(surfaceNewTabError)
-        },
-      })),
-    )
-    const cursor = screen.getCursorScreenPoint()
-    menu.popup({ window: win, x: cursor.x, y: cursor.y })
+  registerTemplatePicker(HOME_CHANNELS.sheetTemplates, SHEET_TEMPLATE_MENU, (id) => {
+    void newSheetTab(id).catch(surfaceNewTabError)
   })
 
   ipcMain.handle(
@@ -3029,20 +3026,8 @@ function registerHomeIpc(): void {
       newSlideTab(opts?.deckTemplateId)
     },
   )
-
-  // asset center S2: the native deck-template picker (same UX as docs/sheets)
-  ipcMain.handle(HOME_CHANNELS.deckTemplates, () => {
-    const manager = tabManager
-    const win = shellWindow
-    if (!manager || !win) return
-    const menu = Menu.buildFromTemplate(
-      DECK_TEMPLATE_MENU.map((entry) => ({
-        label: `${entry.label} — ${entry.description}`,
-        click: () => newSlideTab(entry.id),
-      })),
-    )
-    const cursor = screen.getCursorScreenPoint()
-    menu.popup({ window: win, x: cursor.x, y: cursor.y })
+  registerTemplatePicker(HOME_CHANNELS.deckTemplates, DECK_TEMPLATE_MENU, (id) => {
+    newSlideTab(id)
   })
 
   ipcMain.handle(HOME_CHANNELS.newMarkdown, (_event, opts?: { projectId?: string }) => {
