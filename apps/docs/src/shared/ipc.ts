@@ -260,6 +260,12 @@ export interface DesktopApi {
   setAiSettings(settings: AiSettings): Promise<void>
   /** system print dialog for the current window; ok=false without error = canceled */
   print(): Promise<{ ok: boolean; error?: string }>
+  /** C2 upload consent: read the tier grants */
+  getUploadConsent(): Promise<Record<string, { version: number; ts: string }>>
+  /** grant or revoke one tier */
+  setUploadConsent(tier: string, granted: boolean): Promise<{ ok: boolean }>
+  /** air-gapped deployment: the whole telemetry surface is disabled */
+  isTelemetryDisabled(): Promise<boolean>
   /** render the document to PDF and ask where to save; size in twips.
    *  outPath is only honored when a previous export dialog chose that exact path */
   exportPdf(

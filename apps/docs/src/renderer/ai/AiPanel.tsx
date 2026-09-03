@@ -44,6 +44,7 @@ import fileVoiceIcon from '../assets/file-voice.png'
 import fileDocumentIcon from '../assets/file-document.png'
 import fileGeneralIcon from '../assets/file-general.png'
 import { IconNewChat, IconSidebarCollapse } from '../components/icons'
+import { showConsentDialog } from '../components/ConsentDialog'
 
 interface ToolActivity {
   name: string
@@ -708,6 +709,11 @@ export function AiPanel({
               })
             })
             .catch(() => {})
+          // C2 consent gate: a consent-required error opens the tiered dialog;
+          // granting t1 lets the user retry the turn manually
+          if (/AI 数据授权|AI data upload consent/.test(error)) {
+            void showConsentDialog()
+          }
           setBusy(false)
         },
       },

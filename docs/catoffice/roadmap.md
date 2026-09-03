@@ -47,6 +47,20 @@ AI 公文套版工具/六 flake 治理（全 workspace 7874 绿）。
 | 10 | **C4 SM3** | 独立无依赖，但单独价值有限（审计哈希链可选算法） | 1–2 天 | [compliance-plan.md](compliance-plan.md) |
 | 11 | **C5 SM4/OFD** | **决策点**：OFD 工程量数倍于单纯国密加密，需信创客户需求强度输入 | 探针 2 天；OFD 立项另议 | 同上 |
 
+### 第五梯队：OA 集成线（桌面端侧，无配置即不存在）
+
+> OA（审批 / CRM / 任务等，客户内网自部署的独立服务端产品）的规划见
+> [oa/](oa/)；桌面端能力补充方案见 [oa-plan.md](oa-plan.md)。桌面端只做
+> 发现 / 宿主 / 文档桥三件事，OA 新增模块桌面端零发版。
+
+| 序 | 项 | 为什么在这个位置 | 工作量 | 文档 |
+| --- | --- | --- | --- | --- |
+| 12 | **W0 桥与契约**（`catoffice://` 深链 + 桥客户端 + contracts 包 + 审计事件增补） | 深链与桥对第三方来源（钉钉导出文件、WebDAV）也立刻有用；mock-first 可本地端到端 | 4–6 天 | [oa-plan.md](oa-plan.md) |
+| 13 | **W1 工作台**（oa_base 配置链 + manifest 启动器 + 沙箱 Web 宿主 + 设备码登录复用） | 依赖 W0 与 W2 服务端最小集；个人版零增量是硬验收 | 4–6 天 | 同上 |
+
+OA 服务端（OA-0 底座 → OA-1 审批/套版/归档 → OA-2 CRM/任务/连接器）另仓
+立项，排期不占本表；入口见 [oa/product-plan.md](oa/product-plan.md) 第 5 节。
+
 ### 持续线（穿插，不占独立排期）
 
 - **P1 品类扩充**（见 6）：任何间隙的填充项。
@@ -62,6 +76,7 @@ AI 公文套版工具/六 flake 治理（全 workspace 7874 绿）。
 | 项 | 等什么 | 就绪后动作 |
 | --- | --- | --- |
 | A3 真实云目录 | CatSpark 服务端实现第六节契约 | 客户端零改动，切 `CATSPARK_API_BASE` 验收 |
+| OA-0 服务端最小集 | OA 仓立项并交付底座 + manifest + 桥端点 | 桌面端 W1 切 `CATOFFICE_OA_BASE` 真实验收 |
 | T2 行高因子校准 | 真机 measurements.json | reduce diff → win32 分派 |
 | T5 行首/行尾压缩 | 真机探针语义 | 校准 punctuation-squeeze 扩展 |
 | W3 签名 | Azure Trusted Signing 资质 | builder win 块加签名配置 |
@@ -78,3 +93,5 @@ AI 公文套版工具/六 flake 治理（全 workspace 7874 绿）。
 | 日期 | 变更 |
 | --- | --- |
 | 2026-09-03 | 初版：四梯队 11 项 + 持续线 + 外部依赖清单 |
+| 2026-09-03 | 增补第五梯队 OA 集成线（W0 桥与契约 / W1 工作台）；新增
+  [oa-plan.md](oa-plan.md) 与 [oa/](oa/)（OA 产品规划 / 架构设计 / 对接契约） |

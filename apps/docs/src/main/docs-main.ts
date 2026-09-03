@@ -75,6 +75,13 @@ import {
   webSearch,
   imageSearch,
 } from '@genoffice/ai-search'
+import {
+  CONSENT_KEY,
+  hasConsent,
+  isMockMode,
+  parseUploadConsent,
+  telemetryDisabled,
+} from '@catoffice/catspark/upload-consent'
 import type {
   AiDocContent,
   AttachmentAddResult,
@@ -157,6 +164,7 @@ const tMain = createI18n({
     errNotImage: '不是支持的图片类型',
     errGskNotLoggedIn: '未登录 Genspark:请点击下方「登录 Genspark」完成登录后重试',
     errNoApiKey: '未配置 {provider} 的 API Key',
+    errAiConsentRequired: '需要开启 AI 数据授权后才能使用线上 AI（设置 → 隐私）',
     errNoModel: '未配置模型名称',
     menuFile: '文件',
     menuNewDoc: '新建文档',
@@ -251,6 +259,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Not signed in to Genspark: click “Sign in to Catspark” below, sign in, then retry',
     errNoApiKey: 'No API key configured for {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'No model name configured',
     menuFile: 'File',
     menuNewDoc: 'New Document',
@@ -345,6 +354,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Catspark にサインインしていません。下の「Catspark にサインイン」からサインインして再試行してください',
     errNoApiKey: '{provider} の API キーが設定されていません',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'モデル名が設定されていません',
     menuFile: 'ファイル',
     menuNewDoc: '新規文書',
@@ -440,6 +450,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Catspark에 로그인되어 있지 않습니다. 아래 "Catspark 로그인"을 눌러 로그인한 뒤 다시 시도하세요',
     errNoApiKey: '{provider}의 API 키가 설정되지 않았습니다',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: '모델 이름이 설정되지 않았습니다',
     menuFile: '파일',
     menuNewDoc: '새 문서',
@@ -536,6 +547,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Non connecté à Catspark : cliquez sur « Se connecter à Catspark » ci-dessous, connectez-vous puis réessayez',
     errNoApiKey: 'Aucune clé API configurée pour {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Aucun nom de modèle configuré',
     menuFile: 'Fichier',
     menuNewDoc: 'Nouveau document',
@@ -632,6 +644,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Nicht bei Catspark angemeldet: Klicken Sie unten auf „Bei Catspark anmelden“, melden Sie sich an und versuchen Sie es erneut',
     errNoApiKey: 'Kein API-Schlüssel für {provider} konfiguriert',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Kein Modellname konfiguriert',
     menuFile: 'Datei',
     menuNewDoc: 'Neues Dokument',
@@ -727,6 +740,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'No has iniciado sesión en Genspark: pulsa «Iniciar sesión en Genspark» abajo, inicia sesión y vuelve a intentarlo',
     errNoApiKey: 'No hay clave de API configurada para {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'No se ha configurado el nombre del modelo',
     menuFile: 'Archivo',
     menuNewDoc: 'Nuevo documento',
@@ -821,6 +835,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'ยังไม่ได้ลงชื่อเข้าใช้ Genspark: แตะ “ลงชื่อเข้าใช้ Catspark” ด้านล่าง แล้วลองอีกครั้ง',
     errNoApiKey: 'ยังไม่ได้ตั้งค่า API Key ของ {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'ยังไม่ได้ตั้งค่าชื่อโมเดล',
     menuFile: 'ไฟล์',
     menuNewDoc: 'เอกสารใหม่',
@@ -915,6 +930,7 @@ const tMain = createI18n({
     errNotImage: 'bukan jenis gambar yang didukung',
     errGskNotLoggedIn: 'Belum masuk ke Genspark: klik “Masuk ke Catspark” di bawah, lalu coba lagi',
     errNoApiKey: 'API Key untuk {provider} belum dikonfigurasi',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Nama model belum dikonfigurasi',
     menuFile: 'File',
     menuNewDoc: 'Dokumen Baru',
@@ -1010,6 +1026,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Вы не вошли в Genspark: нажмите «Войти в Genspark» ниже, войдите и повторите попытку',
     errNoApiKey: 'API-ключ для {provider} не настроен',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Не указано имя модели',
     menuFile: 'Файл',
     menuNewDoc: 'Создать документ',
@@ -1105,6 +1122,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'لم تسجّل الدخول إلى Genspark: انقر على «تسجيل الدخول إلى Genspark» أدناه ثم أعد المحاولة',
     errNoApiKey: 'لم يتم تكوين مفتاح API لـ {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'لم يتم تكوين اسم النموذج',
     menuFile: 'ملف',
     menuNewDoc: 'مستند جديد',
@@ -1200,6 +1218,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Não conectado ao Genspark: clique em “Entrar no Catspark” abaixo, entre e tente novamente',
     errNoApiKey: 'Nenhuma chave de API configurada para {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Nenhum nome de modelo configurado',
     menuFile: 'Arquivo',
     menuNewDoc: 'Novo Documento',
@@ -1295,6 +1314,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Accesso a Catspark non effettuato: fai clic su “Accedi a Catspark” qui sotto, accedi e riprova',
     errNoApiKey: 'Nessuna chiave API configurata per {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Nessun nome di modello configurato',
     menuFile: 'File',
     menuNewDoc: 'Nuovo documento',
@@ -1390,6 +1410,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Nie zalogowano do Genspark: kliknij „Zaloguj się do Catspark” poniżej, zaloguj się i spróbuj ponownie',
     errNoApiKey: 'Nie skonfigurowano klucza API dla {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Nie skonfigurowano nazwy modelu',
     menuFile: 'Plik',
     menuNewDoc: 'Nowy dokument',
@@ -1485,6 +1506,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Niet aangemeld bij Genspark: klik hieronder op “Aanmelden bij Catspark”, meld u aan en probeer het opnieuw',
     errNoApiKey: 'Geen API-sleutel geconfigureerd voor {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Geen modelnaam geconfigureerd',
     menuFile: 'Bestand',
     menuNewDoc: 'Nieuw document',
@@ -1580,6 +1602,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Belum log masuk ke Genspark: klik “Log masuk ke Catspark” di bawah, kemudian cuba lagi',
     errNoApiKey: 'Kunci API untuk {provider} belum dikonfigurasikan',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'Nama model belum dikonfigurasikan',
     menuFile: 'Fail',
     menuNewDoc: 'Dokumen Baharu',
@@ -1673,6 +1696,7 @@ const tMain = createI18n({
     errNotImage: 'סוג תמונה שאינו נתמך',
     errGskNotLoggedIn: 'לא מחובר ל-Genspark: לחץ על "התחבר ל-Catspark" למטה, התחבר ונסה שוב',
     errNoApiKey: 'לא הוגדר מפתח API עבור {provider}',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'לא הוגדר שם מודל',
     menuFile: 'קובץ',
     menuNewDoc: 'מסמך חדש',
@@ -1768,6 +1792,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Catspark में साइन इन नहीं है: नीचे “Catspark में साइन इन करें” पर क्लिक करें, साइन इन करें और फिर से कोशिश करें',
     errNoApiKey: '{provider} के लिए कोई API कुंजी कॉन्फ़िगर नहीं है',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: 'कोई मॉडल नाम कॉन्फ़िगर नहीं है',
     menuFile: 'फ़ाइल',
     menuNewDoc: 'नया दस्तावेज़',
@@ -1860,6 +1885,7 @@ const tMain = createI18n({
     errNotImage: '不是支援的圖片類型',
     errGskNotLoggedIn: '未登入 Genspark:請點擊下方「登入 Genspark」完成登入後重試',
     errNoApiKey: '未設定 {provider} 的 API Key',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errNoModel: '未設定模型名稱',
     menuFile: '檔案',
     menuNewDoc: '新增文件',
@@ -2631,6 +2657,21 @@ export function registerAiIpc(): void {
   })
 
   ipcMain.handle('ai:stream', async (event, request: AiStreamRequest) => {
+    // C2 consent gate: online AI requires the t1 grant (compliance-plan.md §3).
+    // mock mode (or an air-gapped deployment with CATSPARK_TELEMETRY_DISABLED=1)
+    // is never gated.
+    if (!isMockMode() && !telemetryDisabled()) {
+      const appSettings = readJson(userDataPath('app-settings.json'), {} as Record<string, unknown>)
+      const consent = parseUploadConsent(appSettings[CONSENT_KEY])
+      if (!hasConsent(consent, 't1')) {
+        event.sender.send('ai:stream-chunk', {
+          requestId: request.requestId,
+          type: 'error',
+          error: tm('errAiConsentRequired'),
+        } satisfies AiStreamChunk)
+        return
+      }
+    }
     const { requestId, settings, system, messages } = request
     const tools = request.tools ?? []
     const maxTokens = request.maxTokens ?? 8192

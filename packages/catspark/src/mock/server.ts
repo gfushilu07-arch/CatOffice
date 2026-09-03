@@ -446,6 +446,18 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   if (path === '/api/ocr/recognize' && req.method === 'POST')
     return void handleOcrRecognize(res, body)
 
+  // telemetry (C2): audit-log subsets uploaded only after the user's tiered
+  // consent; the mock accepts and counts. An air-gapped deployment never
+  // reaches the mock at all (the client-side surface is disabled entirely).
+  if (path === '/api/telemetry/events' && req.method === 'POST') {
+    const parsed = parseJsonBody(body)
+    const count = Array.isArray(parsed.events) ? parsed.events.length : 0
+    return void sendJson(res, 200, { accepted: count })
+  }
+  if (path === '/api/telemetry/errors' && req.method === 'POST') {
+    return void sendJson(res, 200, { accepted: 1 })
+  }
+
   // asset center (A2/A3): the template gallery listing. Entries are metadata +
   // a govt generation preset — the renderer applies presets locally, so
   // there is no binary download leg. `category` filters, `q` searches

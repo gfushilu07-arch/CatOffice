@@ -9,7 +9,9 @@
     ".": "./src/index.ts",
     "./mock": "./src/mock/index.ts",
     "./ocr": "./src/ocr.ts",
-    "./asset-center": "./src/asset-center.ts"
+    "./asset-center": "./src/asset-center.ts",
+    "./upload-consent": "./src/upload-consent.ts",
+    "./telemetry": "./src/telemetry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

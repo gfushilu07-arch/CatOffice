@@ -250,3 +250,21 @@ describe('asset center query contract (A3)', () => {
     expect(((await none.json()) as { templates: unknown[] }).templates).toHaveLength(0)
   })
 })
+
+describe('telemetry mock (C2)', () => {
+  it('accepts consented event batches and error reports', async () => {
+    const events = await fetch(`${mock.origin}/api/telemetry/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events: [{ ts: '2026-09-03T00:00:00Z', action: 'doc.save' }] }),
+    })
+    expect(events.status).toBe(200)
+    expect(((await events.json()) as { accepted: number }).accepted).toBe(1)
+    const errors = await fetch(`${mock.origin}/api/telemetry/errors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'TypeError: x', stack: '...' }),
+    })
+    expect(errors.status).toBe(200)
+  })
+})

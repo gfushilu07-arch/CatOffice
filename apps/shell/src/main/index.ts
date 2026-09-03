@@ -56,6 +56,14 @@ import {
   auditRead,
   auditVerify,
 } from './audit-log'
+import {
+  CONSENT_KEY,
+  hasConsent,
+  makeGrant,
+  parseUploadConsent,
+  telemetryDisabled,
+  type ConsentTier,
+} from '@catoffice/catspark/upload-consent'
 import { applyLinuxOzoneSwitch } from './linux-ozone'
 import {
   ANALYTICS_ENABLED_KEY,
@@ -2880,6 +2888,26 @@ function statEntries(paths: string[]): RecentEntry[] {
 ipcMain.on('audit:event', (_event, action: string, target: string, detail?: Record<string, string | number | boolean>) => {
   auditLog(action as Parameters<typeof auditLog>[0], String(target), detail)
 })
+
+// C2 upload consent: the settings page reads the tiers and grants/revokes;
+// the ai:stream gate (docs process) reads the same settings file directly.
+ipcMain.handle('consent:get', () =>
+  parseUploadConsent(readAppSettings(APP_SETTINGS_PATH())[CONSENT_KEY]),
+)
+ipcMain.handle(
+  'consent:set',
+  (_event, tier: ConsentTier, granted: boolean) => {
+    if (!['t1', 't2', 't3'].includes(tier)) return { ok: false }
+    const current = parseUploadConsent(readAppSettings(APP_SETTINGS_PATH())[CONSENT_KEY])
+    const next = { ...current }
+    if (granted) next[tier] = makeGrant()
+    else delete next[tier]
+    writeAppSettings(APP_SETTINGS_PATH(), { [CONSENT_KEY]: next })
+    auditLog('settings.privacy.change', `upload-consent.${tier}`, { granted })
+    return { ok: true, consent: next }
+  },
+)
+ipcMain.handle('consent:disabled', () => telemetryDisabled())
 ipcMain.handle('audit:read', (_event, day?: string) => auditRead(day))
 ipcMain.handle('audit:verify', (_event, day?: string) => auditVerify(day))
 

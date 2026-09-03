@@ -10089,3 +10089,56 @@ tr > .page-gap-cut {
   font-size: 12px;
   text-align: center;
 }
+
+/* ---- upload consent dialog (compliance C2) ------------------------ */
+.consent-dialog {
+  background: #fff;
+  border-radius: 12px;
+  width: min(560px, 90vw);
+  max-height: 84vh;
+  overflow: auto;
+  padding: 22px 26px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.consent-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+.consent-intro {
+  color: #475467;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.consent-tier {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid #f2f4f7;
+  cursor: pointer;
+  align-items: flex-start;
+}
+.consent-tier input {
+  margin-top: 3px;
+}
+.consent-tier-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.consent-tier-title {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: #101828;
+}
+.consent-tier-detail {
+  color: #667085;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.consent-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
