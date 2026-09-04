@@ -29,7 +29,7 @@ AI 公文套版工具/六 flake 治理（全 workspace 7874 绿）。
 | 序 | 项 | 为什么在这个位置 | 工作量 | 文档 |
 | --- | --- | --- | --- | --- |
 | 4 | **SA1 印章边缘检测** | 衔接 A1 占位章→真章的用户路径；夹具现成；演示价值高 | 4–6 天 | [asset-center-plan.md](asset-center-plan.md) SA 节 |
-| 5 | **SA2 印章素材库（公开，与模板同权）** | 依赖 SA1（检测→入库→插入闭环）；元数据 CRUD + 骑年盖月替换 | 2–3 天 | [seal-signing-plan.md](seal-signing-plan.md) |
+| 5 | **SA2 印章素材库（签章管理模式·素材章层级）** | 依赖 SA1（检测→入库→插入闭环）；统一签章管理面登记 + 元数据 CRUD + 骑年盖月替换；可升级 CA 背书签章 | 2–3 天 | [seal-signing-plan.md](seal-signing-plan.md) |
 | 5b | **SA3.0 电子签章格式探针** | 无依赖、产出 SA3 决策依据（真实 CA 签名的 PDF/OFD 样本解析） | 1–2 天 | [seal-signing-plan.md](seal-signing-plan.md) |
 | 6 | **P1 品类继续扩充**（发票模板 docx 版/投标书/培训 deck 等） | 管线全通，纯增量；穿插在大项间隙做 | 每品类 0.5–1 天 | 同上执行进度 |
 
