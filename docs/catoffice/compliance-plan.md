@@ -118,12 +118,13 @@
 
 ## 五、C4/C5：国密
 
-### C4：SM3（先做，最轻）
+### C4：SM3（先做，最轻）——✅ 已完成（2026-09-04，见执行进度表）
 
-- 用途：审计日志哈希链可选国密模式（`hash: "sm3"`）、未来 OFD 的摘要。
-- 选型：Rust 侧 `libsm`（sidecar 已有 Rust 基建）或纯 JS `sm-crypto`（审计
-  包是纯 TS——倾向纯 JS，零 native 依赖）。
-- 测试：GB/T 32905 标准测试向量（`abc` → `66c7f0f4...`）锁实现正确性。
+- 用途：审计日志哈希链可选国密模式（`CATOFFICE_AUDIT_HASH=sm3`）、未来 OFD 的摘要。
+- 选型定案：**仓内纯 TS 实现**（`@catoffice/audit` 的 `sm3.ts`）——不引 npm
+  国密包（供应链审计负担），不占 Rust sidecar（audit 包零运行时依赖契约）。
+- 测试：GB/T 32905 标准向量（`abc` → `66c7f0f4...`、示例 2）+ OpenSSL(3)
+  交叉参考 5 组（块边界/跨块/长消息/UTF-8）。
 
 ### C5：SM4 文档加密 + OFD 立项（需要决策）
 
@@ -146,3 +147,12 @@
 | C5 | SM4/OFD | C4 + 业务决策 | 探针报告 → 再定实现方案 |
 
 每项按既有节奏切刀：探底 → 实现 → 测试 → 提交 → 本表回填执行进度。
+
+## 七、执行进度
+
+| 日期 | 项 | 记录 |
+| --- | --- | --- |
+| 2026-09-02 | C1 | 审计日志闭环：`@catoffice/audit` 纯 TS 包（append-only JSONL + 逐行哈希链 + verify/read），shell 单一 writer 持有 + IPC（audit:event/read/verify），设置页查看。全事件清单见 AuditAction |
+| 2026-09-03 | C2 | 上传同意体系闭环：分层同意（t1 AI/t2 崩溃/t3 统计）版本化授权 + transport 单通道门控 + mock `/api/telemetry/*` + CATSPARK_TELEMETRY_DISABLED 隔离变量；ai:stream 未同意即拒 |
+| 2026-09-03 | C3 | 会话锁定闭环：`configureIdleLock`/`lockNow`（放弃缓存 docx 口令）+ 剩余信息清理策略文档页 |
+| 2026-09-04 | C4 | SM3 闭环：纯 TS 实现（GB/T 32905-2016，零依赖——审计包无运行时 deps 的契约不破）；**GB/T 标准向量 2 组 + OpenSSL(3) 交叉参考 5 组**（空串/块边界 64/跨块 65/127/长消息/UTF-8）全过——实现期抓出两处真错：Uint32Array 小端读字序、**SM3 特有的轮常量旋转 T_j≪(j mod 32)**（区别于 SHA 系静态常量，GB/T §5.3.2）。审计哈希链可选 sm3：行内 `algo:"sm3"` 自描述（缺省不写=旧行字节稳定），verify 逐行按 algo 分派（新旧行可共存）；shell 部署开关 `CATOFFICE_AUDIT_HASH=sm3`（重启后生效）。audit 13/13 + shell 开关 3/3 绿 |

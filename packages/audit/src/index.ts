@@ -15,6 +15,8 @@
 import { createHash } from 'node:crypto'
 import { open, appendFile, mkdir, readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import { sm3 } from './sm3'
+export { sm3 } from './sm3'
 
 export type AuditAction =
   | 'doc.open'
@@ -45,12 +47,17 @@ export interface AuditEvent {
   detail?: Record<string, string | number | boolean>
 }
 
+/** hash algorithms for the chain: sha256 (default) or SM3 (GB/T 32905, compliance C4) */
+export type AuditHashAlgo = 'sha256' | 'sm3'
+
 /** an event as written to the file: chain fields appended */
 export interface AuditLine extends AuditEvent {
   /** hash of the previous line ('' for the first line of a fresh log) */
   prev: string
   /** sha256(prev + canonical-json-of-this-entry-without-hash) */
   hash: string
+  /** chain hash algorithm; absent = the sha256 default (keeps old lines byte-stable) */
+  algo?: 'sm3'
 }
 
 /** canonical JSON: fixed key order, no spaces — the hash input must be stable */
@@ -61,13 +68,15 @@ function canonicalJson(event: Omit<AuditLine, 'hash'>): string {
     action: event.action,
     target: event.target,
     ...(event.detail ? { detail: event.detail } : {}),
+    ...(event.algo ? { algo: event.algo } : {}),
     prev: event.prev,
   }
   return JSON.stringify(ordered)
 }
 
 function lineHash(prev: string, event: Omit<AuditLine, 'hash'>): string {
-  return createHash('sha256').update(canonicalJson({ ...event, prev })).digest('hex')
+  const canon = canonicalJson({ ...event, prev })
+  return event.algo === 'sm3' ? sm3(canon) : createHash('sha256').update(canon).digest('hex')
 }
 
 /** the current UTC date as the per-day FILE name (YYYY-MM-DD.jsonl) */
@@ -80,22 +89,29 @@ function dayStem(day: string): string {
   return day.replace(/\.jsonl$/, '')
 }
 
-/** serialize one event into its on-disk line (with trailing newline) */
+/** serialize one event into its on-disk line (with trailing newline); `algo`
+ *  selects the chain hash (default sha256 — no algo field is written, keeping
+ *  existing files byte-stable) */
 export function serializeAuditLine(
   event: Omit<AuditLine, 'hash'> | AuditEvent,
   prevHash: string,
+  algo?: AuditHashAlgo,
 ): {
   line: string
   hash: string
 } {
-  const hash = lineHash(prevHash, event as Omit<AuditLine, 'hash'>)
-  const full: AuditLine = { ...event, prev: prevHash, hash }
+  const withAlgo =
+    algo === 'sm3' ? { ...(event as Omit<AuditLine, 'hash'>), algo: 'sm3' as const } : event
+  const hash = lineHash(prevHash, withAlgo as Omit<AuditLine, 'hash'>)
+  const full: AuditLine = { ...(withAlgo as AuditEvent), prev: prevHash, hash }
   return { line: JSON.stringify(full) + '\n', hash }
 }
 
 export interface AuditWriterOptions {
   /** directory holding YYYY-MM-DD.jsonl files (created on demand) */
   auditDir: string
+  /** chain hash algorithm; default sha256 (compliance C4: sm3 for Chinese gov deployments) */
+  hashAlgo?: AuditHashAlgo
   /** injected clock for tests */
   now?: () => Date
 }
@@ -114,9 +130,11 @@ export class AuditWriter {
   private lastHash = ''
   private initialized = false
   private readonly now: () => Date
+  private readonly hashAlgo: AuditHashAlgo
 
   constructor(private readonly options: AuditWriterOptions) {
     this.now = options.now ?? (() => new Date())
+    this.hashAlgo = options.hashAlgo ?? 'sha256'
   }
 
   /** release the resident fd (app quit / day roll in tests) */
@@ -165,7 +183,11 @@ export class AuditWriter {
   /** append one event; resolves after the bytes hit the fd */
   async append(event: AuditEvent): Promise<void> {
     await this.ensureOpened()
-    const { line, hash } = serializeAuditLine(event as Omit<AuditLine, 'hash'>, this.lastHash)
+    const { line, hash } = serializeAuditLine(
+      event as Omit<AuditLine, 'hash'>,
+      this.lastHash,
+      this.hashAlgo,
+    )
     await appendFile(this.fd!, line)
     this.lastHash = hash
   }

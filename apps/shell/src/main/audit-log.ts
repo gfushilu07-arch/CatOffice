@@ -11,6 +11,7 @@ import {
   auditDayFile,
   type AuditAction,
   type AuditEvent,
+  type AuditHashAlgo,
 } from '@catoffice/audit'
 
 let writer: AuditWriter | null = null
@@ -20,8 +21,18 @@ export function auditDir(): string {
 }
 
 function getWriter(): AuditWriter {
-  writer ??= new AuditWriter({ auditDir: auditDir() })
+  writer ??= new AuditWriter({ auditDir: auditDir(), hashAlgo: auditHashAlgo() })
   return writer
+}
+
+/**
+ * Chain hash algorithm (compliance C4): sha256 by default; CATOFFICE_AUDIT_HASH=sm3
+ * switches deployments (Chinese gov/sectoral) to SM3. A mode change takes effect for lines
+ * written after an app restart; verify() dispatches per line, so old and new
+ * lines coexist in one file.
+ */
+export function auditHashAlgo(): AuditHashAlgo {
+  return process.env.CATOFFICE_AUDIT_HASH === 'sm3' ? 'sm3' : 'sha256'
 }
 
 /** fire-and-forget: an audit write must never block or fail the user action */
