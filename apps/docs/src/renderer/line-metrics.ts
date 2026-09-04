@@ -504,6 +504,9 @@ export const BUNDLED_FONTS = new Set([
   'GenOffice Serif KR',
   'GenOffice Gothic KR',
   'GenOffice Tamil',
+  'Noto Sans Thai',
+  'Noto Sans Devanagari',
+  'Noto Sans Hebrew',
   'GenOffice Fullwidth TC',
   'GenOffice Songti SC',
   'Carlito GO',
@@ -681,6 +684,13 @@ export function cssFontFamily(font: string, followAltName = true): string {
   const SC_SANS = ['PingFang SC', 'Microsoft YaHei', CJK_SANS]
   const SC_SERIF = ['GenOffice Songti SC', 'STSong', 'SimSun', CJK_SERIF]
   const nfkc = font.normalize('NFKC')
+  // Tahoma (the most common Thai carrier in Thai Word docs): Windows resolves
+  // natively (it has Thai there); macOS lacks it and Thai codepoints would fall
+  // to Chromium's silent Thonburi fallback — the bundled subset pins those to
+  // measured behavior instead. Everything Tahoma covers itself is unaffected
+  // (the subset ships ~no Latin), and the panose-driven sans tail is unchanged.
+  if (f.includes('tahoma'))
+    return `${chain(font, 'Noto Sans Thai', 'Noto Sans CJK GO', 'GenOffice PUA Blank')},sans-serif`
   // Arabic: bundled Noto subsets stand in for missing fonts; Chromium's silent
   // fallback is a Geeza Pro-style UI face, larger and heavier than the naskh
   // serif Word substitutes. Unknown Arabic names default to the naskh chain.
@@ -838,6 +848,38 @@ export function cssFontFamily(font: string, followAltName = true): string {
   // coverage tails (the subset ships no Latin letters).
   if (/tamil|latha|vijaya|inaimathi/i.test(nfkc)) {
     return `${chain(font, 'GenOffice Tamil', 'InaiMathi', 'Tamil MN', 'Tamil Sangam MN')},sans-serif`
+  }
+  // Thai: Word substitutes missing Thai faces (declares are usually Tahoma or
+  // Thai-specific names like Cordia/Angsana/Leelawadee) — macOS has Thonburi,
+  // Windows resolves native names, Linux has neither, so the bundled Noto
+  // Sans Thai subset (fonts.css) serves as the coverage tail everywhere and
+  // the primary face on a bare Linux host. Same-assertion probes pending.
+  if (
+    /[\u0E00-\u0E7F]/.test(nfkc) ||
+    /thai|thonburi|cordia|angsana|leelawadee|browallia|dillenia|sarabun|tlwg|garuda|norasi|kinnari|waree|umpush|\bloma\b/i.test(
+      nfkc,
+    )
+  ) {
+    return `${chain(font, 'Noto Sans Thai', 'Thonburi')},sans-serif`
+  }
+  // Devanagari: Word substitutes missing faces (Mangal/Nirmala UI/Kokila…)
+  // platform-ward; macOS has Devanagari Sangam/Kohinoor/ITF, Linux has none.
+  // The bundled Noto Sans Devanagari subset keeps conjunct/matras shaping.
+  if (
+    /[\u0900-\u097F]/.test(nfkc) ||
+    /devanagari|mangal|nirmala|kokila|aparajita|utsaah|sanskrit text/i.test(nfkc)
+  ) {
+    return `${chain(font, 'Noto Sans Devanagari', 'Devanagari Sangam MN', 'Kohinoor Devanagari', 'ITF Devanagari')},sans-serif`
+  }
+  // Hebrew: Word substitutes missing Hebrew faces (David/FrankRuehl/Aharoni/
+  // Narkisim/Simple CLM…) with Times New Roman-class serifs whose Hebrew glyph
+  // set Windows/mac both carry; Linux lacks them, so the bundled Noto Sans
+  // Hebrew subset is the coverage tail. (RTL handling itself is IL2.)
+  if (
+    /[\u0590-\u05FF]/.test(nfkc) ||
+    /hebrew|david|frankruehl|aharoni|narkis|guttman|levenim|simple clm|ellinia/i.test(nfkc)
+  ) {
+    return `${chain(font, 'Times New Roman', 'Liberation Serif', 'Noto Sans Hebrew')},serif`
   }
   // unknown missing font with a fontTable altName: Word substitutes the alias
   // wholesale, so the alias's whole chain follows the declared head. Hei-class

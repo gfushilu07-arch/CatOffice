@@ -642,3 +642,29 @@
   font-weight: normal;
   font-style: normal;
 }
+
+/* Thai/Devanagari/Hebrew fallback (IL4, fonts/README.md): unmodified Noto
+ * subsets (script blocks + digits/punctuation) standing in for missing
+ * script-specific declares — Word substitutes them with platform faces
+ * (Thonburi / Mangal+Nirmala / Times New Roman) that Linux hosts lack. Names
+ * kept: glyphs and advances are unmodified (subset only), so the OFL Reserved
+ * Font Name clause does not apply. No Latin letters; Latin falls through the
+ * chain. All shaping features kept (conjuncts, matras, mark positioning). */
+@font-face {
+  font-family: 'Noto Sans Thai';
+  src: url('./NotoSansThai-Regular-subset.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Noto Sans Devanagari';
+  src: url('./NotoSansDevanagari-Regular-subset.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Noto Sans Hebrew';
+  src: url('./NotoSansHebrew-Regular-subset.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}

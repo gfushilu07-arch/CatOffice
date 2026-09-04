@@ -315,6 +315,121 @@
       "lineHeightFactor": 1.35,
       "cjkFactor": null
     },
+    "Cordia New": {
+      "chain": "'Cordia New','Noto Sans Thai','Thonburi',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Angsana New": {
+      "chain": "'Angsana New','Noto Sans Thai','Thonburi',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Browallia New": {
+      "chain": "'Browallia New','Noto Sans Thai','Thonburi',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Leelawadee": {
+      "chain": "'Leelawadee','Noto Sans Thai','Thonburi',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Leelawadee UI": {
+      "chain": "'Leelawadee UI','Noto Sans Thai','Thonburi',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "TH Sarabun New": {
+      "chain": "'TH Sarabun New','Noto Sans Thai','Thonburi',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Thonburi": {
+      "chain": "'Thonburi','Noto Sans Thai',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Tahoma": {
+      "chain": "'Tahoma','Noto Sans Thai','Noto Sans CJK GO','GenOffice PUA Blank',sans-serif",
+      "lineHeightFactor": 1.2083,
+      "cjkFactor": null
+    },
+    "Mangal": {
+      "chain": "'Mangal','Noto Sans Devanagari','Devanagari Sangam MN','Kohinoor Devanagari','ITF Devanagari',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Nirmala UI": {
+      "chain": "'Nirmala UI','Noto Sans Devanagari','Devanagari Sangam MN','Kohinoor Devanagari','ITF Devanagari',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Aparajita": {
+      "chain": "'Aparajita','Noto Sans Devanagari','Devanagari Sangam MN','Kohinoor Devanagari','ITF Devanagari',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Utsaah": {
+      "chain": "'Utsaah','Noto Sans Devanagari','Devanagari Sangam MN','Kohinoor Devanagari','ITF Devanagari',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Kokila": {
+      "chain": "'Kokila','Noto Sans Devanagari','Devanagari Sangam MN','Kohinoor Devanagari','ITF Devanagari',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Sanskrit Text": {
+      "chain": "'Sanskrit Text','Noto Sans Devanagari','Devanagari Sangam MN','Kohinoor Devanagari','ITF Devanagari',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Devanagari MT": {
+      "chain": "'Devanagari MT','Noto Sans Devanagari','Devanagari Sangam MN','Kohinoor Devanagari','ITF Devanagari',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Devanagari Sangam MN": {
+      "chain": "'Devanagari Sangam MN','Noto Sans Devanagari','Kohinoor Devanagari','ITF Devanagari',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "David": {
+      "chain": "'David','Times New Roman','Liberation Serif','Noto Sans Hebrew',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "FrankRuehl": {
+      "chain": "'FrankRuehl','Times New Roman','Liberation Serif','Noto Sans Hebrew',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Narkisim": {
+      "chain": "'Narkisim','Times New Roman','Liberation Serif','Noto Sans Hebrew',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Miriam": {
+      "chain": "'Miriam','Noto Sans CJK GO','GenOffice PUA Blank',sans-serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Aharoni": {
+      "chain": "'Aharoni','Times New Roman','Liberation Serif','Noto Sans Hebrew',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Levenim MT": {
+      "chain": "'Levenim MT','Times New Roman','Liberation Serif','Noto Sans Hebrew',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
+    "Guttman": {
+      "chain": "'Guttman','Times New Roman','Liberation Serif','Noto Sans Hebrew',serif",
+      "lineHeightFactor": 1.172,
+      "cjkFactor": null
+    },
     "Hexa Gonic Pro": {
       "chain": "'Hexa Gonic Pro','Noto Sans CJK GO','GenOffice PUA Blank',sans-serif",
       "lineHeightFactor": 1.172,

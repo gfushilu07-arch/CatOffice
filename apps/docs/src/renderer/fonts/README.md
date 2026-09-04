@@ -149,3 +149,30 @@ tofu boxes for AI-residue PUA tokens, while Word — and chains headed by the
 bundled CJK subsets, whose subsetted `.notdef` is blank — show nothing. This
 face sits in the Aptos chain and behind the range-limited `Noto Sans/Serif
 CJK GO` aliases so PUA stays invisible there too.
+
+## Thai / Devanagari / Hebrew fallback (IL4)
+
+| Font                        | Role                                                              |
+| --------------------------- | ----------------------------------------------------------------- |
+| Noto Sans Thai (subset)     | coverage tail for Thai declares (Cordia/Angsana/Leelawadee/TH Sarabun, Tahoma on mac/linux) |
+| Noto Sans Devanagari (subset) | coverage tail for Devanagari declares (Mangal/Nirmala UI/Kokila…)  |
+| Noto Sans Hebrew (subset)   | coverage tail for Hebrew declares (David/FrankRuehl/Miriam…) behind the Times New Roman serif head |
+
+Source: Noto Sans Thai/Devanagari/Hebrew Regular (SIL OFL 1.1), subset with
+fonttools to each script block + digits/punctuation, all shaping features kept
+(`pyftsubset --unicodes=… --layout-features='*' --flavor=woff2`; Thai
+U+0E00-0E7F, Devanagari U+0900-097F, Hebrew U+0590-05FF+FB1D-FB4F, each plus
+U+0020-024F and U+2000-206F). Names are kept ("Noto ..."): glyphs and advances
+are unmodified, so the OFL Reserved Font Name clause does not apply. The
+subsets carry no Latin letters (digits/punctuation only); Latin falls through
+the chain.
+
+Chains: Thai/Devanagari declares head their own name with the subset first and
+the macOS system faces as coverage tails (Thonburi; Devanagari Sangam MN /
+Kohinoor / ITF) — Windows resolves native names ahead of the chain. Hebrew
+declares take the Times New Roman head (Word substitutes missing Hebrew faces
+with TNR, whose Hebrew set mac/Windows both carry) with the subset as the
+Linux tail. Tahoma (the most common Thai carrier) keeps its Latin from the
+system face and pins Thai codepoints to the bundled subset where macOS lacks
+Tahoma. Line-height factors for the substituted platform faces are
+probe-pending debt (same assertion program as T2).
