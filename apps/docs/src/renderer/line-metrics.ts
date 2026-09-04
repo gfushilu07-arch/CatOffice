@@ -1179,6 +1179,27 @@ export function snapSpacingToGrid(spacingTwips: number, _docGrid: DocGrid | unde
 
 // ─── CJK detection ───────────────────────────────────────────────────────────
 
+/**
+ * Southeast Asian scripts without spaces (Thai/Lao/Burmese/Khmer): word
+ * boundaries need ICU dictionary segmentation. Shared semantics with
+ * pptx-render's text-layout (same Intl.Segmenter word granularity).
+ *
+ * Thai+Lao U+0E00–0EFF, Myanmar U+1000–109F, Khmer U+1780–17FF — mirrors
+ * packages/pptx-render/src/text-layout.ts so both models segment alike.
+ */
+export const SEA_RE = /[\u0e00-\u0eff\u1000-\u109f\u1780-\u17ff]/
+
+const WORD_SEG: Intl.Segmenter | null =
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl
+    ? new Intl.Segmenter(undefined, { granularity: 'word' })
+    : null
+
+/** split a SEA run into dictionary words (falls back to the whole run without Segmenter) */
+export function segmentSeaWords(text: string): string[] {
+  if (!WORD_SEG) return [text]
+  return Array.from(WORD_SEG.segment(text), (s) => s.segment)
+}
+
 export function isCjk(cp: number): boolean {
   return (
     isHangul(cp) ||
@@ -1388,6 +1409,26 @@ export function simulateLines(
       prevChar !== undefined && autospacePadBetween(prevChar, text) ? padW : 0
     const flushWord = () => {
       if (!buf) return
+      // SEA scripts (Thai/Lao/Burmese/Khmer) have no spaces: split the buffer
+      // into dictionary words (Intl.Segmenter) so line breaking happens at
+      // word boundaries like the browser, never mid-word. Recursion depth 1:
+      // segmented words re-enter the normal flush path.
+      if (SEA_RE.test(buf) && WORD_SEG) {
+        const sea = buf
+        const words = segmentSeaWords(sea)
+        // progress guard: a segment the Segmenter won't split further (e.g. a
+        // Thai-Latin mix like การA) comes back unchanged — recursing on it
+        // would loop forever, so flush it as one unbreakable word instead.
+        if (words.length > 1 || words[0] !== sea) {
+          buf = ''
+          for (const word of words) {
+            buf = word
+            flushWord()
+          }
+          buf = ''
+          return
+        }
+      }
       const wordH = Math.max(lineH, bufCjkH)
       bufCjkH = 0
       const w = metrics.measure(buf, style) + autospaceBoundaries(buf).length * padW + padBefore(buf)
