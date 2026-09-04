@@ -29,7 +29,8 @@ AI 公文套版工具/六 flake 治理（全 workspace 7874 绿）。
 | 序 | 项 | 为什么在这个位置 | 工作量 | 文档 |
 | --- | --- | --- | --- | --- |
 | 4 | **SA1 印章边缘检测** | 衔接 A1 占位章→真章的用户路径；夹具现成；演示价值高 | 4–6 天 | [asset-center-plan.md](asset-center-plan.md) SA 节 |
-| 5 | **SA2 印章素材库** | 依赖 SA1；本地素材库 CRUD + 插入替换 | 2–3 天 | 同上 |
+| 5 | **SA2 印章素材库（公开，与模板同权）** | 依赖 SA1（检测→入库→插入闭环）；元数据 CRUD + 骑年盖月替换 | 2–3 天 | [seal-signing-plan.md](seal-signing-plan.md) |
+| 5b | **SA3.0 电子签章格式探针** | 无依赖、产出 SA3 决策依据（真实 CA 签名的 PDF/OFD 样本解析） | 1–2 天 | [seal-signing-plan.md](seal-signing-plan.md) |
 | 6 | **P1 品类继续扩充**（发票模板 docx 版/投标书/培训 deck 等） | 管线全通，纯增量；穿插在大项间隙做 | 每品类 0.5–1 天 | 同上执行进度 |
 
 ### 第三梯队：排版正确性（修真 bug，小而准）
@@ -45,7 +46,7 @@ AI 公文套版工具/六 flake 治理（全 workspace 7874 绿）。
 | 序 | 项 | 为什么在最后 | 工作量 | 文档 |
 | --- | --- | --- | --- | --- |
 | 10 | **C4 SM3** | 独立无依赖，但单独价值有限（审计哈希链可选算法） | 1–2 天 | [compliance-plan.md](compliance-plan.md) |
-| 11 | **C5 SM4/OFD** | **决策点**：OFD 工程量数倍于单纯国密加密，需信创客户需求强度输入 | 探针 2 天；OFD 立项另议 | 同上 |
+| 11 | **C5 SM4/OFD + SA3 电子签章** | **决策点**：OFD 工程量数倍于单纯国密加密；签章需第三方 CA 合作（CFCA 模式）——SA3.0 探针（5b）产出决策依据 | 探针已前移；OFD 立项另议 | [compliance-plan.md](compliance-plan.md) + [seal-signing-plan.md](seal-signing-plan.md) |
 
 ### 第五梯队：OA 集成线（桌面端侧，无配置即不存在）
 
