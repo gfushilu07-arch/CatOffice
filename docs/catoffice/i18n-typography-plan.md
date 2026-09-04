@@ -44,7 +44,7 @@ Chromium/V8 内建能力，零字节；排版模型是小体积纯 JS、全语�
 | 项 | 内容 | 说明 |
 | --- | --- | --- |
 | **IL1** | **SEA 断行移植**：simulateLines 的词缓冲对泰/老/高棉/缅文走 `Intl.Segmenter`（word 粒度），与 pptx-render 同语义 | 修真 bug：现状整段 non-CJK 当一个不可断词、超宽硬折。工程量小（参照现成实现）。**✅ 已完成（2026-09-04，3d4b473）**：`SEA_RE` 对齐 pptx-render + 无进展防护（单一 segment 不重入）；7 专项测试，全工作区绿。验收① 的画布↔模型 parity 语料仍待续（画布断行为 Chromium ICU，预期一致、探针未做） |
-| **IL2** | **RTL 专项审计**：w:bidi 的解析/保存/画布渲染/对齐翻转/混合方向 run 清单化，缺口再修 | 审计先行——RTL 做错是可见 bug 级，但出现频率待评估 |
+| **IL2** | **RTL 专项审计**：w:bidi 的解析/保存/画布渲染/对齐翻转/混合方向 run 清单化，缺口再修 | 审计先行——RTL 做错是可见 bug 级，但出现频率待评估。**✅ 已完成（2026-09-04，[rtl-audit.md](rtl-audit.md)）**：存量盘点（docx 三层+画布+分页/sheets 镜像/pptx UAX#9 均已在位）；主缺口 = pptx 段落 `a:pPr rtl="1"` 不解析不写回（阿语 PPTX 基方向丢失+再保存蒸发）已四刀修复（parse/generate 门控/paraBaseRtl+applyBidi 显式基级/TextEditOverlay），取舍项 4 条记录在案 |
 | **IL3** | **测量一致性验证**（条件项）：复杂脚本文档若出现画布 vs 模型的行高/宽度漂移，再移植 slides 的 harfbuzzjs shaped-measure（动态 import） | 先测量后引入——Chromium 是渲染真值，可能不需要 |
 | **IL4** | **字体链梳理**：阿文/泰文/天城文/西里尔在各 OS 的回退链 + CDN 目录补充对应 Noto 子集 | 并入 T4 分派体系；新语料进 font-chain-matrix 快照 |
 | **IL5** | **拼写词典按需下载**（可选）：hunsehun 词典复用字体 CDN 目录机制 | 独立功能项，非排版正确性必需 |

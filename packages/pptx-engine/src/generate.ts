@@ -674,7 +674,7 @@ export function generateParagraphXml(p: Paragraph): string {
   if (p.marL != null && want('marL')) pPrAttrs.push(`marL="${Math.round(p.marL)}"`)
   if (p.indent != null && want('indent')) pPrAttrs.push(`indent="${Math.round(p.indent)}"`)
   if (p.align && want('align')) pPrAttrs.push(`algn="${alignMap[p.align]}"`)
-  if (p.rtl) pPrAttrs.push('rtl="1"')
+  if (p.rtl && want('rtl')) pPrAttrs.push('rtl="1"')
   if (p.level) pPrAttrs.push(`lvl="${p.level}"`)
 
   // CT_TextParagraphProperties child order: lnSpc → spcBef → spcAft → buClr → buSzPct → buFont → bu*

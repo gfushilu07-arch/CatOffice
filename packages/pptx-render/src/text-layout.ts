@@ -512,13 +512,15 @@ let bidiApi: ReturnType<typeof bidiFactory> | null = null
  * Runs UAX#9 over the paragraph token stream: tokens crossing direction levels are
  * split at level boundaries and tagged with their level. Line breaking stays in
  * logical order (UAX#9 requires wrap first, reorder after); visualOrder reorders
- * each line once formed.
+ * each line once formed. `explicitDirection` is the paragraph's a:pPr rtl="1" —
+ * the base level follows it even when the first strong character says otherwise
+ * (e.g. an English brand name inside an Arabic paragraph keeps the RTL base).
  */
-function applyBidi(tokens: Token[]): Token[] {
+function applyBidi(tokens: Token[], explicitDirection?: 'rtl'): Token[] {
   const text = tokens.map((t) => t.text).join('')
   if (!RTL_RE.test(text)) return tokens
   bidiApi ??= bidiFactory()
-  const { levels } = bidiApi.getEmbeddingLevels(text)
+  const { levels } = bidiApi.getEmbeddingLevels(text, explicitDirection)
   const out: Token[] = []
   let off = 0
   for (const tok of tokens) {
@@ -565,8 +567,14 @@ function visualOrder(toks: Token[]): Token[] {
   return arr
 }
 
-/** Paragraph base direction: decided by the first strong-direction character (used for the default alignment; RTL paragraphs without explicit alignment align right). */
+/**
+ * Paragraph base direction for the default alignment (RTL paragraphs without
+ * explicit alignment align right): the explicit a:pPr rtl="1" wins outright —
+ * its whole point is overriding what the text looks like — otherwise the first
+ * strong-direction character decides.
+ */
 function paraBaseRtl(p: Paragraph): boolean {
+  if (p.rtl) return true
   for (const r of p.runs) {
     for (const ch of r.text) {
       if (RTL_RE.test(ch)) return true
@@ -607,10 +615,12 @@ function layoutParagraph(
    *  pushes the first line's text start right, so it must wrap that much earlier. */
   firstLineShrinkPx = 0,
 ): LaidLine[] {
-  const tokens = applyBidi(tokenizeParagraph(p, scale, fontScale)).map((tok, logicalOrder) => ({
-    ...substituteKerning(tok, metrics),
-    logicalOrder,
-  }))
+  const tokens = applyBidi(tokenizeParagraph(p, scale, fontScale), p.rtl ? 'rtl' : undefined).map(
+    (tok, logicalOrder) => ({
+      ...substituteKerning(tok, metrics),
+      logicalOrder,
+    }),
+  )
   const lines: LaidLine[] = []
   let cur: Token[] = []
   let curW = 0
@@ -1411,10 +1421,12 @@ function layoutAll(
 
     const textX = marLPx
     const avail = Math.max(availWidth - textX, 1)
-    // Paragraphs with an RTL base direction (first strong char is RTL) default to right
-    // alignment when none is explicit; affects layout only, not written back to
-    // TextLine.align (an editor commit would store it as an explicit value)
-    const align = p.align ?? (paraBaseRtl(p) ? ('right' as const) : undefined)
+    // Paragraphs with an RTL base direction (explicit a:pPr rtl="1" or first strong
+    // char is RTL) default to right alignment when none is explicit; affects layout
+    // only, not written back to TextLine.align (an editor commit would store it as
+    // an explicit value)
+    const baseRtl = paraBaseRtl(p)
+    const align = p.align ?? (baseRtl ? ('right' as const) : undefined)
     // Bullet glyph style/advance (drawn on the first line only). PowerPoint reserves
     // the glyph's advance like a tab stop: body text can never start before the glyph
     // ends, even when the glyph is wider than the hanging indent (-indent).
@@ -1564,6 +1576,7 @@ function layoutAll(
         ...(ln.trailingSpace ? { trailingSpace: true } : {}),
         ...(ln.softBreakAfter != null ? { softBreakAfter: ln.softBreakAfter } : {}),
         ...(p.align ? { align: p.align } : {}),
+        ...(baseRtl ? { rtl: true } : {}),
         ...(p.level ? { level: p.level } : {}),
         ...(marLPx ? { marLPx } : {}),
         ...(indentPx ? { indentPx } : {}),

@@ -3175,8 +3175,12 @@ function parseParagraph(
   const indent = hasIndent ? indentRaw : dflt?.indent
 
   // Record which properties come from an explicit pPr (the rebuild path writes only explicit items; inherited values are not baked in)
+  // Explicit RTL base direction (a:pPr rtl="1"): overrides the render-side
+  // first-strong inference; PowerPoint writes it on every Arabic/Hebrew paragraph
+  const rtlExplicit = pPr['@_rtl'] === '1' || pPr['@_rtl'] === 'true'
   const pPrExplicit: NonNullable<Paragraph['pPrExplicit']> = {
     ...(pPr['@_algn'] ? { align: true } : {}),
+    ...(rtlExplicit ? { rtl: true } : {}),
     ...(lnSpcNode ? { lnSpc: true } : {}),
     ...(befNode ? { spcBef: true } : {}),
     ...(aftNode ? { spcAft: true } : {}),
@@ -3189,6 +3193,7 @@ function parseParagraph(
     runs,
     align: pPr['@_algn'] ? alignMap[pPr['@_algn']] : dflt?.align,
     level,
+    ...(rtlExplicit ? { rtl: true } : {}),
     pPrExplicit,
     ...(lineHeight != null ? { lineHeight } : {}),
     ...(lineExact != null ? { lineExact } : {}),

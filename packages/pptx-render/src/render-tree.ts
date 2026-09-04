@@ -217,6 +217,8 @@ export interface TextLine {
   softBreakAfter?: number
   /** Paragraph horizontal alignment (editor display) */
   align?: 'left' | 'center' | 'right' | 'justify'
+  /** Paragraph base direction is RTL (a:pPr rtl="1" or first strong char; editor display) */
+  rtl?: boolean
   /** Paragraph indent level (editor Tab multi-level list display) */
   level?: number
   /** Paragraph left margin in px (editor display: body text starts here, not at the inset edge) */

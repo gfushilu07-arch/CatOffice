@@ -1310,3 +1310,89 @@ describe('kerning threshold (rPr kern)', () => {
     expect(l2.lines[0]!.runs[0]!.kerningOff).toBeUndefined()
   })
 })
+
+describe('RTL paragraphs (a:pPr rtl="1")', () => {
+  const m = new HeuristicMetrics()
+  const lineW = (runs: { x: number; widthPx: number }[]) =>
+    runs.reduce((a, r) => a + r.widthPx, 0)
+
+  it('explicit rtl defaults the line to right alignment (no explicit align)', () => {
+    const layout = layoutText({
+      body: body({ paragraphs: [{ runs: [{ text: 'سلام', fontSize: 18 }], rtl: true }] }),
+      boxWidthPx: 400,
+      boxHeightPx: 100,
+      metrics: m,
+      vp,
+    })
+    const runs = layout.lines[0]!.runs
+    expect(runs[runs.length - 1]!.x + runs[runs.length - 1]!.widthPx).toBeCloseTo(400, 1)
+    // TextLine carries the base direction for the editor overlay
+    expect(layout.lines[0]!.rtl).toBe(true)
+    expect(layout.lines[0]!.align).toBeUndefined()
+  })
+
+  it('an LTR-only paragraph keeps left alignment (no rtl, no strong RTL char)', () => {
+    const layout = layoutText({
+      body: body({ paragraphs: [{ runs: [{ text: 'ab', fontSize: 18 }] }] }),
+      boxWidthPx: 400,
+      boxHeightPx: 100,
+      metrics: m,
+      vp,
+    })
+    expect(layout.lines[0]!.rtl).toBeUndefined()
+    expect(layout.lines[0]!.runs[0]!.x).toBeCloseTo(0, 1)
+  })
+
+  it('first strong char still infers the base when rtl is absent (Arabic text aligns right)', () => {
+    const layout = layoutText({
+      body: body({ paragraphs: [{ runs: [{ text: 'سلام', fontSize: 18 }] }] }),
+      boxWidthPx: 400,
+      boxHeightPx: 100,
+      metrics: m,
+      vp,
+    })
+    expect(layout.lines[0]!.rtl).toBe(true)
+    const runs = layout.lines[0]!.runs
+    expect(runs[runs.length - 1]!.x + runs[runs.length - 1]!.widthPx).toBeCloseTo(400, 1)
+  })
+
+  it('explicit rtl overrides the first-strong inference for the bidi base level', () => {
+    // "iPhone س|?" — with an explicit RTL base the trailing neutrals ("|?") ride
+    // base level 1 (odd → rtl runs); with the first-strong LTR base the same
+    // neutrals stay level 0. The Arabic run itself is odd-level in both, so the
+    // discriminator is the neutral tail, not the Arabic.
+    const text = 'iPhone س|?'
+    const explicit = layoutText({
+      body: body({ paragraphs: [{ runs: [{ text, fontSize: 18 }], rtl: true }] }),
+      boxWidthPx: 400,
+      boxHeightPx: 100,
+      metrics: m,
+      vp,
+    })
+    const plain = layoutText({
+      body: body({ paragraphs: [{ runs: [{ text, fontSize: 18 }] }] }),
+      boxWidthPx: 400,
+      boxHeightPx: 100,
+      metrics: m,
+      vp,
+    })
+    const rtlText = (l: typeof explicit) =>
+      l.lines[0]!.runs.filter((r) => r.rtl).map((r) => r.text).join('')
+    expect(rtlText(explicit)).toContain('|') // neutrals follow the explicit RTL base
+    expect(rtlText(plain)).not.toContain('|') // first-strong: LTR base keeps neutrals even-level
+  })
+
+  it('explicit align wins over the rtl default', () => {
+    const layout = layoutText({
+      body: body({
+        paragraphs: [{ runs: [{ text: 'سلام', fontSize: 18 }], rtl: true, align: 'center' }],
+      }),
+      boxWidthPx: 400,
+      boxHeightPx: 100,
+      metrics: m,
+      vp,
+    })
+    const runs = layout.lines[0]!.runs
+    expect(runs[0]!.x).toBeCloseTo((400 - lineW(runs)) / 2, 1)
+  })
+})

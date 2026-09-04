@@ -162,9 +162,12 @@ export function populateEditorDom(
     // The DOM block ends one advance below the last line top (external leading renders
     // inside the block, unlike the canvas) — margins of following paragraphs compensate
     prevEnd = last.top + (last.advance ?? last.height)
-    // RTL paragraphs (Arabic/Hebrew) align in editing as on canvas: the browser sets direction by the first strong character
-    p.dir = 'auto'
-    const align = paraLines[0]?.align
+    // RTL paragraphs (Arabic/Hebrew) align in editing as on canvas. dir=auto covers
+    // first-strong inference; an explicit a:pPr rtl="1" line overrides it (an LTR
+    // brand name inside an Arabic paragraph keeps the RTL base and right alignment)
+    const lineRtl = paraLines[0]?.rtl === true
+    p.dir = lineRtl ? 'rtl' : 'auto'
+    const align = paraLines[0]?.align ?? (lineRtl ? 'right' : undefined)
     if (align) p.style.textAlign = align
     // Body text starts at marL, exactly like the canvas (lists/indent used to snap to the
     // inset edge on entering edit); first-line indent applies only without a bullet

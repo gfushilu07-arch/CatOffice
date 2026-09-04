@@ -232,7 +232,8 @@ export type TextAlign = 'left' | 'center' | 'right' | 'justify'
 export interface Paragraph {
   runs: TextRun[]
   align?: TextAlign
-  /** right-to-left paragraph (a:pPr rtl="1"); generated content only (pdf2pptx) */
+  /** right-to-left paragraph (a:pPr rtl="1"): explicit base direction, overriding the
+   *  render-side first-strong-character inference (affects default alignment + bidi base level) */
   rtl?: boolean
   /** Indent level (bullet level) */
   level?: number
@@ -270,6 +271,7 @@ export interface Paragraph {
    */
   pPrExplicit?: {
     align?: boolean
+    rtl?: boolean
     lnSpc?: boolean
     spcBef?: boolean
     spcAft?: boolean
