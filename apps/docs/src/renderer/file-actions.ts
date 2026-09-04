@@ -270,6 +270,7 @@ export async function loadFile(
       fileName: result.name,
       hash: result.hash,
       encrypted: result.encrypted,
+      encryptAlgo: result.encryptAlgo,
     })
     // this tab's document was replaced: a password parked for the previous
     // unsaved draft is stale and must not encrypt this document's saves.

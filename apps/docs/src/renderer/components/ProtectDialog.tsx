@@ -24,6 +24,8 @@ import { FieldError, PasswordInput } from './PasswordInput'
 /** every field: undefined = unchanged; null = remove; value = set */
 export interface ProtectDialogResult {
   openPassword?: string | null
+  /** container format for the next save when openPassword is set; undefined = keep */
+  encryptAlgo?: 'ecma376-agile' | 'cat-sm4'
   writeProtection?: WriteProtection | null
   protection?: DocProtection | null
   removePersonalInfo?: boolean
@@ -50,6 +52,7 @@ type ErrorKey = '' | 'appEncMismatch' | 'appWrongPassword'
 
 export function ProtectDialog({
   encrypted,
+  currentAlgo,
   writeProtection,
   protection,
   removePersonalInfo,
@@ -59,6 +62,8 @@ export function ProtectDialog({
 }: {
   /** an open password is desired for the next save */
   encrypted: boolean
+  /** container format of the on-disk bytes (agile when plain or unknown) */
+  currentAlgo: 'ecma376-agile' | 'cat-sm4'
   writeProtection: WriteProtection | null
   protection: DocProtection | null
   removePersonalInfo: boolean
@@ -76,6 +81,8 @@ export function ProtectDialog({
 
   const [openPwd, setOpenPwd] = useState(encrypted ? KEEP : '')
   const [openPwd2, setOpenPwd2] = useState(encrypted ? KEEP : '')
+  /** container choice while an open password is desired; disabled when clearing */
+  const [algo, setAlgo] = useState<'ecma376-agile' | 'cat-sm4'>(currentAlgo)
   const [modifyPwd, setModifyPwd] = useState(hadModifyPwd ? KEEP : '')
   const [modifyPwd2, setModifyPwd2] = useState(hadModifyPwd ? KEEP : '')
   const [protectOn, setProtectOn] = useState(wasEnforced)
@@ -106,6 +113,9 @@ export function ProtectDialog({
 
       if (openPwd !== (encrypted ? KEEP : '')) {
         result.openPassword = openPwd === '' ? null : openPwd
+        // clearing the password drops the container choice with it (the main
+        // process discards the disk algorithm on an unencrypted commit)
+        if (openPwd !== '' && algo !== currentAlgo) result.encryptAlgo = algo
       }
 
       if (modifyPwd !== (hadModifyPwd ? KEEP : '')) {
@@ -198,6 +208,26 @@ export function ProtectDialog({
             />
           </label>
         </div>
+        {openPwd !== '' && openPwd !== KEEP && (
+          <div className="fld-row">
+            <label className="fld">
+              {t('appProtectEncryptAlgo')}
+              <select
+                value={algo}
+                onChange={(e) => {
+                  setAlgo(e.target.value as 'ecma376-agile' | 'cat-sm4')
+                  clearError()
+                }}
+              >
+                <option value="ecma376-agile">{t('appProtectAlgoAgile')}</option>
+                <option value="cat-sm4">{t('appProtectAlgoSm4')}</option>
+              </select>
+            </label>
+          </div>
+        )}
+        {algo === 'cat-sm4' && openPwd !== '' && openPwd !== KEEP && (
+          <p className="fld-hint">{t('appProtectAlgoSm4Hint')}</p>
+        )}
         <div className="fld-row">
           <label className="fld">
             {t('appProtectModifyPwd')} <span className="fld-opt">{t('appOptional')}</span>

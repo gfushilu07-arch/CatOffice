@@ -36,8 +36,10 @@ const api: DesktopApi = {
   openDocxPath: (path: string) => ipcRenderer.invoke('docs:open-path', path),
   openDocxDecrypt: (path: string, password: string) =>
     ipcRenderer.invoke('docs:open-decrypt', path, password),
-  setDocPassword: (filePath: string | null, password: string | null) =>
-    ipcRenderer.invoke('docs:set-password', filePath, password),
+  setDocPassword: (filePath: string | null, password: string | null, algo?: 'ecma376-agile' | 'cat-sm4') =>
+    ipcRenderer.invoke('docs:set-password', filePath, password, algo),
+  docPasswordAlgo: (filePath: string | null) =>
+    ipcRenderer.invoke('docs:password-algo', filePath) as Promise<'ecma376-agile' | 'cat-sm4'>,
   docPasswordIntentRevision: async () => {
     const revision: unknown = await ipcRenderer.invoke('docs:password-intent-revision')
     return typeof revision === 'number' && Number.isSafeInteger(revision) && revision >= 0

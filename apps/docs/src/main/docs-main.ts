@@ -115,7 +115,15 @@ import {
   renameDocPassword,
   setDocPassword,
   snapshotDocPassword,
+  diskAlgoFor,
+  type DocEncryptAlgo,
 } from './docx-encryption'
+import { detectContainerAlgo } from './doc-container-crypto'
+
+/** on-disk encryption format of encrypted bytes (ECMA-376 Agile default) */
+function diskAlgoSniff(bytes: Buffer): DocEncryptAlgo {
+  return detectContainerAlgo(bytes) ?? 'ecma376-agile'
+}
 import { isExternallyModified, type DiskFileState } from './external-change'
 import { initDocsAutoUpdater } from './updater'
 
@@ -2399,7 +2407,9 @@ async function loadDocx(
     const pwd = password ?? docPasswordFor(wcId, filePath)
     if (!pwd) return { needsPassword: true, path: filePath, name: basename(filePath) }
     plainBytes = await decryptDocx(original, pwd) // throws DocxDecryptError
-    rememberDocPassword(wcId, filePath, pwd)
+    // sniff the container format (ECMA-376 Agile vs our SM4 container) so the
+    // next save re-encrypts with the same algorithm unless the user changes it
+    rememberDocPassword(wcId, filePath, pwd, diskAlgoSniff(original))
   } else {
     rememberDocPassword(wcId, filePath, null)
   }
@@ -2428,6 +2438,7 @@ async function loadDocx(
   return {
     path: filePath,
     name: basename(filePath),
+    ...(encrypted ? { encryptAlgo: diskAlgoSniff(original) } : {}),
     data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
     hash,
     encrypted,
@@ -3076,15 +3087,23 @@ export function registerDocsIpc(): void {
   // Takes effect on the next save (docs:save / save-as / save-new all consult the store).
   ipcMain.handle(
     'docs:set-password',
-    (event, filePath: string | null, password: string | null): { ok: boolean } => {
+    (
+      event,
+      filePath: string | null,
+      password: string | null,
+      algo?: DocEncryptAlgo,
+    ): { ok: boolean } => {
       if (tornDownWcIds.has(event.sender.id)) return { ok: false }
       if (filePath !== null && typeof filePath !== 'string') return { ok: false }
       if (password !== null && (typeof password !== 'string' || password.length === 0)) {
         return { ok: false }
       }
+      if (algo !== undefined && algo !== 'ecma376-agile' && algo !== 'cat-sm4') {
+        return { ok: false }
+      }
       // only the document this renderer legitimately has open (same grant as saving)
       if (filePath && !canDocWrite(event.sender.id, filePath)) return { ok: false }
-      setDocPassword(event.sender.id, filePath, password)
+      setDocPassword(event.sender.id, filePath, password, algo)
       shellHooks?.audit?.(password ? 'doc.password.set' : 'doc.password.remove', filePath ?? 'unsaved draft', {})
       return { ok: true }
     },
@@ -3093,6 +3112,17 @@ export function registerDocsIpc(): void {
   ipcMain.handle('docs:password-intent-revision', (event): number => {
     if (tornDownWcIds.has(event.sender.id)) return -1
     return currentDocPasswordIntentRevision()
+  })
+
+  /** container format of the on-disk bytes, for the Protect dialog's preselect */
+  ipcMain.handle('docs:password-algo', (event, filePath: unknown): DocEncryptAlgo => {
+    if (
+      tornDownWcIds.has(event.sender.id) ||
+      typeof filePath !== 'string'
+    ) {
+      return 'ecma376-agile'
+    }
+    return diskAlgoFor(event.sender.id, filePath) ?? 'ecma376-agile'
   })
 
   ipcMain.handle(
@@ -3208,7 +3238,7 @@ export function registerDocsIpc(): void {
         // atomic write succeeds, and a newer ribbon intent survives this save.
         const passwordState = snapshotDocPassword(event.sender.id, filePath)
         const bytes = passwordState.password
-          ? encryptDocx(Buffer.from(data), passwordState.password)
+          ? encryptDocx(Buffer.from(data), passwordState.password, passwordState.algo)
           : Buffer.from(data)
         await atomicWriteFile(filePath, bytes)
         // Teardown may have cleared all in-memory secrets while the atomic
@@ -3290,7 +3320,7 @@ export function registerDocsIpc(): void {
           typeof sourcePath === 'string' && sourcePath ? sourcePath : null,
         )
         const bytes = passwordState.password
-          ? encryptDocx(Buffer.from(data), passwordState.password)
+          ? encryptDocx(Buffer.from(data), passwordState.password, passwordState.algo)
           : Buffer.from(data)
         await atomicWriteFile(result.filePath, bytes)
         if (tornDownWcIds.has(event.sender.id)) return { ok: false }
@@ -3319,7 +3349,7 @@ export function registerDocsIpc(): void {
       const filePath = uniquePathIn(defaultSaveDir(), defaultName)
       const passwordState = snapshotDocPassword(event.sender.id, null)
       const bytes = passwordState.password
-        ? encryptDocx(Buffer.from(data), passwordState.password)
+        ? encryptDocx(Buffer.from(data), passwordState.password, passwordState.algo)
         : Buffer.from(data)
       await atomicWriteFile(filePath, bytes)
       // teardown may have happened while the write was in flight — the path is

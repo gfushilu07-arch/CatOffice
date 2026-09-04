@@ -26,6 +26,8 @@ export interface DocState {
   isBlank?: boolean
   /** desired open password is set for the next save; toggled via Review > Protect */
   encrypted?: boolean
+  /** container format of the encrypted on-disk bytes (sniffed at open, updated by Protect) */
+  encryptAlgo?: 'ecma376-agile' | 'cat-sm4'
 }
 
 /** A restored recovery snapshot has not reached the original path yet. */

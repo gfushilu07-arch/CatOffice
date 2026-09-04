@@ -11,6 +11,7 @@ type Props = Parameters<typeof ProtectDialog>[0]
 
 const DEFAULTS: Omit<Props, 'onApply' | 'onCancel'> = {
   encrypted: false,
+  currentAlgo: 'ecma376-agile',
   writeProtection: null,
   protection: null,
   removePersonalInfo: false,
@@ -97,6 +98,33 @@ describe('ProtectDialog', () => {
     await d.setValue(openConfirm, '')
     await d.submit(d.applied)
     expect(d.onApply).toHaveBeenCalledWith({ openPassword: null })
+    await d.cleanup()
+  })
+
+  it('setting an open password carries the chosen container algorithm', async () => {
+    const d = await mount({})
+    const [open, openConfirm] = d.passwordInputs()
+    await d.setValue(open, 'secret')
+    await d.setValue(openConfirm, 'secret')
+    // the algorithm select appears once a password is typed; pick SM4
+    const select = d.host.querySelector('select')! as HTMLSelectElement
+    const selectSetter = Object.getOwnPropertyDescriptor(
+      HTMLSelectElement.prototype,
+      'value',
+    )!.set!
+    await act(async () => {
+      selectSetter.call(select, 'cat-sm4')
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await d.submit(d.applied)
+    expect(d.onApply).toHaveBeenCalledWith({ openPassword: 'secret', encryptAlgo: 'cat-sm4' })
+    await d.cleanup()
+  })
+
+  it('an unchanged password submit never emits an algorithm diff', async () => {
+    const d = await mount({ encrypted: true, currentAlgo: 'cat-sm4' })
+    await d.submit(d.applied)
+    expect(d.onApply).toHaveBeenCalledWith({})
     await d.cleanup()
   })
 

@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -19,9 +20,15 @@ import {
   renameDocPassword,
   setDocPassword,
   snapshotDocPassword,
+  diskAlgoFor,
+  isCfbFile,
 } from '../src/main/docx-encryption'
+import { detectContainerAlgo } from '../src/main/doc-container-crypto'
 
 const plainDocx = () => readFileSync(join(__dirname, 'pagination-corpus/docx/kitchen-sink.docx'))
+const PLAIN = plainDocx()
+
+const newDir = (): string => mkdtempSync(join(tmpdir(), 'docenc-'))
 
 describe('isEncryptedDocx', () => {
   it('is false for a plain docx (zip) and random bytes', () => {
@@ -269,7 +276,7 @@ describe('password store', () => {
     const whileRemoving = prepareRecoveryDocx(34, '/enc.docx', plain)
     expect(whileRemoving).not.toBeNull()
     await expect(decryptDocx(whileRemoving!, 'disk-old')).resolves.toEqual(plain)
-  })
+  }, 120_000) // six 100k-iteration Agile KDFs; parallel load triples them (same class as xlsx-save-edits)
 
   it('never returns plaintext recovery bytes for an encrypted disk file without its password', () => {
     markDiskEncrypted(35, '/enc.docx', true)
@@ -279,5 +286,88 @@ describe('password store', () => {
     setDocPassword(36, '/plain.docx', 'desired-next-save')
     const plain = plainDocx()
     expect(prepareRecoveryDocx(36, '/plain.docx', plain)).toBe(plain)
+  })
+})
+
+// ── C5: per-document encryption algorithm (ECMA-376 Agile default, SM4 opt-in) ──
+
+describe('encryption algorithm dispatch', () => {
+  it('encrypts to the SM4 container and decrypts transparently', async () => {
+    const enc = encryptDocx(PLAIN, 'pw', 'cat-sm4')
+    expect(detectContainerAlgo(enc)).toBe('cat-sm4')
+    expect(enc.subarray(0, 4).toString('latin1')).toBe('CAT\x45') // not CFB
+    expect((await decryptDocx(enc, 'pw')).equals(PLAIN)).toBe(true)
+  })
+
+  it('agile stays the default output format', () => {
+    const enc = encryptDocx(PLAIN, 'pw')
+    expect(detectContainerAlgo(enc)).toBeNull()
+    expect(isCfbFile(enc)).toBe(true)
+  })
+
+  it('the algorithm follows the file: sniff on open, keep on intent-less save', async () => {
+    const wc = 7001
+    const dir = newDir()
+    const sm4 = encryptDocx(PLAIN, 'pw', 'cat-sm4')
+    const path = join(dir, 'budget.docx')
+    writeFileSync(path, sm4)
+    // open path: rememberDocPassword records the sniffed algo
+    const pwd = 'pw'
+    rememberDocPassword(wc, path, pwd, detectContainerAlgo(sm4) ?? 'ecma376-agile')
+    markDiskEncrypted(wc, path, true)
+    // a save without any new intent must re-encrypt with the SAME algo
+    const snapshot = snapshotDocPassword(wc, path)
+    expect(snapshot.password).toBe('pw')
+    expect(snapshot.algo).toBe('cat-sm4')
+    const rewritten = encryptDocx(PLAIN, snapshot.password!, snapshot.algo)
+    expect(detectContainerAlgo(rewritten)).toBe('cat-sm4')
+    forgetDocPasswords(wc)
+  })
+
+  it('an explicit Protect intent overrides the disk algorithm', () => {
+    const wc = 7002
+    const dir = newDir()
+    const path = join(dir, 'agile.docx')
+    writeFileSync(path, encryptDocx(PLAIN, 'old', 'ecma376-agile'))
+    rememberDocPassword(wc, path, 'old', 'ecma376-agile')
+    markDiskEncrypted(wc, path, true)
+    setDocPassword(wc, path, 'new', 'cat-sm4')
+    const snapshot = snapshotDocPassword(wc, path)
+    expect(snapshot.algo).toBe('cat-sm4')
+    expect(snapshot.password).toBe('new')
+    const committed = encryptDocx(PLAIN, snapshot.password!, snapshot.algo)
+    expect(detectContainerAlgo(committed)).toBe('cat-sm4')
+    // and the commit records the new format for subsequent saves
+    commitDocPasswordSave(wc, snapshot, path)
+    expect(snapshotDocPassword(wc, path).algo).toBe('cat-sm4')
+    forgetDocPasswords(wc)
+  })
+
+  it('clearing the password drops the disk algorithm', () => {
+    const wc = 7003
+    const dir = newDir()
+    const path = join(dir, 'sm4.docx')
+    rememberDocPassword(wc, path, 'pw', 'cat-sm4')
+    markDiskEncrypted(wc, path, true)
+    setDocPassword(wc, path, null)
+    const snapshot = snapshotDocPassword(wc, path)
+    expect(snapshot.password).toBeNull()
+    // a null password never reaches encryptDocx (the save path guards it);
+    // the commit drops the disk algorithm so later saves stay plain
+    commitDocPasswordSave(wc, snapshot, path)
+    expect(diskAlgoFor(wc, path)).toBeNull()
+    forgetDocPasswords(wc)
+  })
+
+  it('recovery copies re-encrypt with the disk algorithm', () => {
+    const wc = 7004
+    const dir = newDir()
+    const path = join(dir, 'sm4-recovery.docx')
+    rememberDocPassword(wc, path, 'pw', 'cat-sm4')
+    markDiskEncrypted(wc, path, true)
+    const recovery = prepareRecoveryDocx(wc, path, PLAIN)
+    expect(recovery).not.toBeNull()
+    expect(detectContainerAlgo(recovery!)).toBe('cat-sm4')
+    forgetDocPasswords(wc)
   })
 })

@@ -126,7 +126,7 @@
 - 测试：GB/T 32905 标准向量（`abc` → `66c7f0f4...`、示例 2）+ OpenSSL(3)
   交叉参考 5 组（块边界/跨块/长消息/UTF-8）。
 
-### C5：SM4 文档加密 + OFD 立项（需要决策）
+### C5：SM4 文档加密 + OFD 立项——SM4 加密 ✅ 已完成（2026-09-04，见执行进度表）；OFD 立项仍待决策
 
 - **互操作探针先行**：WPS 的国密加密 OOXML 容器格式需要真实样本验证
   （与 ECMA-376 agile 的做法一致——先探再定）。自造容器是兜底不是首选。
@@ -155,4 +155,5 @@
 | 2026-09-02 | C1 | 审计日志闭环：`@catoffice/audit` 纯 TS 包（append-only JSONL + 逐行哈希链 + verify/read），shell 单一 writer 持有 + IPC（audit:event/read/verify），设置页查看。全事件清单见 AuditAction |
 | 2026-09-03 | C2 | 上传同意体系闭环：分层同意（t1 AI/t2 崩溃/t3 统计）版本化授权 + transport 单通道门控 + mock `/api/telemetry/*` + CATSPARK_TELEMETRY_DISABLED 隔离变量；ai:stream 未同意即拒 |
 | 2026-09-03 | C3 | 会话锁定闭环：`configureIdleLock`/`lockNow`（放弃缓存 docx 口令）+ 剩余信息清理策略文档页 |
+| 2026-09-04 | C5(加密) | SM4 文档加密闭环（OFD 另立项）：**CatOffice 容器**（`doc-container-crypto.ts`）——magic CATENC1\0 + 自描述 algo 字段 + SM4-CTR + HMAC-SM3 认证加密（encrypt-then-MAC）+ PBKDF2-HMAC-SM3 密钥派生；node:crypto 原生 `sm4-ctr`/`sm3`，SM4-CTR 层与 OpenSSL 3 逐字节交叉验证（node 无 sm4-gcm，CTR+HMAC 替代）；**算法可按文档设置**——Protect 对话框新增算法选择（AES 通用=ECMA-376 Agile 默认 / 国密 SM4=仅 CatOffice 可开，UI 明示），「算法跟文件走」：打开嗅探容器格式、save 无显式意图时保持原算法、显式选择才换；恢复副本同算法重加密；intent/磁盘状态/快照全链路携带 algo。测试：容器 9 + 集成分派 6（往返/篡改/算法保持/覆盖/清除/恢复副本）+ ProtectDialog 算法选择 2；19 语言字符串齐备
 | 2026-09-04 | C4 | SM3 闭环：纯 TS 实现（GB/T 32905-2016，零依赖——审计包无运行时 deps 的契约不破）；**GB/T 标准向量 2 组 + OpenSSL(3) 交叉参考 5 组**（空串/块边界 64/跨块 65/127/长消息/UTF-8）全过——实现期抓出两处真错：Uint32Array 小端读字序、**SM3 特有的轮常量旋转 T_j≪(j mod 32)**（区别于 SHA 系静态常量，GB/T §5.3.2）。审计哈希链可选 sm3：行内 `algo:"sm3"` 自描述（缺省不写=旧行字节稳定），verify 逐行按 algo 分派（新旧行可共存）；shell 部署开关 `CATOFFICE_AUDIT_HASH=sm3`（重启后生效）。audit 13/13 + shell 开关 3/3 绿 |

@@ -7,6 +7,8 @@ export interface OpenFileResult {
   hash: string
   /** the on-disk file is password protected (opened via decrypt; saves re-encrypt) */
   encrypted?: boolean
+  /** container format of the encrypted on-disk bytes (Protect dialog preselect) */
+  encryptAlgo?: 'ecma376-agile' | 'cat-sm4'
   /** content came from a newer crash-recovery copy and still needs an explicit save */
   recovered?: boolean
 }
@@ -202,8 +204,16 @@ export interface DesktopApi {
   /** decrypt-and-open a password-protected docx (path from a needsPassword result) */
   openDocxDecrypt(path: string, password: string): Promise<DecryptOpenResult>
   /** Review > Protect: set (or clear with null) the desired next-save password;
-   *  filePath null = document not saved yet, applied on its first successful save */
-  setDocPassword(filePath: string | null, password: string | null): Promise<{ ok: boolean }>
+   *  filePath null = document not saved yet, applied on its first successful save.
+   *  `algo` picks the on-disk container for the next save ('ecma376-agile' default,
+   *  'cat-sm4' = the CatOffice SM4 container, openable only in CatOffice). */
+  setDocPassword(
+    filePath: string | null,
+    password: string | null,
+    algo?: 'ecma376-agile' | 'cat-sm4',
+  ): Promise<{ ok: boolean }>
+  /** container format of the on-disk bytes (Protect dialog preselect) */
+  docPasswordAlgo(filePath: string | null): Promise<'ecma376-agile' | 'cat-sm4'>
   /** snapshot the current intent sequence before replacement cleanup is queued */
   docPasswordIntentRevision(): Promise<number>
   /** discard prior-document intents through a captured revision */

@@ -11,6 +11,13 @@
  * with Agile, matching Word 2013+ defaults.
  */
 import officeCrypto from 'officecrypto-tool'
+import {
+  ContainerDecryptError,
+  decryptContainer,
+  detectContainerAlgo,
+  encryptContainer,
+  type ContainerAlgo,
+} from './doc-container-crypto'
 
 const CFB_MAGIC = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
 const ENCRYPTED_STREAM_UTF16 = Buffer.from('EncryptedPackage', 'utf16le')
@@ -41,6 +48,17 @@ export class DocxDecryptError extends Error {
  * (exotic scheme, e.g. WPS account encryption or Extensible encryption).
  */
 export async function decryptDocx(bytes: Buffer, password: string): Promise<Buffer> {
+  // our own container first: officecrypto would reject it as unsupported
+  if (detectContainerAlgo(bytes)) {
+    try {
+      return decryptContainer(bytes, password)
+    } catch (err) {
+      if (err instanceof ContainerDecryptError) {
+        throw new DocxDecryptError(err.reason, err.message)
+      }
+      throw err
+    }
+  }
   try {
     return await officeCrypto.decrypt(bytes, { password })
   } catch (err) {
@@ -52,9 +70,17 @@ export async function decryptDocx(bytes: Buffer, password: string): Promise<Buff
   }
 }
 
-/** Re-encrypt plain docx zip bytes with ECMA-376 Agile (Word 2013+ default). */
-export function encryptDocx(bytes: Buffer, password: string): Buffer {
-  return officeCrypto.encrypt(bytes, { password })
+/**
+ * Encryption algorithm for a document's on-disk bytes. 'ecma376-agile' is the
+ * Word/WPS-compatible default (AES-256/SHA-512); 'cat-sm4' is the CatOffice
+ * container (SM4-CTR + HMAC-SM3) for deployments that require Guomi ciphers —
+ * those files open only in CatOffice, which the Protect dialog states.
+ */
+export type DocEncryptAlgo = 'ecma376-agile' | ContainerAlgo
+
+/** Re-encrypt plain docx zip bytes with the requested algorithm (default Agile). */
+export function encryptDocx(bytes: Buffer, password: string, algo: DocEncryptAlgo = 'ecma376-agile'): Buffer {
+  return algo === 'cat-sm4' ? encryptContainer(bytes, password) : officeCrypto.encrypt(bytes, { password })
 }
 
 // ── In-memory password state, keyed per renderer + file path.
@@ -63,8 +89,13 @@ export function encryptDocx(bytes: Buffer, password: string): Buffer {
 /** Password that can decrypt the bytes currently on disk. */
 const diskPasswords = new Map<number, Map<string, string>>()
 
+/** Encryption algorithm of the bytes currently on disk (sniffed at open, set at commit). */
+const diskAlgos = new Map<number, Map<string, DocEncryptAlgo>>()
+
 interface PasswordIntent {
   password: string | null
+  /** algorithm for the next save when a password is desired (null = keep disk algo) */
+  algo: DocEncryptAlgo | null
   revision: number
 }
 
@@ -86,9 +117,26 @@ function setDiskPassword(wcId: number, filePath: string, password: string | null
   else diskPasswords.delete(wcId)
 }
 
-/** Record the current on-disk password (null when the opened file is plain). */
-export function rememberDocPassword(wcId: number, filePath: string, password: string | null): void {
+/** Record the current on-disk password (null when the opened file is plain).
+ *  `algo` is the sniffed container format of the bytes on disk. */
+export function rememberDocPassword(
+  wcId: number,
+  filePath: string,
+  password: string | null,
+  algo?: DocEncryptAlgo,
+): void {
   setDiskPassword(wcId, filePath, password)
+  const forAlgo = diskAlgos.get(wcId) ?? new Map<string, DocEncryptAlgo>()
+  if (algo) forAlgo.set(filePath, algo)
+  else forAlgo.delete(filePath)
+  if (forAlgo.size > 0) diskAlgos.set(wcId, forAlgo)
+  else diskAlgos.delete(wcId)
+}
+
+/** Sniffed algorithm of the file's on-disk bytes (null = plain or unknown). */
+export function diskAlgoFor(wcId: number, filePath: string | null | undefined): DocEncryptAlgo | null {
+  if (!filePath) return null
+  return diskAlgos.get(wcId)?.get(filePath) ?? null
 }
 
 /**
@@ -113,14 +161,20 @@ export function docPasswordFor(wcId: number, filePath: string | null | undefined
 /**
  * Record the user's desired password for the next save. This deliberately does
  * not alter the password for the current on-disk bytes: recovery copies and
- * reopen must keep using that password until a save actually lands.
+ * reopen must keep using that password until a save actually lands. `algo`
+ * (with a password) picks the container format for the next save; without a
+ * password the disk algorithm stands.
  */
 export function setDocPassword(
   wcId: number,
   filePath: string | null,
   password: string | null,
+  algo?: DocEncryptAlgo,
 ): void {
-  const intent = { password, revision: nextIntentRevision++ }
+  // explicit algo wins; undefined keeps whatever the on-disk bytes use
+  // (algorithm follows the file), plain defaults to the interop format
+  const effectiveAlgo = password ? (algo ?? diskAlgoFor(wcId, filePath) ?? 'ecma376-agile') : null
+  const intent: PasswordIntent = { password, algo: effectiveAlgo, revision: nextIntentRevision++ }
   if (filePath) {
     const forWc = desiredPasswords.get(wcId) ?? new Map<string, PasswordIntent>()
     forWc.set(filePath, intent)
@@ -158,6 +212,8 @@ export function discardDocPasswordIntents(
 export interface DocPasswordSaveSnapshot {
   readonly sourcePath: string | null
   readonly password: string | null
+  /** algorithm the next save must write with (intent override, else disk sniff) */
+  readonly algo: DocEncryptAlgo
   readonly intentRevision: number | null
 }
 
@@ -173,10 +229,21 @@ export function snapshotDocPassword(
   const intent = filePath
     ? desiredPasswords.get(wcId)?.get(filePath)
     : pendingNewDocPasswords.get(wcId)
+  if (intent) {
+    return {
+      sourcePath: filePath,
+      password: intent.password,
+      algo: intent.password
+        ? (intent.algo ?? 'ecma376-agile')
+        : (diskAlgoFor(wcId, filePath) ?? 'ecma376-agile'),
+      intentRevision: intent.revision,
+    }
+  }
   return {
     sourcePath: filePath,
-    password: intent ? intent.password : docPasswordFor(wcId, filePath),
-    intentRevision: intent?.revision ?? null,
+    password: docPasswordFor(wcId, filePath),
+    algo: diskAlgoFor(wcId, filePath) ?? 'ecma376-agile',
+    intentRevision: null,
   }
 }
 
@@ -192,6 +259,13 @@ export function commitDocPasswordSave(
 ): boolean {
   setDiskPassword(wcId, savedPath, snapshot.password)
   markDiskEncrypted(wcId, savedPath, snapshot.password !== null)
+  if (snapshot.password) {
+    const forAlgo = diskAlgos.get(wcId) ?? new Map<string, DocEncryptAlgo>()
+    forAlgo.set(savedPath, snapshot.algo)
+    diskAlgos.set(wcId, forAlgo)
+  } else {
+    diskAlgos.get(wcId)?.delete(savedPath)
+  }
 
   const sourcePath = snapshot.sourcePath
   const forWc = desiredPasswords.get(wcId) ?? new Map<string, PasswordIntent>()
@@ -236,7 +310,8 @@ export function prepareRecoveryDocx(
 ): Buffer | null {
   if (!isDiskEncrypted(wcId, filePath)) return plainBytes
   const password = docPasswordFor(wcId, filePath)
-  return password ? encryptDocx(plainBytes, password) : null
+  if (!password) return null
+  return encryptDocx(plainBytes, password, diskAlgoFor(wcId, filePath) ?? 'ecma376-agile')
 }
 
 /** Decrypt an encrypted recovery copy with the current disk password. */
@@ -260,6 +335,12 @@ export function renameDocPassword(wcId: number, oldPath: string, newPath: string
   if (forWc && password !== undefined) {
     forWc.delete(oldPath)
     forWc.set(newPath, password)
+  }
+  const forAlgo = diskAlgos.get(wcId)
+  const algo = forAlgo?.get(oldPath)
+  if (forAlgo && algo !== undefined) {
+    forAlgo.delete(oldPath)
+    forAlgo.set(newPath, algo)
   }
   const desiredForWc = desiredPasswords.get(wcId)
   const desired = desiredForWc?.get(oldPath)
@@ -293,6 +374,7 @@ export function isDiskEncrypted(wcId: number, filePath: string): boolean {
 /** Renderer torn down (tab closed): its passwords must not outlive it. */
 export function forgetDocPasswords(wcId: number): void {
   diskPasswords.delete(wcId)
+  diskAlgos.delete(wcId)
   desiredPasswords.delete(wcId)
   pendingNewDocPasswords.delete(wcId)
   diskEncryptedPaths.delete(wcId)

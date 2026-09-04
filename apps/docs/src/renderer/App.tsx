@@ -1321,10 +1321,19 @@ export function App() {
     let changed = false
     if (result.openPassword !== undefined) {
       const cur = fileCtxRef.current.doc
-      const res = await window.desktop.setDocPassword(cur?.filePath ?? null, result.openPassword)
+      const res = await window.desktop.setDocPassword(
+        cur?.filePath ?? null,
+        result.openPassword,
+        result.encryptAlgo,
+      )
       if (res.ok) {
         setDoc((d) => (d ? { ...d, encrypted: !!result.openPassword } : d))
         // the on-disk file only changes on the next save
+        if (result.openPassword && result.encryptAlgo) {
+          setDoc((d) => (d ? { ...d, encryptAlgo: result.encryptAlgo } : d))
+        } else if (!result.openPassword) {
+          setDoc((d) => (d ? { ...d, encryptAlgo: 'ecma376-agile' } : d))
+        }
         dirtyRef.current = true
         changed = true
       }
@@ -4523,6 +4532,7 @@ export function App() {
       {showProtectDialog && (
         <ProtectDialog
           encrypted={doc?.encrypted ?? false}
+          currentAlgo={doc?.encryptAlgo ?? 'ecma376-agile'}
           writeProtection={writeProtection}
           protection={protection}
           removePersonalInfo={removePersonalInfo}
