@@ -459,6 +459,11 @@ export function SettingsModal({
   const [theme, setTheme] = useState<UiTheme>('system')
   const [saveDir, setSaveDir] = useState('')
   const [analyticsOn, setAnalyticsOn] = useState(true)
+  const [consent, setConsent] = useState<Record<string, { version: number; ts: string }>>({})
+  const [auditDay, setAuditDay] = useState('')
+  const [auditLines, setAuditLines] = useState<Array<{ ts: string; action: string; target: string }>>([])
+  const [auditVerdict, setAuditVerdict] = useState<'none' | 'ok' | 'bad'>('none')
+  const [auditBusy, setAuditBusy] = useState(false)
   const [analyticsSaving, setAnalyticsSaving] = useState(false)
   const [channel, setChannel] = useState<'stable' | 'beta'>('stable')
   const [appVersion, setAppVersion] = useState('')
@@ -478,6 +483,12 @@ export function SettingsModal({
     void window.aiOffice.getAnalyticsEnabled?.().then((on) => {
       if (alive) setAnalyticsOn(on !== false)
     })
+    void (window as unknown as { consent?: { get(): Promise<Record<string, { version: number; ts: string }>> } })
+      .consent?.get()
+      .then((c) => {
+        if (alive) setConsent(c)
+      })
+      .catch(() => {})
     void window.aiOffice.getUpdateChannel?.().then((ch) => {
       if (alive) setChannel(ch)
     })
@@ -670,6 +681,94 @@ export function SettingsModal({
                     }}
                   />
                 </div>
+                {/* upload consent tiers (C2): mirrors the first-use dialog; revocable */}
+                {(['t1', 't2', 't3'] as const).map((tier) => (
+                  <div className="set-field" key={tier}>
+                    <div className="set-field-text">
+                      <div className="set-field-stack">
+                        <div className="set-field-label">
+                          {t('setConsent')}
+                          <span className="set-consent-tier">
+                            {tier === 't1' ? 'AI 内容' : tier === 't2' ? '错误日志' : '匿名统计'}
+                          </span>
+                        </div>
+                        <div className="set-field-desc">{t('setConsentDesc')}</div>
+                      </div>
+                    </div>
+                    <button
+                      className="set-switch"
+                      role="switch"
+                      aria-checked={!!consent[tier]}
+                      onClick={() => {
+                        const next = !consent[tier]
+                        void (window as unknown as { consent?: { set(t: string, g: boolean): Promise<{ ok: boolean }> } })
+                          .consent?.set(tier, next)
+                          .then((r) => {
+                            if (r?.ok) setConsent((c) => ({ ...c, ...(next ? { [tier]: { version: 1, ts: '' } } : {}) }))
+                          })
+                          .catch(() => {})
+                      }}
+                    />
+                  </div>
+                ))}
+                {/* security audit log (C1): view today + verify the hash chain */}
+                <div className="set-field">
+                  <div className="set-field-text">
+                    <div className="set-field-stack">
+                      <div className="set-field-label">{t('setAudit')}</div>
+                      <div className="set-field-desc">{t('setAuditDesc')}</div>
+                    </div>
+                  </div>
+                  <div className="set-field-actions">
+                    <button
+                      className="set-btn"
+                      disabled={auditBusy}
+                      onClick={() => {
+                        setAuditBusy(true)
+                        void Promise.resolve()
+                          .then(() => import('./audit-view')
+                            .then(async ({ fetchTodayAudit }) => {
+                              const r = await fetchTodayAudit()
+                              if (!r) return
+                              setAuditDay(r.day)
+                              setAuditLines(r.events)
+                              setAuditVerdict(r.ok ? 'ok' : 'bad')
+                            }))
+                          .finally(() => setAuditBusy(false))
+                      }}
+                    >
+                      {t('setAuditView')}
+                    </button>
+                    <button
+                      className="set-btn"
+                      disabled={auditBusy}
+                      onClick={() => {
+                        setAuditBusy(true)
+                        void import('./audit-view')
+                          .then(async ({ verifyTodayAudit }) => {
+                            const r = await verifyTodayAudit()
+                            setAuditVerdict(r ? 'ok' : 'bad')
+                          })
+                          .finally(() => setAuditBusy(false))
+                      }}
+                    >
+                      {t('setAuditVerify')}
+                    </button>
+                  </div>
+                </div>
+                {auditVerdict !== 'none' && (
+                  <div className={`set-audit-verdict ${auditVerdict === 'ok' ? 'ok' : 'bad'}`}>
+                    {auditVerdict === 'ok' ? t('setAuditOk') : t('setAuditBad')}
+                  </div>
+                )}
+                {auditLines.length > 0 && (
+                  <pre className="set-audit-log">
+                    {auditLines
+                      .slice(-200)
+                      .map((e) => `${String(e.ts)} ${String(e.action)} ${String(e.target)}`)
+                      .join('\n')}
+                  </pre>
+                )}
               </>
             )}
             {section === 'about' && (

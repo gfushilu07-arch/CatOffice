@@ -303,6 +303,14 @@ ipcRenderer.on('session-lock', (_event, locked: boolean) => {
   }
 })
 contextBridge.exposeInMainWorld('aiOffice', homeApi)
+contextBridge.exposeInMainWorld('consent', {
+  get: () => ipcRenderer.invoke('consent:get'),
+  set: (tier: string, granted: boolean) => ipcRenderer.invoke('consent:set', tier, granted),
+})
+contextBridge.exposeInMainWorld('auditView', {
+  read: (day?: string) => ipcRenderer.invoke('audit:read', day),
+  verify: (day?: string) => ipcRenderer.invoke('audit:verify', day),
+})
 contextBridge.exposeInMainWorld('sessionLock', {
   getState: () => ipcRenderer.invoke('session-lock:state'),
   unlock: () => ipcRenderer.send('session-lock:unlock'),
