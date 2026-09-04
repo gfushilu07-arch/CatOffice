@@ -1,5 +1,5 @@
 /**
- * Upload-consent state (等保 C2, compliance-plan.md §三): tiered, versioned,
+ * Upload-consent state (compliance C2, compliance-plan.md section 3): tiered, versioned,
  * revocable consent records persisted in app-settings.json.
  *
  * Tiers:
