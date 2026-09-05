@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createI18n, htmlLang, type Lang, type Params } from '@genoffice/i18n'
-import { strings } from './strings'
+import { strings } from './strings-merged'
 
 const translate = createI18n(strings)
 

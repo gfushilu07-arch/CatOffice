@@ -31,7 +31,14 @@ git push origin main --tags
 
 1. **新增优先于修改**。新能力一律放新文件/新包（范式：`packages/catspark` 接缝包、`tools/catoffice-setup.mjs`）。与上游结构性零冲突。
 2. **必改的内联改动压到最小行数**，每个偏离点登记进《fork 决策表》。
-3. **文案走覆盖层**（待办）：品牌 i18n 文案迁移到独立数据包，装载时合并；届时恢复上游 strings 原样，品牌文本成为零冲突数据资产。
+3. **文案走覆盖层** ✅ 完成（2026-09-04）：品牌 i18n 文案已迁移到独立数据包
+   `apps/docs/src/renderer/i18n/strings-brand.ts`（7 键 × 19 语言：app 三键 +
+   ai 面板/登录/积分 + ribbon 助手名），装载入口 `strings-merged.ts` 按语言浅
+   合并（覆盖层最后展开，`as typeof upstream` 保持键集类型检查），`locale.tsx`
+   仅改一行 import。**strings-app/ai/ribbon/editor 的品牌值已全部还原上游原文**
+   （与 0a2c25d 快照逐键值零偏离，`strings-brand-overlay.test.ts` 含同步冲突
+   守卫）。键名保留 Genspark 拼写（aiGsk*/appGenspark*）——它们是上游 API 面，
+   与「设置键 genspark 刻意保留」同一决策。
 
 ## fork 决策表
 
@@ -43,6 +50,7 @@ git push origin main --tags
 | `package.json`(根) | name、postinstall 追加 setup 脚本、新增 `sync-gate` 一键门禁、test/typecheck 链尾追加 `@catoffice/compat-lab` | postinstall、sync-gate、链尾 compat-lab 项保我方；其余脚本随上游 |
 | `tools/gen-third-party-notices.mjs` | 标题 CatOffice 化；import 扫描豁免 `@catoffice/*`；licenseText 收录包内全部 LICENSE* 文件（PDFium 等捆绑二进制要求重现全部版权声明）；cargo 路径回退（CARGO_HOME / ~/.cargo/bin） | 保我方四处小改；上游对生成逻辑的其余改动照常收 |
 | `tools/check-english-comments.mjs` | 文档扫描豁免 fork 文档（README.catoffice.md、docs/catoffice/、compat/、assets/brand/——刻意中文且永不回传上游） | 保我方两行；上游对其余扫描逻辑的改动照常收 |
+| `apps/docs/src/renderer/i18n/locale.tsx` | 仅 1 行：`strings` 改从 `./strings-merged` 装入（品牌覆盖层入口，见原则 3） | 保我方 1 行；上游对其余 locale 逻辑的改动照常收 |
 | `tools/catoffice-setup.mjs` | 新增 | 全保留 |
 | `assets/brand/*` + `tools/build-catoffice-icons.mjs` + `apps/shell/build/icon.*`/`icons/` + 渲染层 `app-icon.png`/`catoffice-logo.svg` | 猫系图标全套（我们的产物，覆盖上游同名二进制）；`Home.tsx` lockup import 一行 | 全保我方；上游若改 electron-builder 图标引用结构 → 重新对齐产物路径 |
 | `apps/shell/src/renderer/src/assets/genoffice-logo.svg` | 已删除（被 catoffice-logo.svg 取代） | 上游若恢复/引用该文件 → 保留删除并改回我方文件 |
