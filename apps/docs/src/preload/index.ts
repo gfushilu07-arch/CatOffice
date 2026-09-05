@@ -10,6 +10,7 @@ import type {
   UiTheme,
 } from '../shared/ipc'
 import type { ProjectApi } from '@genoffice/project-store'
+import type { SealLibraryEntry } from '../renderer/seal-library'
 
 const api: DesktopApi = {
   getLanguage: () => ipcRenderer.invoke('app:get-language'),
@@ -40,6 +41,15 @@ const api: DesktopApi = {
     ipcRenderer.invoke('docs:set-password', filePath, password, algo),
   docPasswordAlgo: (filePath: string | null) =>
     ipcRenderer.invoke('docs:password-algo', filePath) as Promise<'ecma376-agile' | 'cat-sm4'>,
+  sealsList: () => ipcRenderer.invoke('seals:list') as Promise<SealLibraryEntry[]>,
+  sealsAdd: (input: Parameters<DesktopApi['sealsAdd']>[0]) =>
+    ipcRenderer.invoke('seals:add', input) as ReturnType<DesktopApi['sealsAdd']>,
+  sealsRename: (id: string, name: string) =>
+    ipcRenderer.invoke('seals:rename', id, name) as ReturnType<DesktopApi['sealsRename']>,
+  sealsRemove: (id: string) =>
+    ipcRenderer.invoke('seals:remove', id) as ReturnType<DesktopApi['sealsRemove']>,
+  sealsImage: (id: string) =>
+    ipcRenderer.invoke('seals:image', id) as ReturnType<DesktopApi['sealsImage']>,
   docPasswordIntentRevision: async () => {
     const revision: unknown = await ipcRenderer.invoke('docs:password-intent-revision')
     return typeof revision === 'number' && Number.isSafeInteger(revision) && revision >= 0

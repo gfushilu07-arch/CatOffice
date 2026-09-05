@@ -34,6 +34,7 @@ import {
   IconHighlighterPen,
   IconPen,
   IconLock,
+  IconStamp,
   IconMoon,
   IconNavPane,
   IconOutlineView,
@@ -652,6 +653,7 @@ interface ReviewTabProps extends TabProps {
   /** any protection is configured (highlights the Protect Document button) */
   protectActive: boolean
   onProtectDoc: () => void
+  onSealLibrary: () => void
   onCompare: () => void
 }
 
@@ -679,6 +681,7 @@ export function ReviewTab({
   trackChangesForced,
   protectActive,
   onProtectDoc,
+  onSealLibrary,
   onCompare,
 }: ReviewTabProps) {
   const { t } = useI18n()
@@ -1022,6 +1025,17 @@ export function ReviewTab({
               <IconLock size={BIG} />
             </span>
             <span>{t('ribbonProtectDoc')}</span>
+          </button>
+          <button
+            className="rb-big"
+            disabled={!hasDoc}
+            title={t('sealLibraryTitle')}
+            onClick={onSealLibrary}
+          >
+            <span className="rb-big-icon">
+              <IconStamp size={BIG} />
+            </span>
+            <span>{t('sealLibraryTitle')}</span>
           </button>
         </div>
         <div className="ribbon-group-label">{t('ribbonGroupProtect')}</div>

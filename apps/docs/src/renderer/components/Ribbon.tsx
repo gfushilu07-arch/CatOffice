@@ -238,6 +238,7 @@ interface RibbonProps {
   /** any protection is configured (highlights the Protect Document button) */
   protectActive: boolean
   onProtectDoc: () => void
+  onSealLibrary: () => void
   onCompare: () => void
   /** current document path (View → New Window opens it in another window) */
   filePath: string | null
@@ -680,6 +681,7 @@ function RibbonInner({
   trackChangesForced,
   protectActive,
   onProtectDoc,
+  onSealLibrary,
   onCompare,
   filePath,
   viewMode,
@@ -3745,6 +3747,7 @@ function RibbonInner({
             trackChangesForced={trackChangesForced}
             protectActive={protectActive}
             onProtectDoc={onProtectDoc}
+            onSealLibrary={onSealLibrary}
             onCompare={onCompare}
           />
         ) : (

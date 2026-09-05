@@ -16,6 +16,7 @@ import { Dropdown } from '@genoffice/ui'
 import { markdownPasteHtml } from './editor/markdown-paste'
 import { templateById } from './template-catalog'
 import { TemplateGallery } from './components/TemplateGallery'
+import { SealLibraryModal } from './components/SealLibraryModal'
 
 /** the sentinel id the shell sends for "open the gallery" (asset center A2) */
 const TEMPLATE_GALLERY_ID = '__gallery'
@@ -429,6 +430,8 @@ export function App() {
   } | null>(null)
   /** Review > Protect: the combined Word-style Protect Document dialog */
   const [showProtectDialog, setShowProtectDialog] = useState(false)
+  /** seal management panel (asset-center SA2 stamp tier) */
+  const [showSealLibrary, setShowSealLibrary] = useState(false)
   /** prompt for a document with a password to modify (w:writeProtection): enter it or open read-only */
   const [modifyPwdPrompt, setModifyPwdPrompt] = useState<{
     value: string
@@ -3863,6 +3866,7 @@ export function App() {
       if (editor) gotoRevision(editor, dir)
     },
     onProtectDoc: () => setShowProtectDialog(true),
+    onSealLibrary: () => setShowSealLibrary(true),
     onCompare: () => void compareWithFile(),
     onViewMode: setViewMode,
     onReadMode: setReadMode,
@@ -4389,6 +4393,16 @@ export function App() {
       {showEquationModal && editor && (
         <EquationModal editor={editor} onClose={() => setShowEquationModal(false)} />
       )}
+      {showSealLibrary && (
+        <SealLibraryModal
+          onInsert={(dataUrl, entry) => {
+            const ed = editorRef.current
+            if (ed) void insertImageFromDataUrl(ed, dataUrl, entry.name)
+          }}
+          onClose={() => setShowSealLibrary(false)}
+        />
+      )}
+
       {showTemplateGallery && (
         <TemplateGallery
           onPick={(template) => {

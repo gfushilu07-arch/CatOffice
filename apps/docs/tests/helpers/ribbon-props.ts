@@ -78,6 +78,7 @@ export function ribbonProps(editor: Editor, formatState: RibbonFormatState) {
     trackChangesForced: false,
     protectActive: false,
     onProtectDoc: noop,
+    onSealLibrary: noop,
     onCompare: noop,
     filePath: null,
     viewMode: 'print' as const,

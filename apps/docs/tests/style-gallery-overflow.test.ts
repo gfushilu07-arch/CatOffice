@@ -120,6 +120,7 @@ function ribbonProps(editor: Editor) {
     trackChangesForced: false,
     protectActive: false,
     onProtectDoc: noop,
+    onSealLibrary: noop,
     onCompare: noop,
     filePath: null,
     viewMode: 'print' as const,

@@ -1096,6 +1096,17 @@ export function IconLock(props: IconProps) {
   )
 }
 
+export function IconStamp(props: IconProps) {
+  return (
+    <Svg {...props}>
+      {/* classic round official seal: outer ring + star + baseline text rule */}
+      <circle cx="8" cy="7.6" r="4.9" />
+      <path d="M 8 5.2 l 0.75 1.5 1.65 0.25 -1.2 1.17 0.28 1.65 -1.48 -0.78 -1.48 0.78 0.28 -1.65 -1.2 -1.17 1.65 -0.25 z" fill="currentColor" stroke="none" />
+      <path d="M 5.4 10.6 h 5.2" />
+    </Svg>
+  )
+}
+
 export function IconKey(props: IconProps) {
   return (
     <Svg {...props}>

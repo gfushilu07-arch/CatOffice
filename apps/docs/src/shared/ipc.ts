@@ -46,6 +46,7 @@ import type {
   GenSparkAccountStatus,
 } from '@genoffice/ai-provider'
 import type { FaceVerticalMetrics } from '@genoffice/font-metrics'
+import type { SealLibraryEntry } from '../renderer/seal-library'
 
 export type { FaceVerticalMetrics }
 
@@ -214,6 +215,17 @@ export interface DesktopApi {
   ): Promise<{ ok: boolean }>
   /** container format of the on-disk bytes (Protect dialog preselect) */
   docPasswordAlgo(filePath: string | null): Promise<'ecma376-agile' | 'cat-sm4'>
+  /** Seal library (SA2 stamp tier): list/add/rename/remove/image */
+  sealsList(): Promise<SealLibraryEntry[]>
+  sealsAdd(input: {
+    name: string
+    shape?: 'circle' | 'ellipse' | 'rect' | 'unknown'
+    sizeMm?: { width: number; height: number }
+    png: Uint8Array
+  }): Promise<{ ok: boolean; entry?: SealLibraryEntry }>
+  sealsRename(id: string, name: string): Promise<{ ok: boolean }>
+  sealsRemove(id: string): Promise<{ ok: boolean }>
+  sealsImage(id: string): Promise<{ base64: string; mime: 'image/png' } | null>
   /** snapshot the current intent sequence before replacement cleanup is queued */
   docPasswordIntentRevision(): Promise<number>
   /** discard prior-document intents through a captured revision */

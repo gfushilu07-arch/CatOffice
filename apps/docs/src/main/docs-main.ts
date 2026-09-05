@@ -119,6 +119,16 @@ import {
   type DocEncryptAlgo,
 } from './docx-encryption'
 import { detectContainerAlgo } from './doc-container-crypto'
+import {
+  addStamp,
+  readLibrary,
+  readStampImage,
+  removeStamp,
+  renameStamp,
+  type SealLibraryEntry,
+} from '../renderer/seal-library'
+
+const SEAL_ROOT = () => userDataPath('seals')
 
 /** on-disk encryption format of encrypted bytes (ECMA-376 Agile default) */
 function diskAlgoSniff(bytes: Buffer): DocEncryptAlgo {
@@ -3113,6 +3123,71 @@ export function registerDocsIpc(): void {
     if (tornDownWcIds.has(event.sender.id)) return -1
     return currentDocPasswordIntentRevision()
   })
+
+  // ---- Seal library (asset-center SA2 stamp tier) ----
+  // The registry lives in main-owned userData/seals; renderers go through IPC
+  // (same single-owner pattern as the audit log). Stamp images are inserted
+  // into documents through the standard image path.
+
+  ipcMain.handle('seals:list', async (): Promise<SealLibraryEntry[]> => {
+    return (await readLibrary(SEAL_ROOT())).entries
+  })
+
+  ipcMain.handle(
+    'seals:add',
+    async (_event, input: unknown): Promise<{ ok: boolean; entry?: SealLibraryEntry }> => {
+      if (!input || typeof input !== 'object') return { ok: false }
+      const i = input as { name?: unknown; shape?: unknown; sizeMm?: unknown; png?: unknown }
+      if (typeof i.name !== 'string' || !i.name.trim() || !(i.png instanceof Uint8Array)) {
+        return { ok: false }
+      }
+      // 8 MB cap: stamps are small crops; anything larger is a mistake
+      if (i.png.byteLength > 8 * 1024 * 1024) return { ok: false }
+      const shape = (['circle', 'ellipse', 'rect', 'unknown'] as const).includes(
+        i.shape as never,
+      )
+        ? (i.shape as SealLibraryEntry['shape'])
+        : 'unknown'
+      const sizeMm =
+        i.sizeMm && typeof i.sizeMm === 'object'
+          ? {
+              width: Number((i.sizeMm as { width: unknown }).width),
+              height: Number((i.sizeMm as { height: unknown }).height),
+            }
+          : undefined
+      const entry = await addStamp(SEAL_ROOT(), {
+        name: i.name.trim(),
+        shape,
+        ...(sizeMm && Number.isFinite(sizeMm.width) && Number.isFinite(sizeMm.height)
+          ? { sizeMm }
+          : {}),
+        png: i.png,
+      })
+      return { ok: true, entry }
+    },
+  )
+
+  ipcMain.handle(
+    'seals:rename',
+    async (_event, id: unknown, name: unknown): Promise<{ ok: boolean }> => {
+      if (typeof id !== 'string' || typeof name !== 'string' || !name.trim()) return { ok: false }
+      return { ok: await renameStamp(SEAL_ROOT(), id, name.trim()) }
+    },
+  )
+
+  ipcMain.handle('seals:remove', async (_event, id: unknown): Promise<{ ok: boolean }> => {
+    if (typeof id !== 'string') return { ok: false }
+    return { ok: await removeStamp(SEAL_ROOT(), id) }
+  })
+
+  ipcMain.handle(
+    'seals:image',
+    async (_event, id: unknown): Promise<{ base64: string; mime: 'image/png' } | null> => {
+      if (typeof id !== 'string') return null
+      const found = await readStampImage(SEAL_ROOT(), id)
+      return found ? { base64: Buffer.from(found.png).toString('base64'), mime: 'image/png' } : null
+    },
+  )
 
   /** container format of the on-disk bytes, for the Protect dialog's preselect */
   ipcMain.handle('docs:password-algo', (event, filePath: unknown): DocEncryptAlgo => {
