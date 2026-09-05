@@ -29,7 +29,11 @@ const slideTexts = (deck: { slides: SlideLike[] }): string[] =>
 
 describe('deck template presets', () => {
   it('ships the work-report and proposal skeletons with stable ids', () => {
-    expect(DECK_TEMPLATES.map((t) => t.id)).toEqual(['deck-weekly-report', 'deck-proposal'])
+    expect(DECK_TEMPLATES.map((t) => t.id)).toEqual([
+      'deck-weekly-report',
+      'deck-proposal',
+      'deck-training',
+    ])
     expect(deckTemplateById('deck-weekly-report')?.label).toBe('工作汇报')
     expect(deckTemplateById('deck-proposal')?.label).toBe('项目提案')
     expect(DECK_TEMPLATES[0]!.pages.sections).toHaveLength(3)

@@ -15,6 +15,8 @@ describe('sheet template presets', () => {
       'sheet-roster',
       'sheet-ledger',
       'sheet-invoice',
+      'sheet-project',
+      'sheet-inventory',
       'sheet-attendance',
     ])
     expect(SHEET_TEMPLATE_MENU).toHaveLength(SHEET_TEMPLATES.length)

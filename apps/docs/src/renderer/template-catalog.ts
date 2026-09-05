@@ -7,6 +7,7 @@
 
 import { govtDocBlocks, type GovtTemplateOptions } from './govt-template'
 import {
+  bidProposalBlocks,
   contractBlocks,
   meetingMinutesBlocks,
   resumeBlocks,
@@ -126,6 +127,14 @@ export const OFFICE_TEMPLATES: Array<Omit<TemplateEntry, 'render'>> = [
     category: 'business',
     defaultOptions: { title: '个人简历' },
   },
+  {
+    id: 'office-bid',
+    label: '投标书',
+    description: '投标函 / 项目概况 / 技术方案 / 资质清单 / 签署页',
+    fileName: '投标书',
+    category: 'business',
+    defaultOptions: { title: '××××项目投标书' },
+  },
 ]
 
 /** the union the gallery shows: govt first, office after */
@@ -158,6 +167,9 @@ export const ALL_TEMPLATES: TemplateEntry[] = [
       }
       if (entry.id === 'office-resume') {
         return { blocks: resumeBlocks(options), section: officeDocSection() }
+      }
+      if (entry.id === 'office-bid') {
+        return { blocks: bidProposalBlocks(options), section: officeDocSection() }
       }
       return { blocks: meetingMinutesBlocks(options), section: officeDocSection() }
     },

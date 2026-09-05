@@ -225,6 +225,82 @@ export function resumeBlocks(options: ResumeOptions = {}): Block[] {
   return blocks
 }
 
+export interface BidProposalOptions {
+  title?: string
+  /** bidding project name */
+  projectName?: string
+  /** the inviting party (tendering side, Chinese zhaobiaoren) */
+  tenderer?: string
+  /** the bidding company (Chinese toubiaoren) */
+  bidder?: string
+  /** total bid price */
+  amount?: string
+  /** delivery/construction duration */
+  duration?: string
+  /** technical-approach section lines */
+  approach?: string[]
+  /** qualification/certificate lines */
+  qualifications?: string[]
+}
+
+/** Bid proposal: bid letter + project overview + technical approach + qualification list + signature page. */
+export function bidProposalBlocks(options: BidProposalOptions = {}): Block[] {
+  seq = 0
+  const {
+    title = '××××项目投标书',
+    projectName = '××××××项目',
+    tenderer = '××××××（招标人）',
+    bidder = '××××××公司',
+    amount = '人民币 ×××× 万元',
+    duration = '××个日历日',
+    approach = [
+      '××××××××××××××××××。',
+      '××××××××××××××××××××××××××。',
+    ],
+    qualifications = [
+      '营业执照副本复印件（加盖公章）；',
+      '法定代表人身份证明及授权委托书；',
+      '××××资质证书复印件（加盖公章）。',
+    ],
+  } = options
+  const blocks: Block[] = [
+    headBlock(title),
+    block({ type: 'paragraph', runs: [bodyRun(`项目名称：${projectName}`)], format: { align: 'center' } }),
+    labelBlock('投标函'),
+    bodyBlock(`致：${tenderer}`),
+    bodyBlock(
+      `根据贵方 ${projectName} 招标文件（招标编号：××××××），我方经认真研究招标文件的全部内容后，愿以 ${amount} 的投标总价，按招标文件的要求承担本项目的全部工作，工期 ${duration}。`,
+    ),
+    bodyBlock('我方承诺：本投标文件的真实性、合法性和完整性由我方负责；如中标，将严格履行合同约定的全部义务。'),
+    labelBlock('项目概况'),
+    bodyBlock('项目名称：' + projectName),
+    fieldBlock('招标编号：'),
+    fieldBlock('建设地点：'),
+    fieldBlock('招标范围：'),
+    labelBlock('技术方案'),
+    ...approach.map(bodyBlock),
+    labelBlock('资质证明文件清单'),
+    ...qualifications.map(bodyBlock),
+    block({ type: 'paragraph', runs: [bodyRun('　')], format: { spaceBefore: 240 } }),
+    block({
+      type: 'paragraph',
+      runs: [bodyRun(`投标人（盖章）：${bidder}`)],
+      format: { align: 'right' },
+    }),
+    block({
+      type: 'paragraph',
+      runs: [bodyRun('法定代表人或授权代表（签字）：×××')],
+      format: { align: 'right' },
+    }),
+    block({
+      type: 'paragraph',
+      runs: [bodyRun('日期：××××年××月××日')],
+      format: { align: 'right' },
+    }),
+  ]
+  return blocks
+}
+
 /** Section settings for office templates: A4 with comfortable margins
  *  (2.54cm top/bottom, 3.17cm left/right — Word's zh defaults). */
 export function officeDocSection(): ReturnType<typeof govtDocSection> {

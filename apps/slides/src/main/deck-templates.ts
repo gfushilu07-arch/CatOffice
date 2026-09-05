@@ -129,7 +129,39 @@ export const WEEKLY_REPORT_TEMPLATE: DeckTemplateEntry = {
   },
 }
 
-export const DECK_TEMPLATES: DeckTemplateEntry[] = [WEEKLY_REPORT_TEMPLATE, PROPOSAL_TEMPLATE]
+/** labels for the shell's native picker menu (independent bundle rule) */
+export const TRAINING_TEMPLATE: DeckTemplateEntry = {
+  id: 'deck-training',
+  label: '培训课件',
+  description: '封面 / 目录 / 课程介绍 / 内容大纲 / 练习答疑 / 结尾',
+  fileName: '培训课件',
+  pages: {
+    coverTitle: '××××××培训课件',
+    coverSubtitle: '讲师：××　·　××××年××月',
+    agenda: ['一、课程介绍', '二、内容大纲', '三、练习与答疑'],
+    sections: [
+      {
+        title: '一、课程介绍',
+        body: ['1. 培训目标：××××××××；', '2. 适用对象：××××××××。'],
+      },
+      {
+        title: '二、内容大纲',
+        body: ['1. ××××××××；', '2. ××××××××；', '3. ××××××××。'],
+      },
+      {
+        title: '三、练习与答疑',
+        body: ['1. 练习：××××××××；', '2. 答疑：××××××××。'],
+      },
+    ],
+    closing: '谢谢参与',
+  },
+}
+
+export const DECK_TEMPLATES: DeckTemplateEntry[] = [
+  WEEKLY_REPORT_TEMPLATE,
+  PROPOSAL_TEMPLATE,
+  TRAINING_TEMPLATE,
+]
 
 export const DECK_TEMPLATE_MENU = DECK_TEMPLATES.map((entry) => ({
   id: entry.id,

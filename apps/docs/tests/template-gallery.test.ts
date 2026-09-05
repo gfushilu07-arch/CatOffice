@@ -21,7 +21,7 @@ const cloudEntry = (id: string, downloads: number): AssetTemplateEntry => ({
 describe('gallery catalog merge', () => {
   it('shows the five govt kinds first, then the office set, when the cloud is unreachable', () => {
     const rows = mergeCatalog(null)
-    expect(rows).toHaveLength(9) // 5 govt + 4 office (P1)
+    expect(rows).toHaveLength(10) // 5 govt + 5 office (P1)
     expect(rows.slice(0, 5).map((r) => r.id)).toEqual([
       'notice',
       'request',
@@ -34,13 +34,14 @@ describe('gallery catalog merge', () => {
       'office-weekly',
       'office-minutes',
       'office-resume',
+      'office-bid',
     ])
     expect(rows.slice(5).every((r) => r.category === 'business' && !r.cloudOnly)).toBe(true)
   })
 
   it('dedupes cloud entries by id and enriches the local row', () => {
     const rows = mergeCatalog([cloudEntry('notice', 9999)])
-    expect(rows).toHaveLength(9) // no duplicate notice row
+    expect(rows).toHaveLength(10) // no duplicate notice row
     const notice = rows.find((r) => r.id === 'notice')!
     expect(notice.cloudOnly).toBe(false)
     expect(notice.downloads).toBe(9999)
@@ -50,9 +51,9 @@ describe('gallery catalog merge', () => {
 
   it('appends cloud-only rows after the local block, ordered by downloads', () => {
     const rows = mergeCatalog([cloudEntry('govt-joint', 100), cloudEntry('govt-horizontal', 500)])
-    expect(rows).toHaveLength(11)
-    expect(rows.slice(9).map((r) => r.id)).toEqual(['govt-horizontal', 'govt-joint'])
-    expect(rows.slice(9).every((r) => r.cloudOnly)).toBe(true)
+    expect(rows).toHaveLength(12)
+    expect(rows.slice(10).map((r) => r.id)).toEqual(['govt-horizontal', 'govt-joint'])
+    expect(rows.slice(10).every((r) => r.cloudOnly)).toBe(true)
   })
 
   it('keeps local rows ahead even when cloud downloads are higher', () => {

@@ -10,6 +10,7 @@ import {
   officeDocSection,
   resumeBlocks,
   weeklyReportBlocks,
+  bidProposalBlocks,
 } from '../src/renderer/office-template'
 
 const textsOf = (blocks: ReturnType<typeof weeklyReportBlocks>): string =>
@@ -79,5 +80,40 @@ describe('resume', () => {
     expect(text).toContain('××科技　前端工程师')
     expect(text).toContain('教育背景')
     expect(text).toContain('技能特长')
+  })
+})
+
+describe('bidProposalBlocks (N2 category expansion)', () => {
+  it('renders the bid structure with default placeholders', () => {
+    const blocks = bidProposalBlocks()
+    const text = blocks
+      .map((b) => (b.type === 'paragraph' ? (b.runs ?? []).map((r) => r.text).join('') : ''))
+      .join('\n')
+    expect(text).toContain('投标书')
+    expect(text).toContain('投标函')
+    expect(text).toContain('技术方案')
+    expect(text).toContain('资质证明文件清单')
+    expect(text).toContain('投标人（盖章）：××××××公司')
+    // right-aligned signature block survives as real runs
+    const signer = blocks.find(
+      (b) => b.type === 'paragraph' && (b.runs ?? []).some((r) => r.text.includes('法定代表人或授权代表')),
+    )
+    expect(signer).toBeDefined()
+  })
+
+  it('every field is overridable by the caller', () => {
+    const blocks = bidProposalBlocks({
+      projectName: '市政道路改造工程',
+      amount: '人民币 800 万元',
+      approach: ['分三段施工。'],
+    })
+    const text = blocks
+      .map((b) => (b.type === 'paragraph' ? (b.runs ?? []).map((r) => r.text).join('') : ''))
+      .join('\n')
+    expect(text).toContain('市政道路改造工程')
+    expect(text).toContain('人民币 800 万元')
+    expect(text).toContain('分三段施工。')
+    // untouched defaults stay ××-placeholdered
+    expect(text).toContain('招标编号：××')
   })
 })

@@ -24,7 +24,7 @@ const entry = (over: Partial<SealLibraryEntry> = {}): SealLibraryEntry => ({
 const PNG_1PX =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 
-const sealsList = vi.fn<[], Promise<SealLibraryEntry[]>>()
+const sealsList = vi.fn<() => Promise<SealLibraryEntry[]>>()
 const desktop = {
   sealsList,
   sealsAdd: vi.fn(),
