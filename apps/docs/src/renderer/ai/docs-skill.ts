@@ -7,6 +7,8 @@ import {
   type AiTrack,
   type NumIds,
 } from './protocol'
+import type { AiDocWriter } from './doc-writer'
+import type { AiPageSetupAccess } from './page-setup'
 import {
   AGENT_TOOLS,
   executeTool,
@@ -15,7 +17,12 @@ import {
   type AiHeaderFooterAccess,
   type ApplyGovtTemplate,
   type FrozenSelection,
+  type AiDocExtras,
 } from './tools'
+import type { AiNotesAccess } from './note-ops'
+
+const IMAGE_GEN_OFF_NOTE =
+  '\n\nNote: generate_image is currently unavailable (no image provider: signed out of Genspark or cloud tools off, and no media API key in Settings). Do not call or promise it; use image_search for imagery.'
 
 /**
  * The docx capability as an AgentSkill: document skeleton context, the five
@@ -28,6 +35,14 @@ export function createDocsSkill(
   getTrack?: () => AiTrack | undefined,
   getComments?: () => AiCommentsAccess | undefined,
   getHf?: () => AiHeaderFooterAccess | undefined,
+  /** live predicate (gsk login && cloud-tools toggle, or a BYOK media key); false hides generate_image */
+  imageGenAvailable?: () => boolean,
+  /** streaming long-form writer behind write_document (panel-owned: progress chip, partial keep/discard) */
+  getWriter?: () => AiDocWriter | undefined,
+  getPageSetup?: () => AiPageSetupAccess | undefined,
+  /** styles.xml catalog + page watermark stores (define_style / applyStyle / set_watermark) */
+  getExtras?: () => AiDocExtras | undefined,
+  getNotes?: () => AiNotesAccess | undefined,
   applyGovtTemplate?: ApplyGovtTemplate,
 ): AgentSkill {
   // Selection frozen per run: tools act on the range the prompt described,
@@ -36,13 +51,28 @@ export function createDocsSkill(
   let frozen: FrozenSelection | null = null
   return {
     id: 'docx',
-    systemPrompt: AGENT_SYSTEM_PROMPT,
-    tools: AGENT_TOOLS,
+    // live: the predicate is re-read before every model request
+    get systemPrompt() {
+      return imageGenAvailable?.() === false
+        ? AGENT_SYSTEM_PROMPT + IMAGE_GEN_OFF_NOTE
+        : AGENT_SYSTEM_PROMPT
+    },
+    get tools() {
+      return imageGenAvailable?.() === false
+        ? AGENT_TOOLS.filter((t) => t.name !== 'generate_image')
+        : AGENT_TOOLS
+    },
     buildContext: () => {
       const editor = getEditor()
       markDocSeen(editor) // the context the model receives is the freshness baseline for index-addressed writes
       frozen = { scope: getSelectionScope(editor), doc: editor.state.doc }
-      return buildDocContext(editor, frozen.scope, getComments?.()?.list(), getHf?.()?.read())
+      return buildDocContext(
+        editor,
+        frozen.scope,
+        getComments?.()?.list(),
+        getHf?.()?.read(),
+        getPageSetup?.()?.list(),
+      )
     },
     executeTool: (call, signal) =>
       executeTool(
@@ -55,6 +85,12 @@ export function createDocsSkill(
         getComments?.(),
         getHf?.(),
         applyGovtTemplate,
+
+        getWriter?.(),
+        getPageSetup?.(),
+        getExtras?.(),
+        getNotes?.(),
+
       ),
   }
 }

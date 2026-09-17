@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { planPrompt } from '../src/ai/deterministic-planner'
-import { workbookCommandBatchSchema } from '../src/domain/workbook-dsl'
-import type { CellState } from '../src/domain/workbook.types'
+import { workbookCommandBatchSchema } from '@genoffice/xlsx-gateway/domain/workbook-dsl'
+import type { CellState } from '@genoffice/xlsx-gateway/domain/workbook.types'
 import { buildLazyChangePlan, planStillMatches } from '../src/renderer/lazy-plan'
 
 const CELLS: Record<string, CellState> = {
@@ -149,6 +149,64 @@ describe('buildLazyChangePlan: DSL v2 operations', () => {
       ['A2', 10, 20],
       ['A3', 20, 30],
     ])
+  })
+
+  it('keeps a large sort_range range-level instead of expanding per cell', () => {
+    const reads: string[] = []
+    const result = buildLazyChangePlan(
+      workbookCommandBatchSchema.parse({
+        dslVersion: 1,
+        transactionId: 'tx-sort-big',
+        baseRevision: 0,
+        summary: 'sort big',
+        operations: [
+          { op: 'sort_range', sheetId: 'sheet-1', range: 'A1:B2000', byColumn: 'A', order: 'desc' },
+        ],
+      }),
+      (address) => {
+        reads.push(address)
+        return { value: null }
+      },
+      () => 'Data',
+    )
+    expect(result.cellChanges).toEqual([])
+    expect(result.structuralChanges).toEqual([
+      {
+        op: {
+          op: 'sort_range',
+          sheetId: 'sheet-1',
+          range: 'A1:B2000',
+          byColumn: 'A',
+          order: 'desc',
+        },
+        label: 'Sort A1:B2000 by A descending',
+      },
+    ])
+    expect(reads).toEqual([])
+  })
+
+  it('rejects sort_range beyond the range-op cell cap', () => {
+    expect(() =>
+      buildLazyChangePlan(
+        workbookCommandBatchSchema.parse({
+          dslVersion: 1,
+          transactionId: 'tx-sort-huge',
+          baseRevision: 0,
+          summary: 'sort huge',
+          operations: [
+            {
+              op: 'sort_range',
+              sheetId: 'sheet-1',
+              range: 'A1:J20001',
+              byColumn: 'A',
+              order: 'asc',
+            },
+          ],
+        }),
+        () => ({ value: null }),
+        () => 'Data',
+      ),
+    ).toThrow(/sort_range covers more than 200,000 cells/)
   })
 
   it('previews layout operations as labeled entries', () => {

@@ -22,10 +22,12 @@ import {
   printHtmlToPdf,
   safeExternalUrl,
   showOpenDialogWithMemory,
+  installRendererProtocol,
+  registerRendererScheme,
+  rendererUrl,
 } from '@genoffice/electron-utils'
 import { createI18n, getUiLang } from '@genoffice/i18n'
-import { gskGenerateImage, hasGskAuth } from '@genoffice/ai-search'
-import { cloudToolsEnabled, type AiSettings } from '@genoffice/ai-provider'
+import { generateImageTool } from '@genoffice/ai-search'
 import { PDF_CHANNELS } from '../shared/ipc'
 import type {
   ExportImagesRequest,
@@ -323,6 +325,23 @@ const tDlg = createI18n({
     btnDontSave: 'Nie zapisuj',
     btnCancel: 'Anuluj',
   },
+  cs: {
+    dlgExportImages: 'Exportovat obrázky do složky',
+    dlgExtract: 'Extrahovat stránky jako PDF',
+    dlgInsert: 'Vyberte PDF k importu',
+    dlgSplit: 'Rozdělit PDF do složky',
+    dlgMerge: 'Vyberte soubory PDF ke sloučení',
+    dlgMergeSave: 'Uložit sloučený PDF jako',
+    dlgMergePages: 'Uložit sloučené stránky jako',
+    dlgReplace: 'Vyberte náhradní PDF',
+    dlgSplitPages: 'Uložit rozdělené stránky jako',
+    filterPdf: 'Dokumenty PDF',
+    closeUnsavedMsg: 'Tento PDF obsahuje neuložené změny.',
+    closeUnsavedDetail: 'Chcete je před zavřením uložit?',
+    btnSave: 'Uložit',
+    btnDontSave: 'Neukládat',
+    btnCancel: 'Zrušit',
+  },
   nl: {
     dlgExportImages: 'Afbeeldingen naar map exporteren',
     dlgExtract: "Pagina's extraheren als PDF",
@@ -475,10 +494,10 @@ function sanitizeGeneratedDocumentTitle(title: string): string {
   return cleaned && cleaned !== '.' && cleaned !== '..' ? cleaned : 'Untitled'
 }
 
-function uniqueGeneratedMarkdownPath(dir: string, title: string): string {
+function uniqueGeneratedTextPath(dir: string, title: string, ext: 'md' | 'html'): string {
   const stem = sanitizeGeneratedDocumentTitle(title)
-  let candidate = join(dir, `${stem}.md`)
-  for (let i = 2; existsSync(candidate); i += 1) candidate = join(dir, `${stem}-${i}.md`)
+  let candidate = join(dir, `${stem}.${ext}`)
+  for (let i = 2; existsSync(candidate); i += 1) candidate = join(dir, `${stem}-${i}.${ext}`)
   return candidate
 }
 
@@ -504,7 +523,8 @@ async function createStandaloneDocument(
       openGeneratedPdf(path)
       return { ok: true, path }
     }
-    const path = uniqueGeneratedMarkdownPath(configuredDefaultSaveDir(app), title)
+    // md / html: the source is the file; standalone has no sibling editor to open it in
+    const path = uniqueGeneratedTextPath(configuredDefaultSaveDir(app), title, request.type)
     await writeFile(path, request.content, 'utf8')
     shell.showItemInFolder(path)
     return { ok: true, path }
@@ -561,6 +581,21 @@ export function markPdfUntitledPath(path: string): void {
   untitledPdfPaths.add(path)
 }
 
+/**
+ * The shell renamed or moved the file this view shows (home Folders / Files
+ * pane): re-key every per-view record and tell the renderer, so the next save
+ * writes to the new location instead of recreating the old one.
+ */
+export function pdfFileRenamed(contents: WebContents, oldPath: string, newPath: string): void {
+  const wcId = contents.id
+  if (openPathByWc.get(wcId) === oldPath) openPathByWc.set(wcId, newPath)
+  const allowed = allowedByWc.get(wcId)
+  if (allowed?.has(oldPath)) allowed.add(newPath)
+  if (saveAsTargetByWc.get(wcId) === oldPath) saveAsTargetByWc.set(wcId, newPath)
+  if (untitledPdfPaths.delete(oldPath)) untitledPdfPaths.add(newPath)
+  if (!contents.isDestroyed()) contents.send(PDF_CHANNELS.fileRenamed, newPath)
+}
+
 export function setPdfRenamedHook(
   hook: (wc: WebContents, oldPath: string, newPath: string) => void,
 ): void {
@@ -577,7 +612,10 @@ function sanitizeAutoRenameBase(raw: string): string | null {
     .replace(/^\.+|\.+$/g, '')
     .trim()
   if (!cleaned) return null
-  return cleaned.length > 40 ? cleaned.slice(0, 40).trim() : cleaned
+  // Windows device names stay reserved with an extension (CON.pdf is still
+  // CON): suffix them so the no-clobber move works there instead of failing.
+  const safe = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(cleaned) ? cleaned + '_' : cleaned
+  return safe.length > 40 ? safe.slice(0, 40).trim() : safe
 }
 
 export type NoClobberMoveResult = 'moved' | 'occupied' | 'failed'
@@ -791,16 +829,6 @@ function withSignatures(
 }
 
 let ipcRegistered = false
-
-/** live read of the shared ai-settings.json (written by the shell settings pane) */
-function gskCloudToolsOn(): boolean {
-  try {
-    const raw = readFileSync(join(app.getPath('userData'), 'ai-settings.json'), 'utf8')
-    return cloudToolsEnabled(JSON.parse(raw) as Partial<AiSettings>)
-  } catch {
-    return true // no settings file yet = default on
-  }
-}
 
 function registerPdfIpc(): void {
   if (ipcRegistered) return
@@ -1359,15 +1387,10 @@ function registerPdfIpc(): void {
         }
       const prompt = String(op?.prompt ?? '').trim()
       if (!prompt) return { error: 'prompt must not be empty' }
-      try {
-        const r = await gskGenerateImage({
-          prompt,
-          aspectRatio: op?.aspectRatio ? String(op.aspectRatio) : undefined,
-        })
-        return { url: r.url }
-      } catch (err) {
-        return { error: err instanceof Error ? err.message : String(err) }
-      }
+      return generateImageTool(join(app.getPath('userData'), 'ai-settings.json'), {
+        prompt,
+        aspectRatio: op?.aspectRatio ? String(op.aspectRatio) : undefined,
+      })
     },
   )
 
@@ -1456,13 +1479,13 @@ export function createPdfView(openPath?: string | null): WebContentsView {
     },
   })
   grantAndTrack(view.webContents, openPath)
-  if (runtime.rendererUrl) void view.webContents.loadURL(runtime.rendererUrl)
-  else if (runtime.rendererFile) void view.webContents.loadFile(runtime.rendererFile)
+  void view.webContents.loadURL(rendererUrl(runtime.rendererUrl, 'pdf'))
   return view
 }
 
 /** Standalone window mode: `npm run dev -w @genoffice/pdf`, pdf path passed via argv */
 export function startPdfStandalone(): void {
+  registerRendererScheme()
   installNavigationGuard(app)
   installContextMenu(app, () => contextMenuLabels(getUiLang()))
   configurePdfRuntime({
@@ -1472,6 +1495,7 @@ export function startPdfStandalone(): void {
     createDocument: createStandaloneDocument,
   })
   void app.whenReady().then(() => {
+    installRendererProtocol({ pdf: join(__dirname, '../renderer') })
     registerPdfIpc()
     const win = new BrowserWindow({
       width: 1200,
@@ -1485,8 +1509,7 @@ export function startPdfStandalone(): void {
     })
     const argPath = process.argv.slice(1).find((a) => /\.pdf$/i.test(a) && existsSync(a))
     grantAndTrack(win.webContents, argPath)
-    if (runtime.rendererUrl) void win.loadURL(runtime.rendererUrl)
-    else if (runtime.rendererFile) void win.loadFile(runtime.rendererFile)
+    void win.loadURL(rendererUrl(runtime.rendererUrl, 'pdf'))
   })
   app.on('window-all-closed', () => app.quit())
 }

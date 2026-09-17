@@ -6,6 +6,7 @@
 import { MAX_CSV_EXPORT_CHARS } from '../shared/ipc-channels'
 import { formulaViewSheets } from './formula-view'
 import { t } from './i18n/locale'
+import { showToast } from './toast-bus'
 import type { LazyWorkbookState, UniverRuntime } from './univer-state'
 
 /// Rows fetched per getDisplayValues call, bounding the facade's allocation.
@@ -23,7 +24,7 @@ export interface CsvExportContext {
 
 /// The slice of the Univer facade the export reads (structural, so the
 /// caller passes the FWorksheet through a cast — same pattern as print-html).
-interface CsvWorksheet {
+export interface CsvWorksheet {
   getLastRow(): number
   getLastColumn(): number
   getSheetId(): string
@@ -104,7 +105,16 @@ export function activeCsvSheet(
   }
 }
 
-function sheetHasFormulas(sheet: CsvWorksheet): boolean {
+/// A worksheet by id through the CsvWorksheet slice (the active sheet when
+/// omitted) — the AI create_document path's analog of activeCsvSheet.
+export function csvSheetById(runtime: UniverRuntime | null, sheetId?: string): CsvWorksheet | null {
+  const workbook = runtime?.univerAPI.getActiveWorkbook()
+  const worksheet =
+    sheetId === undefined ? workbook?.getActiveSheet() : workbook?.getSheetBySheetId(sheetId)
+  return worksheet ? (worksheet as unknown as CsvWorksheet) : null
+}
+
+export function sheetHasFormulas(sheet: CsvWorksheet): boolean {
   let found = false
   sheet
     .getSheet()
@@ -146,12 +156,18 @@ export async function handleExportCsv(ctx: CsvExportContext, targetPath?: string
       else ctx.setMessage(t('appCsvExportCanceled'))
       return
     }
-    ctx.setMessage(
+    // Toast like the regular save paths: the status bar alone is easy to
+    // miss, and a CSV Save As keeps the window on the source workbook — with
+    // no prominent confirmation the export reads as "nothing was saved".
+    const exported =
       sheetCount > 1
         ? t('appCsvExportedActiveOnly', { name: sheet.getSheetName(), path: result.path })
-        : t('appCsvExported', { path: result.path }),
-    )
+        : t('appCsvExported', { path: result.path })
+    ctx.setMessage(exported)
+    showToast(exported)
   } catch (error: unknown) {
-    ctx.setMessage(error instanceof Error ? error.message : t('appCsvExportFailed'))
+    const failed = error instanceof Error ? error.message : t('appCsvExportFailed')
+    ctx.setMessage(failed)
+    showToast(failed, 'error')
   }
 }

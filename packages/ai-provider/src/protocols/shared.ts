@@ -20,6 +20,11 @@ export async function* sseLines(
       buffer = lines.pop() ?? ''
       for (const line of lines) yield line
     }
+    // Flush the decoder: bytes of a multibyte char still buffered inside
+    // TextDecoder under { stream: true } are discarded without a final
+    // decode() — a stream cut mid-char (dropped connection) would lose its
+    // tail silently instead of surfacing the standard replacement mark.
+    buffer += decoder.decode()
     if (buffer) yield buffer
   } finally {
     // The consumer may abandon this generator mid-stream (an in-band gateway
@@ -40,6 +45,8 @@ export interface StreamCallbacks {
   onStopReason?: (reason: string) => void
   /** bytes arrived on the wire (fires per network chunk, including SSE pings; used for keepalive) */
   onActivity?: () => void
+  /** Stable renderer transport id for providers with native sessions. */
+  sessionId?: string
   signal: AbortSignal
 }
 
@@ -107,7 +114,7 @@ export function sseErrorText(error: unknown, fallback: string): string {
  */
 export async function jsonBodyInsteadOfSse(response: Response): Promise<string | null> {
   const contentType = response.headers.get('content-type') ?? ''
-  return contentType.includes('application/json') ? await response.text() : null
+  return contentType.toLowerCase().includes('application/json') ? await response.text() : null
 }
 
 /**

@@ -1,18 +1,9 @@
 import type { Editor } from '@tiptap/core'
+import { runUiOps } from '../ai/ops'
 
-/** Word's ribbon indent step: half an inch, in twips */
-const STEP = 720
-
-/** paragraph-like blocks that carry indent attributes */
-const PARA_TYPES = new Set(['docParagraph', 'docHeading', 'docListItem'])
-
-/**
- * Word's Ctrl+T / Ctrl+Shift+T: a hanging indent moves the left indent one stop
- * right while pulling the first line back by the same amount, so continuation
- * lines sit under the body text. Ctrl+Shift+T walks it back, and only clears the
- * negative first line once the left indent is home.
- */
+/** Word's Ctrl+T / Ctrl+Shift+T: hanging indent one half-inch stop out or back (see the stepHangingIndent op) */
 export function stepHangingIndent(editor: Editor, delta: 1 | -1): boolean {
+<<<<<<< HEAD
   return editor
     .chain()
     .focus()
@@ -41,10 +32,14 @@ export function stepHangingIndent(editor: Editor, delta: 1 | -1): boolean {
       return changed
     })
     .run()
+=======
+  return runUiOps(editor, [{ op: 'stepHangingIndent', target: { scope: 'selection' }, delta }])
+>>>>>>> upstream/main
 }
 
-/** Ribbon increase/decrease indent: list items change level, plain paragraphs and headings snap to the next half-inch stop */
+/** Ribbon increase/decrease indent: list items change level, paragraphs and headings snap to the next half-inch stop */
 export function stepParagraphIndent(editor: Editor, delta: 1 | -1): boolean {
+<<<<<<< HEAD
   if (editor.isActive('docListItem')) {
     const ilvl = Number(editor.getAttributes('docListItem').ilvl) || 0
     const next = Math.min(Math.max(ilvl + delta, 0), 8)
@@ -75,4 +70,7 @@ export function stepParagraphIndent(editor: Editor, delta: 1 | -1): boolean {
       return changed
     })
     .run()
+=======
+  return runUiOps(editor, [{ op: 'stepIndent', target: { scope: 'selection' }, delta }])
+>>>>>>> upstream/main
 }

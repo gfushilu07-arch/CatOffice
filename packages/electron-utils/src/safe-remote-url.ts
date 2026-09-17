@@ -72,8 +72,14 @@ export async function isSafeRemoteUrl(
   // this deployment into trusting exactly that one origin (same port only —
   // any other loopback address stays blocked).
   if (isMockMode() && url.origin === mockCloudOrigin()) return true
-  // URL keeps IPv6 literals bracketed; isIP does not accept the brackets
-  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase()
+  // URL keeps IPv6 literals bracketed; isIP does not accept the brackets.
+  // Strip a trailing dot: DNS treats "localhost." as "localhost", so the
+  // hostname gate must too (otherwise the check passes and only the later
+  // DNS lookup catches it, after a needless external resolution).
+  const host = url.hostname
+    .replace(/^\[|\]$/g, '')
+    .toLowerCase()
+    .replace(/\.+$/, '')
   if (host === '') return false
   if (isIP(host)) return !isBlockedAddress(host)
   if (host === 'localhost' || BLOCKED_HOST_SUFFIXES.some((s) => host.endsWith(s))) return false

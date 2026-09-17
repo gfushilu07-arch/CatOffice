@@ -37,16 +37,22 @@ import type {
 import { z } from 'zod'
 import {
   appMenuLabels,
+  buildPrintableHtml,
   configuredDefaultSaveDir,
   contextMenuLabels,
   fetchRemoteImage,
   installContextMenu,
   installNavigationGuard,
+  printHtmlToPdf,
   safeExternalUrl,
   showOpenDialogWithMemory,
   showSaveDialogWithMemory,
+  helpMenuTemplate,
   viewMenuTemplate,
   windowMenuTemplate,
+  installRendererProtocol,
+  registerRendererScheme,
+  rendererUrl,
 } from '@genoffice/electron-utils'
 import { proxyProbeUrl } from '@catoffice/catspark'
 import { createI18n, getUiLang, type Lang, normalizeLang, setUiLang } from '@genoffice/i18n'
@@ -56,11 +62,13 @@ import {
   AiCreditsError,
   AiTimeoutError,
   isAiNetworkError,
+  isAiOverloadedError,
   chatForProvider,
   defaultAiSettings,
   activeProvider,
-  cloudToolsEnabled,
+  maxOutputTokensOf,
   resolveAiSettings,
+  setAiUserAgent,
   setRescueFetch,
   streamForProvider,
   type AiProviderId,
@@ -69,22 +77,30 @@ import {
   type GenSparkAccountStatus,
   type LegacyAiSettings,
 } from '@genoffice/ai-provider'
-import { csvToXlsxBuffer, decodeCsvBuffer } from '../gateway/csv-import'
+import { shutdownCodexAppServers } from '@genoffice/ai-provider/codex-app-server'
+import {
+  csvToXlsxBuffer,
+  decodeCsvBuffer,
+  sheetCsvToXlsxBuffer,
+} from '@genoffice/xlsx-gateway/gateway/csv-import'
 import {
   ensureGenofficeLogin,
   gskApiKey,
   gskLoginInfo,
   hasGskAuth,
   setGskProxyUrl,
-  webSearch,
-  imageSearch,
-  gskGenerateImage,
+  webSearchTool,
+  imageSearchTool,
+  generateImageTool,
 } from '@genoffice/ai-search'
 import { parseFileToText } from '@genoffice/file-parse'
-import type { CellEdit, SheetStructuralOps } from '../gateway/xlsx-gateway'
-import { readArchiveEntryText, saveWorkbookViaSidecar } from '../gateway/xlsx-package-io'
-import { parsePivotDefinition } from '../gateway/xlsx-pivot'
-import type { SheetEditPlan } from '../gateway/xlsx-sheets'
+import type { CellEdit, SheetStructuralOps } from '@genoffice/xlsx-gateway/gateway/xlsx-gateway'
+import {
+  readArchiveEntryText,
+  saveWorkbookViaSidecar,
+} from '@genoffice/xlsx-gateway/gateway/xlsx-package-io'
+import { parsePivotDefinition } from '@genoffice/xlsx-gateway/gateway/xlsx-pivot'
+import type { SheetEditPlan } from '@genoffice/xlsx-gateway/gateway/xlsx-sheets'
 import type {
   AttachmentAddResult,
   AttachmentImageResult,
@@ -111,23 +127,29 @@ import {
   screenCaptureResultSchema,
   screenSourcesResultSchema,
   workbookPivotDefinitionSchema,
+  workbookCreateDocumentRequestSchema,
   workbookExportCsvRequestSchema,
   workbookExportPdfRequestSchema,
   workbookRangeRequestSchema,
   workbookRangeResultSchema,
   workbookSaveEditsAbortSchema,
   workbookSaveEditsBeginSchema,
+  saveEditsChunkArraySchema,
   workbookSaveEditsChunkSchema,
   workbookSaveRequestSchema,
+  type WorkbookCreateDocumentResult,
   type WorkbookSaveRequest,
 } from '../shared/desktop-api'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
 import { atomicWriteFile } from './atomic-write'
 import { closeGuardDecision } from './close-guard'
 import { SaveEditsTransferStore } from './save-edits-transfer'
-import { exportPdf } from './pdf-export'
+import { exportPdf, printWorkbook } from './pdf-export'
 import { allowsAutomaticWorkbookRecovery } from './recovery-policy'
-import { setSystemShortDate, shortDatePatternForSystemLocale } from '../shared/short-date'
+import {
+  setSystemShortDate,
+  shortDatePatternForSystemLocale,
+} from '@genoffice/xlsx-gateway/shared/short-date'
 import {
   cleanupExpiredPastedFiles,
   cleanupImportTempDirectory,
@@ -162,6 +184,7 @@ const tMain = createI18n({
     errNotImage: '不是支持的图片类型',
     errGskNotLoggedIn: '未登录 Genspark:请点击下方「登录 Genspark」完成登录后重试',
     errNoApiKey: '未配置 {provider} 的 API Key',
+    errAiBusy: 'AI 服务当前繁忙，请稍后重试',
     errNoModel: '未配置模型名称',
     errImgAbsPath: '图片路径必须是绝对路径。',
     errImgNotFound: '找不到图片文件: {path}',
@@ -178,6 +201,7 @@ const tMain = createI18n({
     menuSave: '保存',
     menuSaveAs: '另存为…',
     menuExportPdf: '导出 PDF…',
+    menuPrint: '打印…',
     menuClose: '关闭',
     menuQuit: '退出',
     menuEdit: '编辑',
@@ -218,6 +242,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Not signed in to Genspark: click “Sign in to Catspark” below, sign in, then retry',
     errNoApiKey: 'No API key configured for {provider}',
+    errAiBusy: 'The AI service is busy right now — please try again in a moment',
     errNoModel: 'No model name configured',
     errImgAbsPath: 'Image path must be absolute.',
     errImgNotFound: 'Image file not found: {path}',
@@ -234,6 +259,7 @@ const tMain = createI18n({
     menuSave: 'Save',
     menuSaveAs: 'Save As…',
     menuExportPdf: 'Export PDF…',
+    menuPrint: 'Print…',
     menuClose: 'Close',
     menuQuit: 'Quit',
     menuEdit: 'Edit',
@@ -277,6 +303,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Catspark にサインインしていません。下の「Catspark にサインイン」からサインインして再試行してください',
     errNoApiKey: '{provider} の API キーが設定されていません',
+    errAiBusy: 'AI サービスが混み合っています。しばらくしてからもう一度お試しください',
     errNoModel: 'モデル名が設定されていません',
     errImgAbsPath: '画像パスは絶対パスで指定してください。',
     errImgNotFound: '画像ファイルが見つかりません: {path}',
@@ -294,6 +321,7 @@ const tMain = createI18n({
     menuSave: '保存',
     menuSaveAs: '名前を付けて保存…',
     menuExportPdf: 'PDF をエクスポート…',
+    menuPrint: '印刷…',
     menuClose: '閉じる',
     menuQuit: '終了',
     menuEdit: '編集',
@@ -338,6 +366,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Catspark에 로그인되어 있지 않습니다. 아래 "Catspark 로그인"을 눌러 로그인한 뒤 다시 시도하세요',
     errNoApiKey: '{provider}의 API 키가 설정되지 않았습니다',
+    errAiBusy: 'AI 서비스가 혼잡합니다. 잠시 후 다시 시도해 주세요',
     errNoModel: '모델 이름이 설정되지 않았습니다',
     errImgAbsPath: '이미지 경로는 절대 경로여야 합니다.',
     errImgNotFound: '이미지 파일을 찾을 수 없습니다: {path}',
@@ -355,6 +384,7 @@ const tMain = createI18n({
     menuSave: '저장',
     menuSaveAs: '다른 이름으로 저장…',
     menuExportPdf: 'PDF 내보내기…',
+    menuPrint: '인쇄…',
     menuClose: '닫기',
     menuQuit: '끝내기',
     menuEdit: '편집',
@@ -399,6 +429,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Non connecté à Catspark : cliquez sur « Se connecter à Catspark » ci-dessous, connectez-vous puis réessayez',
     errNoApiKey: 'Aucune clé API configurée pour {provider}',
+    errAiBusy: "Le service d'IA est actuellement surchargé — réessayez dans un instant",
     errNoModel: 'Aucun nom de modèle configuré',
     errImgAbsPath: "Le chemin de l'image doit être absolu.",
     errImgNotFound: 'Fichier image introuvable : {path}',
@@ -416,6 +447,7 @@ const tMain = createI18n({
     menuSave: 'Enregistrer',
     menuSaveAs: 'Enregistrer sous…',
     menuExportPdf: 'Exporter en PDF…',
+    menuPrint: 'Imprimer…',
     menuClose: 'Fermer',
     menuQuit: 'Quitter',
     menuEdit: 'Édition',
@@ -461,6 +493,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Nicht bei Catspark angemeldet: Klicken Sie unten auf „Bei Catspark anmelden“, melden Sie sich an und versuchen Sie es erneut',
     errNoApiKey: 'Kein API-Schlüssel für {provider} konfiguriert',
+    errAiBusy: 'Der KI-Dienst ist derzeit überlastet — bitte gleich erneut versuchen',
     errNoModel: 'Kein Modellname konfiguriert',
     errImgAbsPath: 'Der Bildpfad muss absolut sein.',
     errImgNotFound: 'Bilddatei nicht gefunden: {path}',
@@ -478,6 +511,7 @@ const tMain = createI18n({
     menuSave: 'Speichern',
     menuSaveAs: 'Speichern unter…',
     menuExportPdf: 'PDF exportieren…',
+    menuPrint: 'Drucken…',
     menuClose: 'Schließen',
     menuQuit: 'Beenden',
     menuEdit: 'Bearbeiten',
@@ -522,6 +556,8 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'No has iniciado sesión en Genspark: pulsa «Iniciar sesión en Genspark» abajo, inicia sesión y vuelve a intentarlo',
     errNoApiKey: 'No hay clave de API configurada para {provider}',
+    errAiBusy:
+      'El servicio de IA está saturado en este momento; inténtalo de nuevo en unos instantes',
     errNoModel: 'No hay nombre de modelo configurado',
     errImgAbsPath: 'La ruta de la imagen debe ser absoluta.',
     errImgNotFound: 'No se encontró el archivo de imagen: {path}',
@@ -538,6 +574,7 @@ const tMain = createI18n({
     menuSave: 'Guardar',
     menuSaveAs: 'Guardar como…',
     menuExportPdf: 'Exportar a PDF…',
+    menuPrint: 'Imprimir…',
     menuClose: 'Cerrar',
     menuQuit: 'Salir',
     menuEdit: 'Edición',
@@ -582,6 +619,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'ยังไม่ได้ลงชื่อเข้าใช้ Genspark: แตะ “ลงชื่อเข้าใช้ Catspark” ด้านล่าง แล้วลองอีกครั้ง',
     errNoApiKey: 'ยังไม่ได้ตั้งค่า API Key ของ {provider}',
+    errAiBusy: 'บริการ AI มีผู้ใช้งานจำนวนมากในขณะนี้ โปรดลองอีกครั้งในอีกสักครู่',
     errNoModel: 'ยังไม่ได้กำหนดชื่อโมเดล',
     errImgAbsPath: 'เส้นทางรูปภาพต้องเป็นเส้นทางแบบสัมบูรณ์',
     errImgNotFound: 'ไม่พบไฟล์รูปภาพ: {path}',
@@ -598,6 +636,7 @@ const tMain = createI18n({
     menuSave: 'บันทึก',
     menuSaveAs: 'บันทึกเป็น…',
     menuExportPdf: 'ส่งออก PDF…',
+    menuPrint: 'พิมพ์…',
     menuClose: 'ปิด',
     menuQuit: 'ออก',
     menuEdit: 'แก้ไข',
@@ -640,6 +679,7 @@ const tMain = createI18n({
     errNotImage: 'bukan jenis gambar yang didukung',
     errGskNotLoggedIn: 'Belum masuk ke Genspark: klik “Masuk ke Catspark” di bawah, lalu coba lagi',
     errNoApiKey: 'API Key untuk {provider} belum dikonfigurasi',
+    errAiBusy: 'Layanan AI sedang sibuk — silakan coba lagi sebentar lagi',
     errNoModel: 'Nama model belum dikonfigurasi',
     errImgAbsPath: 'Jalur gambar harus berupa jalur absolut.',
     errImgNotFound: 'File gambar tidak ditemukan: {path}',
@@ -656,6 +696,7 @@ const tMain = createI18n({
     menuSave: 'Simpan',
     menuSaveAs: 'Simpan Sebagai…',
     menuExportPdf: 'Ekspor PDF…',
+    menuPrint: 'Cetak…',
     menuClose: 'Tutup',
     menuQuit: 'Keluar',
     menuEdit: 'Edit',
@@ -700,6 +741,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Вы не вошли в Genspark: нажмите «Войти в Genspark» ниже, войдите и повторите попытку',
     errNoApiKey: 'API-ключ для {provider} не настроен',
+    errAiBusy: 'Сервис ИИ сейчас перегружен — повторите попытку чуть позже',
     errNoModel: 'Имя модели не настроено',
     errImgAbsPath: 'Путь к изображению должен быть абсолютным.',
     errImgNotFound: 'Файл изображения не найден: {path}',
@@ -716,6 +758,7 @@ const tMain = createI18n({
     menuSave: 'Сохранить',
     menuSaveAs: 'Сохранить как…',
     menuExportPdf: 'Экспорт в PDF…',
+    menuPrint: 'Печать…',
     menuClose: 'Закрыть',
     menuQuit: 'Выход',
     menuEdit: 'Правка',
@@ -759,6 +802,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'لم تسجّل الدخول إلى Genspark: انقر على «تسجيل الدخول إلى Genspark» أدناه ثم أعد المحاولة',
     errNoApiKey: 'لم يتم تكوين مفتاح API لـ {provider}',
+    errAiBusy: 'خدمة الذكاء الاصطناعي مشغولة حاليًا — يرجى المحاولة مرة أخرى بعد قليل',
     errNoModel: 'لم يتم تكوين اسم النموذج',
     errImgAbsPath: 'يجب أن يكون مسار الصورة مسارًا مطلقًا.',
     errImgNotFound: 'لم يتم العثور على ملف الصورة: {path}',
@@ -775,6 +819,7 @@ const tMain = createI18n({
     menuSave: 'حفظ',
     menuSaveAs: 'حفظ باسم…',
     menuExportPdf: 'تصدير PDF…',
+    menuPrint: 'طباعة…',
     menuClose: 'إغلاق',
     menuQuit: 'إنهاء',
     menuEdit: 'تحرير',
@@ -817,6 +862,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Não conectado ao Genspark: clique em “Entrar no Catspark” abaixo, entre e tente novamente',
     errNoApiKey: 'Nenhuma chave de API configurada para {provider}',
+    errAiBusy: 'O serviço de IA está sobrecarregado no momento — tente novamente em instantes',
     errNoModel: 'Nenhum nome de modelo configurado',
     errImgAbsPath: 'O caminho da imagem deve ser absoluto.',
     errImgNotFound: 'Arquivo de imagem não encontrado: {path}',
@@ -833,6 +879,7 @@ const tMain = createI18n({
     menuSave: 'Salvar',
     menuSaveAs: 'Salvar Como…',
     menuExportPdf: 'Exportar PDF…',
+    menuPrint: 'Imprimir…',
     menuClose: 'Fechar',
     menuQuit: 'Sair',
     menuEdit: 'Editar',
@@ -877,6 +924,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Accesso a Catspark non effettuato: fai clic su “Accedi a Catspark” qui sotto, accedi e riprova',
     errNoApiKey: 'Nessuna chiave API configurata per {provider}',
+    errAiBusy: 'Il servizio IA è momentaneamente sovraccarico — riprova tra poco',
     errNoModel: 'Nessun nome di modello configurato',
     errImgAbsPath: "Il percorso dell'immagine deve essere assoluto.",
     errImgNotFound: 'File immagine non trovato: {path}',
@@ -894,6 +942,7 @@ const tMain = createI18n({
     menuSave: 'Salva',
     menuSaveAs: 'Salva con nome…',
     menuExportPdf: 'Esporta PDF…',
+    menuPrint: 'Stampa…',
     menuClose: 'Chiudi',
     menuQuit: 'Esci',
     menuEdit: 'Modifica',
@@ -938,6 +987,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Nie zalogowano do Genspark: kliknij „Zaloguj się do Catspark” poniżej, zaloguj się i spróbuj ponownie',
     errNoApiKey: 'Nie skonfigurowano klucza API dla {provider}',
+    errAiBusy: 'Usługa AI jest obecnie przeciążona — spróbuj ponownie za chwilę',
     errNoModel: 'Nie skonfigurowano nazwy modelu',
     errImgAbsPath: 'Ścieżka obrazu musi być bezwzględna.',
     errImgNotFound: 'Nie znaleziono pliku obrazu: {path}',
@@ -954,6 +1004,7 @@ const tMain = createI18n({
     menuSave: 'Zapisz',
     menuSaveAs: 'Zapisz jako…',
     menuExportPdf: 'Eksportuj PDF…',
+    menuPrint: 'Drukuj…',
     menuClose: 'Zamknij',
     menuQuit: 'Zakończ',
     menuEdit: 'Edycja',
@@ -978,6 +1029,68 @@ const tMain = createI18n({
     csvKeepFormatDetail:
       'CSV zachowuje tylko wartości jednego arkusza — formuły, formatowanie i dodatkowe arkusze nie są zapisywane w pliku .csv.',
   },
+  cs: {
+    filterSpreadsheets: 'Tabulky',
+    filterXlsx: 'Sešity Excelu',
+    filterXlsm: 'Sešity Excelu s podporou maker',
+    dlgAddAttachment: 'Přidat přílohy',
+    filterSupported: 'Podporované soubory',
+    filterAll: 'Všechny soubory',
+    errUnsupportedExt: 'soubory .{ext} nejsou podporovány',
+    errNotFile: 'není soubor',
+    errTooLarge: 'překračuje limit {mb} MB',
+    errImageTooLarge: 'obrázek překračuje limit 5 MB',
+    errUnreadable: 'nelze přečíst',
+    errFileTooLarge: 'Soubor překračuje limit velikosti',
+    errParseFailed: 'Soubor se nepodařilo zpracovat',
+    errImageNoText:
+      'Obrázkové přílohy neobsahují text; obrázek se odesílá spolu se zprávou uživatele',
+    errNotImage: 'nepodporovaný typ obrázku',
+    errGskNotLoggedIn:
+      'Nejste přihlášeni ke Genspark: klikněte níže na „Přihlásit se ke Genspark“, přihlaste se a zkuste to znovu',
+    errNoApiKey: 'Pro {provider} není nakonfigurován žádný klíč API',
+    errAiBusy: 'Služba AI je momentálně zaneprázdněna — zkuste to prosím za chvíli znovu',
+    errNoModel: 'Není nakonfigurován název modelu',
+    errImgAbsPath: 'Cesta k obrázku musí být absolutní.',
+    errImgNotFound: 'Soubor obrázku nebyl nalezen: {path}',
+    errImgTooLarge20: 'Obrázek překračuje 20 MB a nelze ho vložit.',
+    errImgBadType: 'Soubor není obrázek PNG/JPEG/GIF.',
+    errDiskChanged: 'Sešit byl po otevření změněn na disku — použijte místo toho Uložit jako.',
+    autosaveFoundTitle: 'Nalezena obnovená verze',
+    autosaveFoundBody:
+      'Z poslední relace existují neuložené změny. Obnovit automaticky uloženou verzi? Uložení po obnovení přepíše původní soubor.',
+    autosaveRestore: 'Obnovit',
+    autosaveDiscard: 'Zahodit',
+    menuFile: 'Soubor',
+    menuOpenWorkbook: 'Otevřít sešit…',
+    menuSave: 'Uložit',
+    menuSaveAs: 'Uložit jako…',
+    menuExportPdf: 'Exportovat PDF…',
+    menuPrint: 'Tisk…',
+    menuClose: 'Zavřít',
+    menuQuit: 'Ukončit',
+    menuEdit: 'Úpravy',
+    menuUndo: 'Zpět',
+    menuRedo: 'Znovu',
+    closeUnsavedMsg: 'Neuložené změny: {count}',
+    closeUnsavedDetail: 'Pokud zavřete bez uložení, změny budou ztraceny.',
+    btnDontSave: 'Neukládat',
+    btnCancel: 'Zrušit',
+    csvSaveAsNotice:
+      'Soubory CSV nezachovávají formátování — uložením jako .xlsx zachováte všechny změny.',
+    menuExportCsv: 'Exportovat CSV…',
+    filterCsv: 'CSV (oddělený čárkami)',
+    csvFormulaLossMsg: 'Tento list obsahuje vzorce, které formát CSV nezachová.',
+    csvFormulaLossDetail:
+      'CSV zachovává pouze hodnoty — vzorce se nahradí aktuálními výsledky a formátování se ztratí.',
+    csvKeepXlsxBtn: 'Uložit jako .xlsx',
+    csvContinueBtn: 'Pokračovat jako CSV',
+    csvActiveSheetOnlyNotice:
+      'Soubory CSV obsahují jen jeden list — exportován bude pouze aktivní list „{name}“.',
+    csvKeepFormatMsg: 'Pokračovat v ukládání ve formátu CSV?',
+    csvKeepFormatDetail:
+      'CSV zachovává pouze hodnoty jednoho listu — vzorce, formátování a další listy se do souboru .csv neuloží.',
+  },
   nl: {
     filterSpreadsheets: 'Spreadsheets',
     filterXlsx: 'Excel-werkmappen',
@@ -998,6 +1111,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Niet aangemeld bij Genspark: klik hieronder op “Aanmelden bij Catspark”, meld u aan en probeer het opnieuw',
     errNoApiKey: 'Geen API-sleutel geconfigureerd voor {provider}',
+    errAiBusy: 'De AI-service is momenteel overbelast — probeer het zo opnieuw',
     errNoModel: 'Geen modelnaam geconfigureerd',
     errImgAbsPath: 'Het afbeeldingspad moet absoluut zijn.',
     errImgNotFound: 'Afbeeldingsbestand niet gevonden: {path}',
@@ -1015,6 +1129,7 @@ const tMain = createI18n({
     menuSave: 'Opslaan',
     menuSaveAs: 'Opslaan als…',
     menuExportPdf: 'PDF exporteren…',
+    menuPrint: 'Afdrukken…',
     menuClose: 'Sluiten',
     menuQuit: 'Stoppen',
     menuEdit: 'Bewerken',
@@ -1058,6 +1173,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Belum log masuk ke Genspark: klik “Log masuk ke Catspark” di bawah, kemudian cuba lagi',
     errNoApiKey: 'Kunci API untuk {provider} belum dikonfigurasikan',
+    errAiBusy: 'Perkhidmatan AI sedang sibuk — sila cuba lagi sebentar lagi',
     errNoModel: 'Nama model belum dikonfigurasikan',
     errImgAbsPath: 'Laluan imej mestilah laluan mutlak.',
     errImgNotFound: 'Fail imej tidak ditemui: {path}',
@@ -1074,6 +1190,7 @@ const tMain = createI18n({
     menuSave: 'Simpan',
     menuSaveAs: 'Simpan Sebagai…',
     menuExportPdf: 'Eksport PDF…',
+    menuPrint: 'Cetak…',
     menuClose: 'Tutup',
     menuQuit: 'Keluar',
     menuEdit: 'Edit',
@@ -1117,6 +1234,7 @@ const tMain = createI18n({
     errNotImage: 'סוג תמונה שאינו נתמך',
     errGskNotLoggedIn: 'לא מחובר ל-Genspark: לחץ על "התחבר ל-Catspark" למטה, התחבר ונסה שוב',
     errNoApiKey: 'לא הוגדר מפתח API עבור {provider}',
+    errAiBusy: 'שירות ה-AI עמוס כרגע — נסו שוב בעוד רגע',
     errNoModel: 'לא הוגדר שם מודל',
     errImgAbsPath: 'נתיב התמונה חייב להיות מוחלט.',
     errImgNotFound: 'קובץ התמונה לא נמצא: {path}',
@@ -1133,6 +1251,7 @@ const tMain = createI18n({
     menuSave: 'שמירה',
     menuSaveAs: 'שמירה בשם…',
     menuExportPdf: 'ייצוא PDF…',
+    menuPrint: 'הדפסה…',
     menuClose: 'סגירה',
     menuQuit: 'יציאה',
     menuEdit: 'עריכה',
@@ -1174,6 +1293,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Catspark में साइन इन नहीं है: नीचे “Catspark में साइन इन करें” पर क्लिक करें, साइन इन करें और फिर से कोशिश करें',
     errNoApiKey: '{provider} के लिए कोई API कुंजी कॉन्फ़िगर नहीं है',
+    errAiBusy: 'AI सेवा अभी व्यस्त है — कृपया थोड़ी देर बाद फिर से प्रयास करें',
     errNoModel: 'कोई मॉडल नाम कॉन्फ़िगर नहीं है',
     errImgAbsPath: 'छवि पथ निरपेक्ष होना चाहिए।',
     errImgNotFound: 'छवि फ़ाइल नहीं मिली: {path}',
@@ -1191,6 +1311,7 @@ const tMain = createI18n({
     menuSave: 'सहेजें',
     menuSaveAs: 'इस रूप में सहेजें…',
     menuExportPdf: 'PDF निर्यात करें…',
+    menuPrint: 'प्रिंट करें…',
     menuClose: 'बंद करें',
     menuQuit: 'बाहर निकलें',
     menuEdit: 'संपादन',
@@ -1233,6 +1354,7 @@ const tMain = createI18n({
     errNotImage: '不是支援的圖片類型',
     errGskNotLoggedIn: '未登入 Genspark:請點擊下方「登入 Genspark」完成登入後重試',
     errNoApiKey: '未設定 {provider} 的 API Key',
+    errAiBusy: 'AI 服務目前繁忙，請稍後重試',
     errNoModel: '未設定模型名稱',
     errImgAbsPath: '圖片路徑必須是絕對路徑。',
     errImgNotFound: '找不到圖片檔案: {path}',
@@ -1249,6 +1371,7 @@ const tMain = createI18n({
     menuSave: '儲存',
     menuSaveAs: '另存新檔…',
     menuExportPdf: '匯出 PDF…',
+    menuPrint: '列印…',
     menuClose: '關閉',
     menuQuit: '結束',
     menuEdit: '編輯',
@@ -1312,6 +1435,14 @@ interface SessionInfo {
 
 // ---- runtime configuration (paths differ when bundled into the shell) ----
 
+/** AI create_document content the sheets app cannot build itself — the shell
+ * routes it into the docs-owned creation flow (docx opens a fresh docs tab). */
+export interface SheetsAiHostDocumentRequest {
+  type: 'docx' | 'pdf' | 'md' | 'html'
+  title: string
+  content: string
+}
+
 interface SheetsRuntimeConfig {
   /** absolute path to the sheets preload bundle */
   preloadPath: string
@@ -1321,30 +1452,85 @@ interface SheetsRuntimeConfig {
   rendererFile: string
   /** absolute path to the Rust xlsx-sidecar binary */
   sidecarPath?: string | undefined
-  /** Shell router used to open exported PDFs in a new CatOffice tab. */
+  /** Shell router used to open exported/AI-generated files in a new CatOffice tab. */
   openGeneratedPath?: (path: string) => boolean
+  /** Host-owned cross-app document creator (the shell routes docx/pdf/md into Docs). */
+  createDocument?: (request: SheetsAiHostDocumentRequest) => Promise<WorkbookCreateDocumentResult>
 }
 
 let runtime: SheetsRuntimeConfig = {
   preloadPath: join(__dirname, '../preload/index.js'),
   rendererUrl: process.env.ELECTRON_RENDERER_URL,
   rendererFile: join(__dirname, '../renderer/index.html'),
+  createDocument: createStandaloneSheetsDocument,
 }
 
 export function configureSheetsRuntime(config: SheetsRuntimeConfig): void {
   runtime = config
 }
 
-/** After a successful Sheets → PDF export: open the file in a PDF tab (shell)
- * or reveal it in the folder (standalone). Tab-opening failure must not
- * report the export itself as failed — the file is already persisted. */
-function openExportedPdf(path: string): void {
+/** After writing an exported/AI-generated file: open it in the right tab
+ * (shell) or reveal it in the folder (standalone). Tab-opening failure must
+ * not report the write itself as failed — the file is already persisted. */
+function openGeneratedFile(path: string): void {
   try {
     if (runtime.openGeneratedPath?.(path)) return
   } catch (err) {
-    console.warn('[sheets] Failed to open exported PDF:', err)
+    console.warn('[sheets] Failed to open generated file:', err)
   }
   shell.showItemInFolder(path)
+}
+
+/** Pick a safe file-name stem for an AI-created file (mirrors docs' sanitizeAiDocFileBase). */
+export function sanitizeGeneratedFileBase(title: string): string {
+  const cleaned = String(title ?? '')
+    // eslint-disable-next-line no-control-regex -- generated file names must reject controls
+    .replace(/[/\\:*?"<>|\u0000-\u001f]/g, '_')
+    .trim()
+    .slice(0, 80)
+    .trim()
+  return cleaned && cleaned !== '.' && cleaned !== '..' ? cleaned : 'Untitled'
+}
+
+/** first free path for fileName inside dir: name.ext, name-2.ext, name-3.ext… */
+export function uniquePathIn(dir: string, fileName: string): string {
+  const dot = fileName.lastIndexOf('.')
+  const base = dot > 0 ? fileName.slice(0, dot) : fileName
+  const ext = dot > 0 ? fileName.slice(dot) : ''
+  let candidate = join(dir, fileName)
+  for (let i = 2; existsSync(candidate); i++) candidate = join(dir, `${base}-${i}${ext}`)
+  return candidate
+}
+
+/** Standalone-window fallback for AI docx/pdf/md/html creation (mirrors pdf-main's
+ * createStandaloneDocument): pdf renders in a hidden sandboxed window, md/html
+ * write the source as-is; docx needs the Docs app and is refused. */
+async function createStandaloneSheetsDocument(
+  request: SheetsAiHostDocumentRequest,
+): Promise<WorkbookCreateDocumentResult> {
+  if (request.type === 'docx') {
+    return { ok: false, error: 'Creating DOCX files requires the GenOffice shell or Docs app.' }
+  }
+  const title = sanitizeGeneratedFileBase(request.title)
+  try {
+    if (request.type === 'pdf') {
+      const bytes = await printHtmlToPdf(
+        buildPrintableHtml(title, request.content),
+        () =>
+          new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } }),
+      )
+      const path = uniquePathIn(configuredDefaultSaveDir(app), `${title}.pdf`)
+      await writeFile(path, bytes)
+      openGeneratedFile(path)
+      return { ok: true, path }
+    }
+    const path = uniquePathIn(configuredDefaultSaveDir(app), `${title}.${request.type}`)
+    await writeFile(path, request.content, 'utf8')
+    openGeneratedFile(path)
+    return { ok: true, path }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
 let mainWindow: BrowserWindow | null = null
@@ -1460,8 +1646,13 @@ export function setActiveSheetsWebContents(wc: WebContents | null): void {
  *  Home list) — sync the matching session's path in that tab (later saves write
  *  the new file) and push the renderer to update the title-bar file name. */
 export function sheetsFileRenamed(wc: WebContents, oldPath: string, newPath: string): void {
-  // A user-chosen name always wins: the file no longer qualifies for auto-rename
-  untitledWorkbookPaths.delete(oldPath)
+  // A user-chosen name always wins: the file no longer qualifies for auto-rename.
+  // A move that keeps the untitled name (folder tree), including the "(2)"
+  // suffix a keep-both move adds, does not count as choosing one.
+  const stem = (p: string) => basename(p).replace(/ \(\d+\)(?=\.[^.]+$)/, '')
+  if (untitledWorkbookPaths.delete(oldPath) && stem(newPath) === stem(oldPath)) {
+    untitledWorkbookPaths.add(newPath)
+  }
   const entry = sheetsTabs.get(wc.id)
   if (!entry) return
   let matched = false
@@ -1481,6 +1672,19 @@ export function sheetsFileRenamed(wc: WebContents, oldPath: string, newPath: str
 const untitledWorkbookPaths = new Set<string>()
 export function markSheetsUntitledPath(path: string): void {
   untitledWorkbookPaths.add(path)
+}
+
+const mcpWritablePaths = new Map<number, Set<string>>()
+
+/** MCP save_session: the shell resolved this path for the tab, so a dialog-free save may write it */
+export function authorizeMcpSheetWrite(wcId: number, filePath: string): void {
+  const set = mcpWritablePaths.get(wcId) ?? new Set<string>()
+  set.add(filePath)
+  mcpWritablePaths.set(wcId, set)
+}
+
+function canMcpSheetWrite(wcId: number, filePath: string): boolean {
+  return mcpWritablePaths.get(wcId)?.has(filePath) === true
 }
 
 /** Sanitize an AI-provided sheet name into a safe filename base: strip illegal path chars, collapse whitespace, cap length; null if invalid. (Mirrors slides' draft naming.) */
@@ -1506,9 +1710,14 @@ export function setSheetsWorkbookOpenedHook(
 
 /** forward an application-menu File command into the sheets renderer */
 export function sendSheetsMenuAction(
-  action: 'open' | 'save' | 'save-as' | 'export-pdf' | 'export-csv' | 'undo' | 'redo',
+  action: 'open' | 'save' | 'save-as' | 'print' | 'export-pdf' | 'export-csv' | 'undo' | 'redo',
 ): void {
   activeSheetsWebContents?.send(IPC_CHANNELS.menuAction, action)
+}
+
+/** An already-mounted renderer polled for its queued workbook before one existed. */
+export function nudgeQueuedWorkbook(contents: WebContents): void {
+  contents.send(IPC_CHANNELS.menuAction, 'open')
 }
 
 // ---- AI settings persistence (main process avoids renderer CORS for the chat/stream proxy) ----
@@ -1622,11 +1831,6 @@ function writeJson(path: string, value: unknown): void {
 
 const SETTINGS_PATH = () => userDataPath('ai-settings.json')
 
-/** live read: the shell settings pane writes the file; every tool call re-checks */
-function gskCloudToolsOn(): boolean {
-  return cloudToolsEnabled(readJson<Partial<AiSettings>>(SETTINGS_PATH(), {}))
-}
-
 // Dev-only automation hooks: a fixed CDP port for driving the app from test
 // scripts, and a workbook path that bypasses the native file dialog.
 const debugPort = app.isPackaged ? undefined : process.env.XLSX_DEBUG_PORT
@@ -1679,6 +1883,7 @@ function startCaptureServer(): void {
         action === 'open' ||
         action === 'save' ||
         action === 'save-as' ||
+        action === 'print' ||
         action === 'export-pdf' ||
         action === 'export-csv' ||
         action === 'undo' ||
@@ -1727,8 +1932,8 @@ export async function createSheetsWindow(
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
-    minWidth: 1024,
-    minHeight: 680,
+    minWidth: 720,
+    minHeight: 550,
     show: false,
     title: 'CatOffice Sheets',
     // Traffic lights sit inside the toolbar row.
@@ -1767,12 +1972,81 @@ export async function createSheetsWindow(
     mainWindow = null
   })
 
-  if (runtime.rendererUrl) {
-    await window.loadURL(runtime.rendererUrl)
-  } else {
-    await window.loadFile(runtime.rendererFile)
-  }
+  await window.loadURL(rendererUrl(runtime.rendererUrl, 'sheets'))
   return window
+}
+
+/** hidden export windows: webContents id -> the PDF path the renderer must write */
+const headlessExportTargets = new Map<number, string>()
+/** settled by 'sheets:headless-export-done' (or by the renderer dying) */
+const headlessExportWaiters = new Map<number, (result: HeadlessSheetsReport) => void>()
+
+interface HeadlessSheetsReport {
+  ok: boolean
+  error?: string
+}
+
+/** End a headless run early (a failure the renderer can never observe). */
+function failHeadlessExport(wcId: number, message: string): void {
+  const settle = headlessExportWaiters.get(wcId)
+  if (!settle) return
+  headlessExportWaiters.delete(wcId)
+  settle({ ok: false, error: message })
+}
+
+/**
+ * Render `input` to `outPath` with no visible window: a hidden sheets
+ * renderer opens the workbook through the normal queued-open path, lays the
+ * active sheet out with its Page Layout settings and prints via the existing
+ * hidden print window (main/pdf-export.ts).
+ */
+export async function exportSheetsPdfHeadless(
+  input: string,
+  outPath: string,
+  timeoutMs = 600_000,
+): Promise<void> {
+  const client = sidecar ?? new XlsxSidecarClient(resolveSidecarPath())
+  sidecar = client
+  client.start()
+  const win = new BrowserWindow({
+    show: false,
+    width: 1440,
+    height: 900,
+    webPreferences: {
+      preload: runtime.preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      backgroundThrottling: false,
+    },
+  })
+  registerSheetsIpc()
+  registerSheetsSession(win.webContents, client)
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  win.webContents.on('will-navigate', (event) => event.preventDefault())
+  const wcId = win.webContents.id
+  queueWorkbookForView(win.webContents, input)
+  headlessExportTargets.set(wcId, outPath)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const report = await new Promise<HeadlessSheetsReport>((resolve) => {
+      headlessExportWaiters.set(wcId, resolve)
+      win.webContents.on('render-process-gone', (_event, details) =>
+        resolve({ ok: false, error: `sheets renderer stopped (${details.reason})` }),
+      )
+      timer = setTimeout(
+        () => resolve({ ok: false, error: `sheets export timed out after ${timeoutMs}ms` }),
+        timeoutMs,
+      )
+      void win.webContents.loadURL(rendererUrl(runtime.rendererUrl, 'sheets'))
+    })
+    if (!report.ok) throw new Error(report.error ?? 'sheets export failed')
+  } finally {
+    if (timer) clearTimeout(timer)
+    headlessExportWaiters.delete(wcId)
+    headlessExportTargets.delete(wcId)
+    if (!win.isDestroyed()) win.destroy()
+  }
 }
 
 /** tab-mode equivalent of createSheetsWindow: same runtime/IPC wiring, no BrowserWindow of its own. */
@@ -1801,14 +2075,7 @@ export function createSheetsView(options: { includeAiHandlers?: boolean } = {}):
   }
   // mode=tab: the shell's tab strip owns the traffic lights / caption buttons,
   // so the ribbon must not reserve space for them
-  if (runtime.rendererUrl) {
-    // append via URL so a dev URL that already carries query params stays valid
-    const devUrl = new URL(runtime.rendererUrl)
-    devUrl.searchParams.set('mode', 'tab')
-    void view.webContents.loadURL(devUrl.toString())
-  } else {
-    void view.webContents.loadFile(runtime.rendererFile, { query: { mode: 'tab' } })
-  }
+  void view.webContents.loadURL(rendererUrl(runtime.rendererUrl, 'sheets', { mode: 'tab' }))
   return view
 }
 
@@ -2049,16 +2316,12 @@ export function registerSheetsIpc(): void {
         }
       const prompt = String(op?.prompt ?? '').trim()
       if (!prompt) return { error: 'prompt must not be empty' }
-      try {
-        const r = await gskGenerateImage({
-          prompt,
-          ...(op?.aspectRatio ? { aspectRatio: String(op.aspectRatio) } : {}),
-        })
-        return { url: r.url }
-      } catch (err) {
-        return { error: err instanceof Error ? err.message : String(err) }
-      }
+      return generateImageTool(SETTINGS_PATH(), {
+        prompt,
+        ...(op?.aspectRatio ? { aspectRatio: String(op.aspectRatio) } : {}),
+      })
     },
+
   )
 
   ipcMain.on(IPC_CHANNELS.recoveryPromptReply, (event, restore: unknown) => {
@@ -2109,7 +2372,26 @@ export function registerSheetsIpc(): void {
    */
   ipcMain.handle('sheets:has-queued-workbook', (event) => queuedWorkbookPaths.has(event.sender.id))
 
-  ipcMain.handle(IPC_CHANNELS.selectWorkbook, async (event) => {
+  // ---- headless export mode (--headless-export) ----
+
+  ipcMain.handle('sheets:consume-headless-export', (event): string | null => {
+    const target = headlessExportTargets.get(event.sender.id) ?? null
+    headlessExportTargets.delete(event.sender.id)
+    return target
+  })
+
+  ipcMain.on('sheets:headless-export-done', (event, result: unknown) => {
+    const settle = headlessExportWaiters.get(event.sender.id)
+    if (!settle) return
+    headlessExportWaiters.delete(event.sender.id)
+    const state = result as { ok?: unknown; error?: unknown } | null
+    settle({
+      ok: state?.ok === true,
+      ...(typeof state?.error === 'string' ? { error: state.error } : {}),
+    })
+  })
+
+  const openSelectedWorkbook = async (event: IpcMainInvokeEvent) => {
     const entry = sessionFor(event)
     let path = queuedWorkbookPaths.get(event.sender.id) ?? forcedWorkbookPath
     // consume immediately (before the slow session open) so the shell's
@@ -2164,6 +2446,101 @@ export function registerSheetsIpc(): void {
     }
     workbookOpenedHook?.(event.sender, path)
     return result
+  }
+
+  ipcMain.handle(IPC_CHANNELS.selectWorkbook, async (event) => {
+    try {
+      return await openSelectedWorkbook(event)
+    } catch (err) {
+      // A headless export has no dialog to report a failed open through, and
+      // its renderer would poll to the deadline waiting for a workbook that
+      // will never arrive — settle the run with the real reason instead.
+      failHeadlessExport(event.sender.id, `the input workbook did not open (${String(err)})`)
+      throw err
+    }
+  })
+
+  // Merge sources: same open pipeline as selectWorkbook, but multi-select,
+  // never consuming the shell's queued open path and never retitling the tab
+  // (workbookOpenedHook) — these sessions exist only to be read from and
+  // closed by the renderer's merge routine.
+  /** Open the given spreadsheet paths as merge-source sessions; cleans up
+   *  everything already opened when a later file fails or the tab dies. */
+  const openMergeSources = async (
+    event: Electron.IpcMainInvokeEvent,
+    paths: readonly string[],
+  ): Promise<unknown[] | null> => {
+    const entry = sessionFor(event)
+    const opened: { sessionId: string }[] = []
+    const closeOpened = async () => {
+      for (const { sessionId } of opened) {
+        const session = entry.sessions.get(sessionId)
+        entry.sessions.delete(sessionId)
+        if (session !== undefined) {
+          await cleanupSessionResources({
+            tempRoot: app.getPath('temp'),
+            snapshotPath: session.snapshotPath,
+            importTempDir: session.importTempDir,
+            closeSidecar: () => entry.client.close(sessionId),
+          })
+        }
+      }
+    }
+    try {
+      for (const path of paths) {
+        const prepared = await prepareWorkbookForOpen(
+          entry.client,
+          path,
+          event.sender,
+          dialogParent(event),
+          { skipRecoveryPrompt: true },
+        )
+        if (event.sender.isDestroyed()) {
+          if (prepared.importTempDir !== undefined) {
+            await cleanupImportTempDirectory(app.getPath('temp'), prepared.importTempDir)
+          }
+          break
+        }
+        const result = await openWorkbookSession(entry.client, prepared.openPath, entry.sessions, {
+          suggestSaveAs: prepared.suggestSaveAs,
+          csvImport: prepared.csvImport,
+          csvSourcePath: prepared.csvSourcePath,
+          importTempDir: prepared.importTempDir,
+          restoreTarget: prepared.restoreTarget,
+        })
+        opened.push(result as { sessionId: string })
+        if (event.sender.isDestroyed()) break
+      }
+    } catch (error) {
+      // a later file failing must not strand the sessions already opened
+      await closeOpened()
+      throw error
+    }
+    if (event.sender.isDestroyed()) {
+      await closeOpened()
+      return null
+    }
+    return opened.length > 0 ? opened : null
+  }
+
+  ipcMain.handle(IPC_CHANNELS.selectWorkbooksForMerge, async (event) => {
+    const selection = await openFileDialog(event, {
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: tm('filterSpreadsheets'), extensions: ['xlsx', 'xlsm', 'xls', 'csv'] }],
+    })
+    if (selection.canceled || selection.filePaths.length === 0) return null
+    return openMergeSources(event, selection.filePaths)
+  })
+
+  const MERGE_SOURCE_EXTS = new Set(['xlsx', 'xlsm', 'xls', 'csv'])
+  ipcMain.handle(IPC_CHANNELS.openWorkbooksForMerge, async (event, input: unknown) => {
+    const paths = z.array(z.string().min(1)).min(1).max(20).parse(input)
+    for (const path of paths) {
+      const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase()
+      if (!MERGE_SOURCE_EXTS.has(ext)) throw new Error(`Unsupported merge source: ${ext}`)
+      if (!existsSync(path)) throw new Error('Merge source not found.')
+    }
+    return openMergeSources(event, paths)
   })
 
   ipcMain.handle(IPC_CHANNELS.readWorkbookRange, async (event, input: unknown) => {
@@ -2195,6 +2572,7 @@ export function registerSheetsIpc(): void {
             column: z.number().int().nonnegative(),
             formatted: z.string(),
             number: z.number().optional(),
+            isError: z.boolean().optional(),
             isFormula: z.boolean(),
           })
           .strict(),
@@ -2242,6 +2620,7 @@ export function registerSheetsIpc(): void {
             column: cell.column,
             formatted: cell.formatted,
             ...(cell.number === undefined ? {} : { number: cell.number }),
+            ...(cell.isError ? { isError: true } : {}),
             isFormula: cell.isFormula,
           },
         ]
@@ -2385,8 +2764,13 @@ export function registerSheetsIpc(): void {
     sessionFor(event)
     const request = workbookExportPdfRequestSchema.parse(input)
     const result = await exportPdf(event, request)
-    if (!result.canceled && result.path) openExportedPdf(result.path)
+    if (!result.canceled && result.path) openGeneratedFile(result.path)
     return result
+  })
+
+  ipcMain.handle(IPC_CHANNELS.printWorkbook, async (event, input: unknown) => {
+    sessionFor(event)
+    return printWorkbook(event, workbookExportPdfRequestSchema.parse(input))
   })
 
   ipcMain.handle(IPC_CHANNELS.exportCsv, async (event, input: unknown) => {
@@ -2450,6 +2834,49 @@ export function registerSheetsIpc(): void {
     return { canceled: false, path: targetPath }
   })
 
+  // AI create_document: dialog-free — the file lands in the default save
+  // folder under a unique sanitized name and opens in a new tab. xlsx/csv
+  // write the renderer-serialized worksheet data here (xlsx through the same
+  // CSV→xlsx conversion as CSV imports, values only); docx/pdf/md go through
+  // the host-owned creator (the shell routes them into the docs flow, #960).
+  ipcMain.handle(
+    IPC_CHANNELS.createDocument,
+    async (event, input: unknown): Promise<WorkbookCreateDocumentResult> => {
+      sessionFor(event)
+      const request = workbookCreateDocumentRequestSchema.parse(input)
+      try {
+        if (request.type === 'csv') {
+          const filePath = uniquePathIn(
+            configuredDefaultSaveDir(app),
+            `${sanitizeGeneratedFileBase(request.title)}.csv`,
+          )
+          // UTF-8 BOM so Excel decodes the reopened file correctly (same as exportCsv)
+          await atomicWriteFile(
+            filePath,
+            Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(request.content, 'utf8')]),
+          )
+          openGeneratedFile(filePath)
+          return { ok: true, path: filePath }
+        }
+        if (request.type === 'xlsx') {
+          const buffer = await sheetCsvToXlsxBuffer(request.content, request.sheetName ?? 'Sheet1')
+          const filePath = uniquePathIn(
+            configuredDefaultSaveDir(app),
+            `${sanitizeGeneratedFileBase(request.title)}.xlsx`,
+          )
+          await atomicWriteFile(filePath, buffer)
+          openGeneratedFile(filePath)
+          return { ok: true, path: filePath }
+        }
+        const create = runtime.createDocument
+        if (!create) return { ok: false, error: 'Document creation is unavailable in this host.' }
+        return await create({ type: request.type, title: request.title, content: request.content })
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    },
+  )
+
   // First Save of a CSV session: Excel's "keep this format?" question. The
   // renderer remembers the answer for the file, so it is asked once.
   ipcMain.handle(IPC_CHANNELS.csvSaveConfirm, async (event) => {
@@ -2482,9 +2909,23 @@ export function registerSheetsIpc(): void {
     // original .csv afterwards.
     const csvInPlace = request.mode === 'save' && session.csvSourcePath !== undefined
     let targetPath = session.path
-    // Converted .xls imports never save silently over the temp copy — the
-    // first save always asks where the .xlsx should live.
-    if (request.mode === 'save-as' || session.suggestSaveAs !== undefined) {
+    // MCP explicit-path save (planning/mcp-server.md): dialog-free Save As to
+    // an exact path with a clobber guard — docs:save-to parity. Only the xlsx
+    // pipeline is reachable this way (.xlsm/.csv need their interactive flows).
+    if (request.targetPath !== undefined) {
+      if (request.mode !== 'save-as') throw new Error('An explicit save path needs Save As.')
+      if (!isAbsolute(request.targetPath)) throw new Error('Save path must be absolute.')
+      targetPath = /\.xlsx$/i.test(request.targetPath)
+        ? request.targetPath
+        : `${request.targetPath}.xlsx`
+      // only a target the MCP layer resolved for this tab may be written without a dialog
+      if (!canMcpSheetWrite(event.sender.id, targetPath)) {
+        throw new Error('save target was not authorized')
+      }
+      if (existsSync(targetPath) && request.overwrite !== true) {
+        throw new Error(`file already exists: ${targetPath}`)
+      }
+    } else if (request.mode === 'save-as' || session.suggestSaveAs !== undefined) {
       // .xlsm keeps its extension: untouched archive entries (vbaProject.bin,
       // the macro-enabled content type) round-trip verbatim through the save.
       const macroEnabled = /\.xlsm$/i.test(
@@ -2618,7 +3059,14 @@ export function registerSheetsIpc(): void {
   ipcMain.handle(IPC_CHANNELS.saveEditsChunk, (event, input: unknown) => {
     const entry = sessionFor(event)
     const request = workbookSaveEditsChunkSchema.parse(input)
-    entry.saveTransfers.addChunk(request)
+    // The chunk crosses the bridge and the IPC hop as a flat JSON string;
+    // the edits stay untrusted input until they pass the cell-edit schema.
+    entry.saveTransfers.addChunk({
+      sessionId: request.sessionId,
+      transferId: request.transferId,
+      seq: request.seq,
+      edits: saveEditsChunkArraySchema.parse(JSON.parse(request.editsJson)),
+    })
   })
 
   // Best-effort cleanup from renderer failure paths; a no-op if the transfer
@@ -2805,9 +3253,11 @@ let aiIpcRegistered = false
 export function registerSheetsAiIpc(): void {
   if (aiIpcRegistered) return
   aiIpcRegistered = true
+  app.once('before-quit', shutdownCodexAppServers)
 
   // Node fetch (undici) direct connections get reset under VPN/tun setups; retry over Chromium's stack
   setRescueFetch((url, init) => net.fetch(url, init))
+  setAiUserAgent(`GenOffice/${app.getVersion()}`)
 
   ipcMain.handle(IPC_CHANNELS.aiGetSettings, (event): AiSettings => {
     sessionFor(event)
@@ -2848,17 +3298,23 @@ export function registerSheetsAiIpc(): void {
     if (provider === 'genspark' && config && !config.apiKey) {
       config = { ...config, apiKey: gskApiKey() }
     }
-    if (!config?.apiKey) {
+    if (!config || (provider !== 'codex' && !config.apiKey)) {
       return {
         ok: false,
         error: provider === 'genspark' ? tm('errGskNotLoggedIn') : tm('errNoApiKey', { provider }),
       }
     }
-    if (!config.model) return { ok: false, error: tm('errNoModel') }
+    if (provider !== 'codex' && !config.model) return { ok: false, error: tm('errNoModel') }
     try {
-      return await chatForProvider(provider, config, request.system, request.user)
+      const result = await chatForProvider(provider, config, request.system, request.user)
+      // the one-shot path reports HTTP failures as ok:false with the raw body —
+      // replace capacity/rate-limit dumps with the localized "busy" message
+      if (!result.ok && isAiOverloadedError(result.error)) {
+        return { ok: false, error: tm('errAiBusy') }
+      }
+      return result
     } catch (err) {
-      return { ok: false, error: String(err) }
+      return { ok: false, error: isAiOverloadedError(err) ? tm('errAiBusy') : String(err) }
     }
   })
 
@@ -2867,7 +3323,7 @@ export function registerSheetsAiIpc(): void {
     const request = aiStreamRequestSchema.parse(input)
     const { requestId, system, messages } = request
     const tools = request.tools ?? []
-    const maxTokens = request.maxTokens ?? 8192
+    const maxTokens = request.maxTokens ?? maxOutputTokensOf(request.settings)
     const provider = request.settings.provider as AiProviderId
     let config = request.settings.providers[provider]
     // Catspark's key never enters the settings file; it is read from the gsk
@@ -2878,7 +3334,7 @@ export function registerSheetsAiIpc(): void {
     const send = (chunk: AiStreamChunk) => {
       if (!event.sender.isDestroyed()) event.sender.send(IPC_CHANNELS.aiStreamChunk, chunk)
     }
-    if (!config?.apiKey) {
+    if (!config || (provider !== 'codex' && !config.apiKey)) {
       send({
         requestId,
         type: 'error',
@@ -2886,7 +3342,7 @@ export function registerSheetsAiIpc(): void {
       })
       return
     }
-    if (!config.model) {
+    if (provider !== 'codex' && !config.model) {
       send({ requestId, type: 'error', error: tm('errNoModel') })
       return
     }
@@ -2901,14 +3357,26 @@ export function registerSheetsAiIpc(): void {
       send({ requestId, type: 'ping' })
     }
     try {
+      let stopReason: string | undefined
       await streamForProvider(provider, config, system, messages, tools, maxTokens, {
+        ...(request.sessionId ? { sessionId: request.sessionId } : {}),
         signal: controller.signal,
         onDelta: (text) => send({ requestId, type: 'delta', text }),
         onReasoningDelta: (text) => send({ requestId, type: 'reasoning', text }),
         onToolCall: (toolCall) => send({ requestId, type: 'tool-call', toolCall }),
         onActivity: ping,
+        onStopReason: (reason) => {
+          stopReason = reason
+        },
       })
-      send({ requestId, type: 'done' })
+      // sheets tsconfig sets exactOptionalPropertyTypes: an explicit
+      // `stopReason: undefined` is not assignable to AiStreamChunk, so only
+      // include the property when a reason was actually reported.
+      send(
+        stopReason === undefined
+          ? { requestId, type: 'done' }
+          : { requestId, type: 'done', stopReason },
+      )
     } catch (err) {
       if (controller.signal.aborted) {
         send({ requestId, type: 'done' })
@@ -2923,7 +3391,9 @@ export function registerSheetsAiIpc(): void {
               ? { errorCode: 'credits' as const }
               : isAiNetworkError(err)
                 ? { errorCode: 'network' as const }
-                : {}),
+                : isAiOverloadedError(err)
+                  ? { errorCode: 'overloaded' as const }
+                  : {}),
         })
       }
     } finally {
@@ -2940,10 +3410,10 @@ export function registerSheetsAiIpc(): void {
   // (same source as slides/docs)
   ipcMain.handle('ai:web-search', async (_event, query: unknown, maxResults?: unknown) => {
     try {
-      return await webSearch(
+      return await webSearchTool(
+        SETTINGS_PATH(),
         z.string().parse(query),
         typeof maxResults === 'number' ? maxResults : 6,
-        gskCloudToolsOn(),
       )
     } catch (err) {
       return { results: [], method: 'error', error: String(err) }
@@ -2951,10 +3421,10 @@ export function registerSheetsAiIpc(): void {
   })
   ipcMain.handle('ai:image-search', async (_event, query: unknown, maxResults?: unknown) => {
     try {
-      return await imageSearch(
+      return await imageSearchTool(
+        SETTINGS_PATH(),
         z.string().parse(query),
         typeof maxResults === 'number' ? maxResults : 8,
-        gskCloudToolsOn(),
       )
     } catch (err) {
       return { images: [], method: 'error', error: String(err) }
@@ -3059,6 +3529,7 @@ export function registerProjectIpc(): void {
           output?: string
         }>
         attachments?: Array<{ name: string; path?: string; ext?: string; sizeBytes?: number }>
+        scope?: { label: string; text?: string }
       },
     ) => {
       const msg: Parameters<ProjectStore['appendChatMessage']>[2] = {
@@ -3067,6 +3538,8 @@ export function registerProjectIpc(): void {
       }
       if (args.tools) msg.tools = args.tools
       if (args.attachments) msg.attachments = args.attachments
+      if (args.scope) msg.scope = args.scope
+
       getSheetsProjectStore().appendChatMessage(args.projectId, args.chatId, msg)
     },
   )
@@ -3316,7 +3789,7 @@ async function writeWorkbookTo(
   // resolution the cell edits use.
   const formulaValuesBySheet = new Map<
     string,
-    { row: number; column: number; value: string | number | boolean | null }[]
+    { row: number; column: number; value: string | number | boolean | null | { error: string } }[]
   >()
   for (const cell of request.formulaValues) {
     const sheetName = resolveSheetName(cell.sheetId)
@@ -3419,11 +3892,12 @@ async function openWorkbookSession(
   // copy. The digest also describes exactly those bytes.
   const snapshotPath = await snapshotWorkbook(path)
   try {
-    const [opened, digest, restoreTargetSha, csvSourceSha] = await Promise.all([
+    const [opened, digest, snapshotStat, restoreTargetSha, csvSourceSha] = await Promise.all([
       client
         .open(snapshotPath, getUiLang(), systemShortDate())
         .then((result) => sidecarOpenResultSchema.parse(result)),
       sha256File(snapshotPath),
+      stat(snapshotPath),
       // Missing original (deleted since the crash) is fine: the write-back recreates it.
       restoreTarget === undefined
         ? Promise.resolve(undefined)
@@ -3452,6 +3926,7 @@ async function openWorkbookSession(
       // recovery copy that is the original file, not the copy under userData.
       path: restoreTarget ?? path,
       sha256: digest,
+      fileBytes: snapshotStat.size,
       readOnly: false,
       needsSaveAs: suggestSaveAs !== undefined,
       ...(csvSourcePath === undefined ? {} : { csvPath: csvSourcePath }),
@@ -3485,6 +3960,7 @@ async function prepareWorkbookForOpen(
   path: string,
   contents?: WebContents | undefined,
   parent?: BrowserWindow | undefined,
+  options?: { skipRecoveryPrompt?: boolean },
 ): Promise<{
   openPath: string
   suggestSaveAs?: string
@@ -3499,7 +3975,9 @@ async function prepareWorkbookForOpen(
     // opens it with restoreTarget pointing back at the original, so a plain
     // Save writes straight back over the file the user opened — the restore
     // prompt (which spells out the overwrite) was the confirmation.
-    const recovery = pendingRecoveryFor(path)
+    // Merge sources are read-only picks: never surface (or worse, discard)
+    // another workbook's crash recovery from here.
+    const recovery = options?.skipRecoveryPrompt ? undefined : pendingRecoveryFor(path)
     if (recovery) {
       const choice =
         contents && !contents.isDestroyed()
@@ -3578,6 +4056,13 @@ function installApplicationMenu(): void {
             accelerator: 'Shift+CmdOrCtrl+S',
             click: () => sendMenuAction('save-as'),
           },
+          { type: 'separator' },
+          {
+            label: tm('menuPrint'),
+            accelerator: 'CmdOrCtrl+P',
+            click: () => sendMenuAction('print'),
+          },
+          { type: 'separator' },
           {
             label: tm('menuExportPdf'),
             click: () => sendMenuAction('export-pdf'),
@@ -3623,6 +4108,7 @@ function installApplicationMenu(): void {
       },
       viewMenuTemplate(labels),
       windowMenuTemplate(process.platform, labels),
+      helpMenuTemplate(labels),
     ]),
   )
 }
@@ -3688,6 +4174,7 @@ async function applyMainProcessProxy(): Promise<void> {
 }
 
 export function startSheetsStandalone(): void {
+  registerRendererScheme()
   installNavigationGuard(app)
   installContextMenu(app, () => contextMenuLabels(getUiLang()))
   // GENOFFICE_USER_DATA: test drivers point this at a scratch dir so automated
@@ -3699,6 +4186,7 @@ export function startSheetsStandalone(): void {
   }
   void applyMainProcessProxy()
   app.whenReady().then(() => {
+    installRendererProtocol({ sheets: join(__dirname, '../renderer') })
     setUiLang(normalizeLang(process.env.GENOFFICE_LANG ?? app.getLocale()))
     app.setAccessibilitySupportEnabled(true)
     installApplicationMenu()

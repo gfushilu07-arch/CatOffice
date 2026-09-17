@@ -9,10 +9,11 @@ import {
   isLayoutOp,
   isStructuralOp,
   layoutOpLabel,
+  sortOpLabel,
   structuralOpLabel,
   type WorkbookCommandBatch,
-} from '../domain/workbook-dsl'
-import type { CellState, ChangePlan } from '../domain/workbook.types'
+} from '@genoffice/xlsx-gateway/domain/workbook-dsl'
+import type { CellState, ChangePlan } from '@genoffice/xlsx-gateway/domain/workbook.types'
 
 /// Builds an AI change preview against a live (imported) workbook: "before"
 /// states come from the current on-screen cells, and the same reader is used
@@ -46,6 +47,8 @@ export function buildLazyChangePlan(
       // Only >MAX_EXPANDED_CELL_OPS ranges arrive range-level; smaller ones
       // were expanded into ordinary per-cell changes above.
       structuralChanges.push({ op: operation, label: findReplaceOpLabel(operation) })
+    } else if (operation.op === 'sort_range') {
+      structuralChanges.push({ op: operation, label: sortOpLabel(operation) })
     } else if (operation.op === 'format_range') {
       formatChanges.push({
         sheetId: operation.sheetId,

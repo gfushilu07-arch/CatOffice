@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
+import { VIEW_IMAGE_CHANNEL } from '../shared/ipc'
+import type { AiPanelPrefs } from '@genoffice/ui'
 import type {
   AiChatRequest,
   AiSettings,
@@ -7,9 +9,12 @@ import type {
   AiStreamRequest,
   DesktopApi,
   MenuCommand,
+  AutoSaveDefault,
   UiTheme,
+  ZoteroRendererRequest,
 } from '../shared/ipc'
 import type { ProjectApi } from '@genoffice/project-store'
+import { installDropOpenBridge } from '@genoffice/electron-utils/drop-open'
 import type { SealLibraryEntry } from '../renderer/seal-library'
 
 const api: DesktopApi = {
@@ -28,13 +33,34 @@ const api: DesktopApi = {
     ipcRenderer.on('app:theme-changed', listener)
     return () => ipcRenderer.removeListener('app:theme-changed', listener)
   },
+  getAutoSaveDefault: () => ipcRenderer.invoke('app:get-auto-save-default'),
+  onAutoSaveDefaultChanged: (handler) => {
+    const listener = (_event: IpcRendererEvent, value: AutoSaveDefault) => handler(value)
+    ipcRenderer.on('app:auto-save-default-changed', listener)
+    return () => ipcRenderer.removeListener('app:auto-save-default-changed', listener)
+  },
+  getAiPanelPrefs: () => ipcRenderer.invoke('app:get-ai-panel-prefs'),
+  setAiPanelPrefs: (patch) => ipcRenderer.invoke('app:set-ai-panel-prefs', patch),
+  onAiPanelPrefsChanged: (handler) => {
+    const listener = (_event: IpcRendererEvent, prefs: AiPanelPrefs) => handler(prefs)
+    ipcRenderer.on('app:ai-panel-prefs-changed', listener)
+    return () => ipcRenderer.removeListener('app:ai-panel-prefs-changed', listener)
+  },
   onChromePressed: (handler) => {
     const listener = () => handler()
     ipcRenderer.on('app:chrome-pressed', listener)
     return () => ipcRenderer.removeListener('app:chrome-pressed', listener)
   },
+  zoteroCommand: (command) => ipcRenderer.invoke('zotero:command', command),
+  onZoteroRequest: (handler) => {
+    const listener = (_event: IpcRendererEvent, request: ZoteroRendererRequest) => handler(request)
+    ipcRenderer.on('zotero:request', listener)
+    return () => ipcRenderer.removeListener('zotero:request', listener)
+  },
+  respondToZotero: (response) => ipcRenderer.send('zotero:response', response),
   openDocx: () => ipcRenderer.invoke('docs:open'),
   openDocxPath: (path: string) => ipcRenderer.invoke('docs:open-path', path),
+  convertAltChunkHtml: (html: string) => ipcRenderer.invoke('docs:altchunk-html-to-docx', html),
   openDocxDecrypt: (path: string, password: string) =>
     ipcRenderer.invoke('docs:open-decrypt', path, password),
   setDocPassword: (filePath: string | null, password: string | null, algo?: 'ecma376-agile' | 'cat-sm4') =>
@@ -62,6 +88,9 @@ const api: DesktopApi = {
   consumeNewBlankDoc: () => ipcRenderer.invoke('docs:consume-new-blank'),
   consumeGovtTemplate: () => ipcRenderer.invoke('docs:consume-govt-template'),
   consumeAiDocContent: () => ipcRenderer.invoke('docs:consume-ai-doc-content'),
+  consumeHeadlessExport: () => ipcRenderer.invoke('docs:consume-headless-export'),
+  headlessExportDone: (result: { ok: boolean; error?: string }) =>
+    ipcRenderer.send('docs:headless-export-done', result),
   createDocument: (request) => ipcRenderer.invoke('docs:create-document', request),
   onOpenDocx: (handler) => {
     const listener = (_event: IpcRendererEvent, result: Parameters<typeof handler>[0]) =>
@@ -84,10 +113,22 @@ const api: DesktopApi = {
     ipcRenderer.on('docs:teardown', listener)
     return () => ipcRenderer.removeListener('docs:teardown', listener)
   },
+  respellKick: () => ipcRenderer.invoke('docs:respell-kick'),
+  spellDiag: (line: string) => ipcRenderer.send('docs:spell-diag', line),
   saveDocxAs: (defaultName: string, data: ArrayBuffer, sourcePath?: string | null) =>
     ipcRenderer.invoke('docs:save-as', defaultName, data, sourcePath ?? null),
   saveDocxNew: (defaultName: string, data: ArrayBuffer) =>
     ipcRenderer.invoke('docs:save-new', defaultName, data),
+  saveDocxTo: (path: string, data: ArrayBuffer, overwrite: boolean) =>
+    ipcRenderer.invoke('docs:save-to', path, data, overwrite === true),
+  onMcpCommand: (handler) => {
+    const listener = (_event: IpcRendererEvent, message: Parameters<typeof handler>[0]) =>
+      handler(message)
+    ipcRenderer.on('docs:mcp-command', listener)
+    return () => ipcRenderer.removeListener('docs:mcp-command', listener)
+  },
+  reportMcpResult: (result) => ipcRenderer.send('docs:mcp-result', result),
+  signalMcpReady: () => ipcRenderer.send('docs:mcp-ready'),
   getRecentFiles: () => ipcRenderer.invoke('docs:recent'),
   pickImage: () => ipcRenderer.invoke('docs:pick-image'),
   fontMetrics: (family: string) => ipcRenderer.invoke('docs:font-metrics', family),
@@ -96,16 +137,39 @@ const api: DesktopApi = {
   setUploadConsent: (tier: string, granted: boolean) =>
     ipcRenderer.invoke('consent:set', tier, granted),
   isTelemetryDisabled: () => ipcRenderer.invoke('consent:disabled'),
+  print: (scale?: number) => ipcRenderer.invoke('docs:print', scale),
+
   exportPdf: (
     defaultName: string,
     pageWidthTwips: number,
     pageHeightTwips: number,
     outPath?: string,
-  ) => ipcRenderer.invoke('docs:export-pdf', defaultName, pageWidthTwips, pageHeightTwips, outPath),
-  printPdfBuffer: (pageWidthTwips: number, pageHeightTwips: number) =>
-    ipcRenderer.invoke('docs:print-pdf-buffer', pageWidthTwips, pageHeightTwips),
+    scale?: number,
+  ) =>
+    ipcRenderer.invoke(
+      'docs:export-pdf',
+      defaultName,
+      pageWidthTwips,
+      pageHeightTwips,
+      outPath,
+      scale,
+    ),
+  exportHtml: (defaultName: string, html: string, outPath?: string) =>
+    ipcRenderer.invoke('docs:export-html', defaultName, html, outPath),
+  printPdfBuffer: (pageWidthTwips: number, pageHeightTwips: number, scale?: number) =>
+    ipcRenderer.invoke('docs:print-pdf-buffer', pageWidthTwips, pageHeightTwips, scale),
   saveMergedPdf: (defaultName: string, base64Parts: string[], outPath?: string) =>
     ipcRenderer.invoke('docs:save-merged-pdf', defaultName, base64Parts, outPath),
+  pickExportImagesTarget: () => ipcRenderer.invoke('docs:pick-export-images-target'),
+  takeExportPdf: (pdfPath: string) => ipcRenderer.invoke('docs:take-export-pdf', pdfPath),
+  writeExportImage: (dir: string, fileName: string, pngBase64: string) =>
+    ipcRenderer.invoke('docs:write-export-image', dir, fileName, pngBase64),
+  saveImageAs: (src: string) => ipcRenderer.invoke('docs:save-image-as', src),
+  onViewImage: (handler) => {
+    const listener = (_event: IpcRendererEvent, src: string) => handler(src)
+    ipcRenderer.on(VIEW_IMAGE_CHANNEL, listener)
+    return () => ipcRenderer.removeListener(VIEW_IMAGE_CHANNEL, listener)
+  },
   getAiSettings: () => ipcRenderer.invoke('ai:get-settings'),
   setAiSettings: (settings: AiSettings) => ipcRenderer.invoke('ai:set-settings', settings),
   aiChat: (request: AiChatRequest) => ipcRenderer.invoke('ai:chat', request),
@@ -173,14 +237,10 @@ const projectApi: ProjectApi = {
   appendChat: (args) => ipcRenderer.invoke('project:appendChat', args),
   loadChat: (args) => ipcRenderer.invoke('project:loadChat', args),
   rebindChat: (args) => ipcRenderer.invoke('project:rebindChat', args),
-  // P1 extensions
-  listProjects: () => ipcRenderer.invoke('project:list'),
-  createProject: (args) => ipcRenderer.invoke('project:create', args),
-  renameProject: (args) => ipcRenderer.invoke('project:rename', args),
-  deleteProject: (args) => ipcRenderer.invoke('project:delete', args),
-  moveFile: (args) => ipcRenderer.invoke('project:moveFile', args),
-  getTimeline: (args) => ipcRenderer.invoke('project:timeline', args),
 }
 
 contextBridge.exposeInMainWorld('desktop', api)
 contextBridge.exposeInMainWorld('projectApi', projectApi)
+
+// open documents dragged from the OS onto this tab as a new shell tab
+installDropOpenBridge()

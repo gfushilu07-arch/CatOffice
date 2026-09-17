@@ -93,6 +93,33 @@ jobs:
           fi
           npm run check:theme-colors
 
+      # skills/*/SKILL.md ship to users' agent directories; a body change
+      # without a metadata.version bump would never be offered as an update.
+      - name: Check skill versions
+        env:
+          FORMAT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FORMAT_BASE_REF=$(git rev-parse HEAD^1)
+          fi
+          npm run check:skill-version
+
+      # Added lines only: Han text outside locale tables, review-tool tags,
+      # feedback-ledger ids, sample-corpus ids, internal PR numbers, personal
+      # paths/e-mails, credentials, NUL bytes (tools/check-public-hygiene.mjs).
+      - name: Check public-repo hygiene
+        env:
+          FORMAT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FORMAT_BASE_REF=$(git rev-parse HEAD^1)
+          fi
+          if [ -f tools/check-public-hygiene.mjs ]; then
+            node tools/check-public-hygiene.mjs
+          else
+            echo "public-hygiene gate not present in this checkout; skipped"
+          fi
+
       # Keep tracked code comments and contributor-facing documentation
       # English-only; functional CJK strings and AI prompt examples are allowed.
       - name: Check comments/docs are English-only
@@ -112,6 +139,11 @@ jobs:
       # committed fixtures have drifted apart.
       - name: Check committed fixtures match the generator
         run: git diff --exit-code -- fixtures/generated
+
+      # pptx-engine's OOXML schema gate validates saved decks with xmllint
+      # (tools/ooxml-validate); the runner image is not guaranteed to have it.
+      - name: Install xmllint
+        run: sudo apt-get install -y --no-install-recommends libxml2-utils
 
       - name: Test
         run: npm test
@@ -221,6 +253,25 @@ jobs:
           else
             echo "kernel.apparmor_restrict_unprivileged_userns not present — skipping"
           fi
+
+      # Pixel baselines (docs-visual.spec.ts) depend on the font stack: pin
+      # Calibri/Cambria metric-compatible faces and CJK glyphs so renders are
+      # reproducible across runner images and contributor machines.
+      - name: Install document fonts (visual baselines)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            fonts-crosextra-carlito fonts-crosextra-caladea fonts-noto-cjk
+
+      # CSS layout tests use standalone Chromium in addition to Electron.
+      # Keep the pinned document font stack unchanged: --with-deps adds fonts
+      # that alter the existing pixel baselines. Electron already supplies the
+      # required system libraries on this runner.
+      - name: Install Chromium for layout tests
+        run: npx playwright install chromium
+
+      - name: Markdown opt-in round-trip browser tests
+        run: npx playwright test --config apps/markdown/playwright.config.ts
 
       # Electron needs a display server on Linux runners. DEBUG=pw:browser
       # forwards the Electron process stdout/stderr into the CI log so launch

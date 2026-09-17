@@ -19,8 +19,8 @@ export interface IpcStreamChunk {
   text?: string
   toolCall?: AgentToolCall
   error?: string
-  /** machine-readable error cause; maps to the localized timeout/credits/network message */
-  errorCode?: 'timeout' | 'credits' | 'network'
+  /** machine-readable error cause; maps to the localized timeout/credits/network/overloaded message */
+  errorCode?: 'timeout' | 'credits' | 'network' | 'overloaded'
   /** normalized stop reason on 'done' ('max_tokens' = cut off by the token limit) */
   stopReason?: string
 }
@@ -28,6 +28,9 @@ export interface IpcStreamChunk {
 /** The request forwarded to the main process to start one streaming turn. */
 export interface IpcStreamStart<S> {
   requestId: string
+  /** Stable for the lifetime of one renderer-side transport. Providers with
+   * native conversations can reuse it across the tool loop and follow-ups. */
+  sessionId: string
   settings: S
   system: string
   messages: AgentMessage[]
@@ -58,6 +61,8 @@ export interface IpcTransportOptions<S> {
   creditsErrorText?(): string
   /** localized message for network connectivity failures (errorCode 'network') */
   networkErrorText?(): string
+  /** localized message for capacity/rate-limit failures (errorCode 'overloaded') */
+  overloadedErrorText?(): string
 }
 
 /**
@@ -67,6 +72,7 @@ export interface IpcTransportOptions<S> {
  */
 export function createIpcTransport<S>(options: IpcTransportOptions<S>): AgentTransport {
   const timeoutText = () => options.timeoutErrorText?.() ?? options.unknownErrorText()
+  const sessionId = crypto.randomUUID()
   return {
     stream(request: AgentStreamRequest, cb) {
       const requestId = crypto.randomUUID()
@@ -115,7 +121,9 @@ export function createIpcTransport<S>(options: IpcTransportOptions<S>): AgentTra
                 ? (options.creditsErrorText?.() ?? chunk.error ?? options.unknownErrorText())
                 : chunk.errorCode === 'network'
                   ? (options.networkErrorText?.() ?? chunk.error ?? options.unknownErrorText())
-                  : (chunk.error ?? options.unknownErrorText()),
+                  : chunk.errorCode === 'overloaded'
+                    ? (options.overloadedErrorText?.() ?? chunk.error ?? options.unknownErrorText())
+                    : (chunk.error ?? options.unknownErrorText()),
           )
         }
       })
@@ -125,6 +133,7 @@ export function createIpcTransport<S>(options: IpcTransportOptions<S>): AgentTra
         Promise.resolve(
           options.start({
             requestId,
+            sessionId,
             settings: options.getSettings(),
             system: request.system,
             messages: request.messages,

@@ -1,5 +1,7 @@
 import { Image } from '@tiptap/extension-image'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { t } from '../i18n/locale'
+import { showToast } from '../components/toast-bus'
 
 /** Directory of the open .md file; relative image paths resolve against it for display */
 let imageBaseDir: string | null = null
@@ -9,11 +11,26 @@ export function setImageBaseDir(dir: string | null): void {
 }
 
 /**
+ * Directory of a file path for resolving relative image sources. A file at
+ * the filesystem root ("/note.md") resolves to "/" so its sibling images
+ * keep working; paths without a separator have no directory to take.
+ */
+export function dirOf(path: string): string {
+  const i = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+  if (i > 0) return path.slice(0, i)
+  if (i === 0) return path.slice(0, 1)
+  return path
+}
+
+/**
  * Map an authored image src to a displayable URL. Markdown keeps the authored
  * value (usually a path relative to the .md file); the editor DOM loads it via
  * the main process's md-asset:// handler — a plain file:// subresource would be
  * blocked when the renderer page itself is served over http (dev server).
  */
+/** renderer-local: double-click on a picture asks App to open the viewer */
+export const VIEW_IMAGE_EVENT = 'markdown-view-image'
+
 export function resolveImageSrc(src: string, baseDir: string | null = imageBaseDir): string {
   if (!src) return src
   // ':' is legal in URL path segments (RFC 3986) — restore it after encoding so
@@ -72,8 +89,11 @@ async function persistAndInsert(
     base64: btoa(binary),
     ext: EXT_BY_MIME[file.type]!,
   })
-  // untitled documents have no assets/ directory yet — drop silently
-  if (!rel) return
+  // untitled documents have no assets/ directory yet — tell the user to save first
+  if (!rel) {
+    showToast(t('imageNeedsSavedDocument'), 'error')
+    return
+  }
   const alt = file.name.replace(/\.[a-z0-9]+$/i, '')
   editor
     .chain()
@@ -114,6 +134,13 @@ export const LocalImage = Image.extend({
       new Plugin({
         key: new PluginKey('localImageUpload'),
         props: {
+          handleDoubleClickOn(_view, _pos, node, _nodePos, event) {
+            if (node.type.name !== 'image') return false
+            const src = (event.target as HTMLImageElement | null)?.currentSrc
+            if (!src) return false
+            window.dispatchEvent(new CustomEvent(VIEW_IMAGE_EVENT, { detail: { src } }))
+            return true
+          },
           handlePaste(view, event) {
             const file = imageFileIn(event.clipboardData)
             if (!file) return false

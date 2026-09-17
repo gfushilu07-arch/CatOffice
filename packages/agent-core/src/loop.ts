@@ -55,7 +55,7 @@ export interface AgentLoopOptions<TSnapshot = unknown> {
   transport: AgentTransport
   skill: AgentSkill
   events?: AgentLoopEvents<TSnapshot>
-  /** hard cap on model round-trips per run (default 8) */
+  /** hard cap on model round-trips per run (default DEFAULT_MAX_TURNS) */
   maxTurns?: number
   /** history cap in messages, trimmed at user-turn boundaries (default 40) */
   maxHistory?: number
@@ -78,8 +78,19 @@ const SUMMARIZE_TIMEOUT_MS = 30_000
 const STALE_TOOL_KEEP_RECENT = 2
 const STALE_TOOL_OUTPUT_MAX = 1_000
 
+/** Unified turn budget across the suite's chat panels (apps may still override per loop) */
+export const DEFAULT_MAX_TURNS = 100
+
 /** Cap on consecutive tool-input parse failures (a successful parse resets it); abort beyond it (keeps the model from burning turns on bad JSON) */
 const MAX_INPUT_PARSE_RETRIES = 3
+
+/**
+ * Degenerate-loop guards. Weak models (BYOK/local endpoints especially) can
+ * repeat the exact same turn forever or keep issuing failing tool calls; with
+ * a large turn budget these must abort early instead of burning it.
+ */
+const MAX_IDENTICAL_TURNS = 3
+const MAX_ALL_ERROR_TURNS = 8
 
 /**
  * Backoff schedule for in-place same-turn retries on empty-stream errors.
@@ -90,6 +101,13 @@ const MAX_INPUT_PARSE_RETRIES = 3
  * retrying here keeps one gateway hiccup from killing a long multi-tool run.
  */
 const EMPTY_STREAM_RETRY_DELAYS_MS = [1_000, 3_000]
+/**
+ * A stream that closed while a tool's arguments were still streaming (buffered
+ * server-side, cut by a gateway idle timeout) never delivered a tool call, so
+ * history is untouched and one replay is safe; it is billed, hence one attempt.
+ */
+const TOOL_ARGS_DROP_MARK = 'while sending tool arguments'
+const TOOL_ARGS_DROP_RETRIES = 1
 
 const TURN_LIMIT_NOTE =
   '[System] The tool-call turn limit for this request has been reached; no more tools may be called this turn. ' +
@@ -103,6 +121,18 @@ const TURN_LIMIT_NOTE =
  * Exported so apps can substitute a localized / tool-derived summary in the UI.
  */
 export const COMPLETED_VIA_TOOLS_TEXT = '(completed tool actions; no text reply)'
+
+/**
+ * Models default to their training-cutoff year without this (e.g. web searches
+ * for "... 2024"). Leads the system prompt and spells out the year: measured
+ * against claude-opus-4-7 with the docs prompt, the date alone (front or tail)
+ * still produced cutoff-year searches in 6/6 runs; naming the year fixed all.
+ */
+export function runtimePreamble(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  return `Today's date is ${date}; the current year is ${now.getFullYear()}.\n\n`
+}
 
 const SUMMARIZE_SYSTEM =
   'You are a conversation compressor. Compress this editing session between the user and the AI assistant into a concise summary so later turns can continue with context. ' +
@@ -179,6 +209,10 @@ export class AgentLoop<TSnapshot = unknown> {
   private finalizing = false
   private mutationSeen = false
   private inputParseFails = 0
+  /** signature (text + tool calls) of the previous turn, for the identical-turn guard */
+  private lastTurnSig = ''
+  private identicalTurns = 0
+  private allErrorTurns = 0
   private turnStopReason: string | null = null
   private turnText = ''
   private turnReasoning = ''
@@ -216,10 +250,14 @@ export class AgentLoop<TSnapshot = unknown> {
   restore(messages: readonly AgentMessage[]): void {
     if (this.running || this.history.length > 0 || messages.length === 0) return
     // Edits-only runs persist an assistant message with no text; give it a placeholder
-    // so the turn stays paired and providers never see an empty assistant content block
-    const normalized = messages.map((m) =>
-      m.role === 'assistant' && !m.text ? { ...m, text: COMPLETED_VIA_TOOLS_TEXT } : m,
-    )
+    // so the turn stays paired and providers never see an empty assistant content block.
+    // Turn-limit notes persisted by older builds are stripped: they are stale
+    // directives ("no more tools may be called") that poison every later run.
+    const normalized = messages
+      .filter((m) => !(m.role === 'user' && m.text === TURN_LIMIT_NOTE))
+      .map((m) =>
+        m.role === 'assistant' && !m.text ? { ...m, text: COMPLETED_VIA_TOOLS_TEXT } : m,
+      )
     // Unanswered user messages (a failed or interrupted run persisted them without a
     // reply) must not re-enter the model context: trailing ones would pair with the
     // next instruction as one turn, adjacent ones read as a combined instruction
@@ -253,6 +291,9 @@ export class AgentLoop<TSnapshot = unknown> {
     this.finalizing = false
     this.mutationSeen = false
     this.inputParseFails = 0
+    this.lastTurnSig = ''
+    this.identicalTurns = 0
+    this.allErrorTurns = 0
     this.executedCalls = []
     this.verifyRetryUsed = false
     this.abortController = new AbortController()
@@ -352,10 +393,14 @@ export class AgentLoop<TSnapshot = unknown> {
     if (historySize(this.history) <= maxBytes) return
     const cut = this.findCompactCut(keepRecentBytes)
     if (cut <= 0) return // no foldable prefix
+    const generation = this.generation
     const dropped = this.history.slice(0, cut)
     const opt = this.options.compaction === false ? undefined : this.options.compaction
     let summary: string | null = null
     if (!opt?.disableLlmSummary) summary = await this.summarizeViaLlm(dropped)
+    // A reset may have cleared history or started a new conversation while
+    // the summary was pending. Discard its result before touching that history.
+    if (generation !== this.generation) return
     if (!summary) summary = mechanicalDigest(dropped)
     this.history = [
       { role: 'user', text: `${COMPACT_SUMMARY_HEADER}\n${summary}` },
@@ -488,7 +533,10 @@ export class AgentLoop<TSnapshot = unknown> {
     let settled = false
     this.handle = this.options.transport.stream(
       {
-        system: this.options.skill.systemPrompt + (this.options.systemSuffix?.() ?? ''),
+        system:
+          runtimePreamble() +
+          this.options.skill.systemPrompt +
+          (this.options.systemSuffix?.() ?? ''),
         messages: [...this.history],
         tools: this.finalizing ? [] : this.options.skill.tools,
       },
@@ -518,17 +566,22 @@ export class AgentLoop<TSnapshot = unknown> {
         onError: (error) => {
           if (generation !== this.generation || settled) return
           settled = true
-          const delay = EMPTY_STREAM_RETRY_DELAYS_MS[retriesUsed]
-          // The no-partial-output guard keeps the retry idempotent (an empty
-          // stream never emits deltas, but a mislabeled error must not replay
-          // a turn whose text/tool calls the UI already saw)
-          if (
-            delay !== undefined &&
+          // The no-partial-output guard keeps the empty-stream retry idempotent (an
+          // empty stream never emits deltas, but a mislabeled error must not replay
+          // a turn whose text/tool calls the UI already saw). A dropped tool-argument
+          // stream may have shown text first; that text is simply re-rendered.
+          const emptyDelay = EMPTY_STREAM_RETRY_DELAYS_MS[retriesUsed]
+          const retryEmpty =
+            emptyDelay !== undefined &&
             error.includes('(empty stream)') &&
-            !this.cancelled &&
             !this.turnText &&
             this.toolCalls.length === 0
-          ) {
+          const retryDrop =
+            retriesUsed < TOOL_ARGS_DROP_RETRIES &&
+            error.includes(TOOL_ARGS_DROP_MARK) &&
+            this.toolCalls.length === 0
+          const delay = retryEmpty ? emptyDelay : EMPTY_STREAM_RETRY_DELAYS_MS[0]
+          if ((retryEmpty || retryDrop) && !this.cancelled) {
             setTimeout(() => {
               if (generation !== this.generation) return
               // Stopped during the backoff window: finalize like a normal cancel
@@ -579,6 +632,19 @@ export class AgentLoop<TSnapshot = unknown> {
     // no-tools finalizing turn after hitting the limit
     // (a cancelled turn drops its tool calls — no results would follow)
     if (toolCalls.length === 0 || this.cancelled || this.finalizing) {
+      // The turn-limit note has served its purpose once the finalizing turn
+      // ends. Left in history it would tell every later run "no more tools may
+      // be called" — a stale directive models obey (or worse, echo verbatim
+      // over and over; see public issue about BYOK models repeating it).
+      if (this.finalizing) {
+        for (let i = this.history.length - 1; i >= 0; i--) {
+          const m = this.history[i]!
+          if (m.role === 'user' && m.text === TURN_LIMIT_NOTE) {
+            this.history.splice(i, 1)
+            break
+          }
+        }
+      }
       // Models often end a tool-using run with an empty text turn ("I'm done").
       // Leaving assistant text empty in history then poisons the next user
       // prompt: Anthropic rejects empty content arrays, Gemini rejects empty
@@ -617,6 +683,7 @@ export class AgentLoop<TSnapshot = unknown> {
     })
     const generation = this.generation
     const results: AgentToolResult[] = []
+    let turnMutated = false
     for (const call of toolCalls) {
       // The user hit stop while an earlier tool was running: skip remaining tools,
       // but fill in paired error results to keep tool_use/tool_result pairs valid for the next request
@@ -659,7 +726,10 @@ export class AgentLoop<TSnapshot = unknown> {
       if (generation !== this.generation) return // reset while a tool was running
       this.executedCalls.push({ name: call.name, ok: !execution.isError })
       const firstMutation = !!execution.mutated && !this.mutationSeen
-      if (execution.mutated) this.mutationSeen = true
+      if (execution.mutated) {
+        this.mutationSeen = true
+        turnMutated = true
+      }
       results.push({
         id: call.id,
         name: call.name,
@@ -692,8 +762,45 @@ export class AgentLoop<TSnapshot = unknown> {
       return
     }
 
+    // A turn where every tool call failed makes no progress; a long streak
+    // (unknown-tool loops from malformed BYOK streams, hallucinated tools)
+    // would otherwise burn the whole turn budget re-erroring.
+    this.allErrorTurns = results.every((r) => r.isError) ? this.allErrorTurns + 1 : 0
+    if (this.allErrorTurns >= MAX_ALL_ERROR_TURNS) {
+      this.running = false
+      this.rollbackFailedRun()
+      events?.onError?.(
+        `Every tool call failed for ${MAX_ALL_ERROR_TURNS} turns in a row; the run was stopped. Please send the request again`,
+      )
+      return
+    }
+
+    // Identical-turn guard: a model (typically a weak BYOK/local endpoint)
+    // re-emitting the same text, tool calls AND tool outputs is looping, not
+    // progressing. Turns that mutated the artifact are exempt (repeating an
+    // identical edit is legitimate progress), and changing outputs break the
+    // streak (so poll-style tools survive).
+    const turnSig = JSON.stringify([
+      this.turnText,
+      toolCalls.map(({ name, input }) => [name, input]),
+      results.map((r) => r.output),
+    ])
+    if (turnSig === this.lastTurnSig && !turnMutated) {
+      if (++this.identicalTurns >= MAX_IDENTICAL_TURNS) {
+        this.running = false
+        this.rollbackFailedRun()
+        events?.onError?.(
+          'The model kept repeating the exact same turn without making progress; the run was stopped. Please send the request again',
+        )
+        return
+      }
+    } else {
+      this.lastTurnSig = turnSig
+      this.identicalTurns = 0
+    }
+
     this.turns++
-    if (this.turns >= (this.options.maxTurns ?? 8)) {
+    if (this.turns >= (this.options.maxTurns ?? DEFAULT_MAX_TURNS)) {
       // Don't throw away the context already gathered: append one no-tools turn for a partial answer
       this.finalizing = true
       this.history.push({ role: 'user', text: TURN_LIMIT_NOTE })

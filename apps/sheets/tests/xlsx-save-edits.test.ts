@@ -1,3 +1,4 @@
+import { CellValueType } from '@univerjs/core'
 import JSZip from 'jszip'
 import { describe, expect, it } from 'vitest'
 
@@ -6,8 +7,9 @@ import {
   assertOnlyTouchedEntriesChanged,
   toA1Address,
   type CellEdit,
-} from '../src/gateway/xlsx-gateway'
-import { blankXlsxBuffer } from '../src/gateway/csv-import'
+} from '@genoffice/xlsx-gateway/gateway/xlsx-gateway'
+import { blankXlsxBuffer } from '@genoffice/xlsx-gateway/gateway/csv-import'
+import { createEditJournal, recordSetRangeValues, toSaveEdits } from '../src/renderer/edit-journal'
 import { buildEditFixture } from './fixture-builder'
 
 describe('toA1Address', () => {
@@ -98,6 +100,16 @@ describe('applyCellEditsToXlsx', () => {
     expect(worksheet).toContain('<c r="B10"><v>3.5</v></c>')
   })
 
+  it('saves a journaled copy of a TRUE cell as t="b", not the number 1', async () => {
+    // The copy_range write reaches the journal as Univer's {v: 1, t: BOOLEAN}.
+    const journal = createEditJournal()
+    recordSetRangeValues(journal, 'sheet-1', { 0: { 1: { v: 1, t: CellValueType.BOOLEAN } } })
+    const [saved] = toSaveEdits(journal)
+    if (!saved) throw new Error('no journal entry')
+    const worksheet = await editedWorksheet([edit(saved.row, saved.column, { value: saved.value })])
+    expect(worksheet).toContain('<c r="B1" t="b"><v>1</v></c>')
+  })
+
   it('fails closed when the sheet does not exist', async () => {
     await expect(
       applyCellEditsToXlsx(await buildEditFixture(), [
@@ -109,7 +121,26 @@ describe('applyCellEditsToXlsx', () => {
 
 describe('applyCellEditsToXlsx style edits', () => {
   it('creates and registers a stylesheet when the workbook has none', async () => {
-    const mutation = await applyCellEditsToXlsx(await blankXlsxBuffer(), [
+    // blankXlsxBuffer ships a stylesheet now (the sidecar's formula engine
+    // refuses to import a workbook without one), so strip it to reach the
+    // "workbook has no stylesheet" state this test is about.
+    const stripped = await (async () => {
+      const zip = await JSZip.loadAsync(await blankXlsxBuffer())
+      zip.remove('xl/styles.xml')
+      const rels = await zip.file('xl/_rels/workbook.xml.rels')!.async('string')
+      zip.file(
+        'xl/_rels/workbook.xml.rels',
+        rels.replace(/<Relationship[^>]*relationships\/styles"[^>]*\/>/, ''),
+      )
+      const types = await zip.file('[Content_Types].xml')!.async('string')
+      zip.file(
+        '[Content_Types].xml',
+        types.replace(/<Override PartName="\/xl\/styles\.xml"[^>]*\/>/, ''),
+      )
+      return zip.generateAsync({ type: 'nodebuffer' })
+    })()
+
+    const mutation = await applyCellEditsToXlsx(stripped, [
       {
         sheetName: 'Sheet1',
         row: 0,
@@ -184,6 +215,31 @@ describe('applyCellEditsToXlsx style edits', () => {
     ])
     const worksheet = await entryText(mutation.buffer, 'xl/worksheets/sheet1.xml')
     expect(worksheet).toContain('<dimension ref="A1:C3"/>')
+  })
+
+  it('grows a paired-empty-tag dimension without orphaning its closing tag', async () => {
+    // Some producers write <dimension ref="..."></dimension> instead of the
+    // self-closing form; replacing only the opening tag leaves a stray
+    // </dimension> behind and the sheet XML no longer parses.
+    const zip = await JSZip.loadAsync(await buildEditFixture())
+    zip.file(
+      'xl/worksheets/sheet1.xml',
+      `<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:A1"></dimension>
+  <sheetData>
+    <row r="1"><c r="A1"><v>1</v></c></row>
+    <row r="3"><c r="C3"><v>9</v></c></row>
+  </sheetData>
+</worksheet>`,
+    )
+    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
+    const mutation = await applyCellEditsToXlsx(buffer as Buffer, [
+      { sheetName: 'Data', row: 1, column: 1, writeValue: true, cell: { value: 'x' } },
+    ])
+    const worksheet = await entryText(mutation.buffer, 'xl/worksheets/sheet1.xml')
+    expect(worksheet).toContain('<dimension ref="A1:C3"/>')
+    expect(worksheet).not.toContain('</dimension>')
   })
 
   it('bolds a styled cell via a new deduped xf without touching its content', async () => {

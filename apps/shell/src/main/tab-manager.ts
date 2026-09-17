@@ -1,4 +1,5 @@
 import { basename } from 'node:path'
+import { realpathSync } from 'node:fs'
 import { BrowserWindow } from 'electron'
 import type { Rectangle, WebContents, WebContentsView } from 'electron'
 
@@ -19,6 +20,12 @@ import {
   requestMarkdownClose,
 } from '../../../markdown/src/main/markdown-main'
 import {
+  createHtmlPresentView,
+  createHtmlView,
+  htmlIsDirty,
+  requestHtmlClose,
+} from '../../../html/src/main/html-main'
+import {
   createPdfView,
   clearPdfDirty,
   pdfIsDirty,
@@ -26,6 +33,7 @@ import {
 } from '../../../pdf/src/main/pdf-main'
 import {
   createSheetsView,
+  nudgeQueuedWorkbook,
   queueWorkbookForView,
   requestSheetsClose,
   setActiveSheetsWebContents,
@@ -38,7 +46,7 @@ import {
   setActiveSlidesWebContents,
   slidesIsDirty,
 } from '../../../slides/src/main/slides-main'
-import type { TabKind, TabSummary } from '../shared/tabs-api'
+import type { DocumentTabKind, OpenDocumentTab, TabKind, TabSummary } from '../shared/tabs-api'
 
 interface TabRecord {
   id: string
@@ -47,6 +55,8 @@ interface TabRecord {
   view: WebContentsView | null
   title: string
   filePath?: string
+  /** chrome-free Present tab: no file, no editor menu or save/export targets */
+  present?: boolean
 }
 
 /** must match the tab strip's rendered height (apps/shell/src/renderer/src/TabBar.tsx) */
@@ -73,6 +83,11 @@ export class TabManager {
   private readonly bleedWcIds = new Set<number>()
   /** tabs mid unsaved-changes prompt, so a second close click doesn't stack dialogs */
   private readonly closingIds = new Set<string>()
+  /** Sheets renderer mounted ahead of the next open: parsing its bundle and
+   *  booting Univer is the bulk of a workbook's open time, and the shell hands
+   *  the path over after mount anyway. */
+  private spareSheetsView: WebContentsView | null = null
+  private spareSheetsTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(
     private readonly shellWindow: BrowserWindow,
@@ -90,6 +105,36 @@ export class TabManager {
       this.layout()
       setImmediate(() => this.layout())
     })
+    shellWindow.webContents.once('did-finish-load', () => this.scheduleSpareSheetsView(1500))
+  }
+
+  private scheduleSpareSheetsView(delayMs: number): void {
+    if (process.env.GENOFFICE_NO_SPARE_VIEW || this.spareSheetsTimer) return
+    this.spareSheetsTimer = setTimeout(() => {
+      this.spareSheetsTimer = null
+      if (this.spareSheetsView || this.shellWindow.isDestroyed()) return
+      const view = createSheetsView({ includeAiHandlers: false })
+      // registering the session made the spare the menu-action target
+      const active = this.tabs.find((t) => t.id === this.activeId)
+      setActiveSheetsWebContents(
+        active?.kind === 'sheets' && active.view ? active.view.webContents : null,
+      )
+      this.shellWindow.contentView.addChildView(view)
+      view.setVisible(false)
+      view.setBounds(this.contentBounds())
+      view.webContents.once('render-process-gone', () => {
+        if (this.spareSheetsView !== view) return
+        this.spareSheetsView = null
+        view.webContents.close()
+      })
+      this.spareSheetsView = view
+    }, delayMs)
+  }
+
+  private takeSpareSheetsView(): WebContentsView | null {
+    const view = this.spareSheetsView
+    this.spareSheetsView = null
+    return view && !view.webContents.isDestroyed() ? view : null
   }
 
   private untitled(kind: TabKind, fallback: string): string {
@@ -139,6 +184,11 @@ export class TabManager {
     if (active?.view) active.view.setBounds(this.contentBounds())
   }
 
+  /** files open in any tab, for the open-documents registry */
+  openFilePaths(): string[] {
+    return this.tabs.flatMap((t) => (t.filePath ? [t.filePath] : []))
+  }
+
   list(): TabSummary[] {
     return this.tabs.map((t) => ({
       id: t.id,
@@ -146,7 +196,53 @@ export class TabManager {
       title: t.title,
       closable: t.id !== HOME_ID,
       active: t.id === this.activeId,
+      ...(t.filePath ? { filePath: t.filePath } : {}),
     }))
+  }
+
+  /**
+   * Documents an MCP agent may act on: every editor tab except Home (no file)
+   * and chrome-free Present tabs (a live preview of another tab's document, so
+   * acting on it would double-count that document).
+   *
+   * Dirtiness is resolved here per family because it is not uniform — five
+   * families answer synchronously in the main process, docs has to ask its
+   * renderer. Hence the async signature.
+   */
+  async openDocuments(): Promise<OpenDocumentTab[]> {
+    const tabs = this.tabs.filter((tab) => tab.kind !== 'home' && !tab.present && tab.view)
+    return Promise.all(
+      tabs.map(async (tab) => ({
+        id: tab.id,
+        kind: tab.kind as DocumentTabKind,
+        title: tab.title,
+        ...(tab.filePath ? { filePath: tab.filePath } : {}),
+        active: tab.id === this.activeId,
+        dirty: await this.tabIsDirty(tab),
+      })),
+    )
+  }
+
+  /** unsaved-changes state of one tab, whichever family owns it */
+  private async tabIsDirty(tab: TabRecord): Promise<boolean> {
+    const wc = tab.view?.webContents
+    if (!wc || wc.isDestroyed()) return false
+    switch (tab.kind) {
+      case 'sheets':
+        return sheetsPendingEditCount(wc.id) > 0
+      case 'pdf':
+        return pdfIsDirty(wc.id)
+      case 'markdown':
+        return markdownIsDirty(wc.id)
+      case 'html':
+        return htmlIsDirty(wc.id)
+      case 'slides':
+        return slidesIsDirty(wc.id)
+      case 'docs':
+        return docsQueryDirty(wc)
+      default:
+        return false
+    }
   }
 
   openHomeTab(): void {
@@ -182,15 +278,22 @@ export class TabManager {
 
   openSheetsTab(openPath?: string, options?: { newBlank?: boolean }): string {
     if (options?.newBlank) setSheetsNewBlank()
-    const view = createSheetsView({ includeAiHandlers: false })
+    const spare = this.takeSpareSheetsView()
+    const view = spare ?? createSheetsView({ includeAiHandlers: false })
     // bind the path to this tab's webContents: a multi-select Open creates
     // several sheets tabs in one loop, so a single global path would be
     // overwritten before the earlier tabs consume it
-    if (openPath) queueWorkbookForView(view.webContents, openPath)
+    if (openPath) {
+      queueWorkbookForView(view.webContents, openPath)
+      if (spare) nudgeQueuedWorkbook(view.webContents)
+    }
     const id = `t${this.nextId++}`
-    this.shellWindow.contentView.addChildView(view)
-    view.setVisible(false)
+    if (!spare) {
+      this.shellWindow.contentView.addChildView(view)
+      view.setVisible(false)
+    }
     this.trackHtmlFullScreen(id, view)
+    this.scheduleSpareSheetsView(3000)
     this.tabs.push({
       id,
       kind: 'sheets',
@@ -256,6 +359,41 @@ export class TabManager {
     return id
   }
 
+  openHtmlTab(openPath?: string): string {
+    const view = createHtmlView(openPath)
+    const id = `t${this.nextId++}`
+    this.shellWindow.contentView.addChildView(view)
+    view.setVisible(false)
+    this.trackHtmlFullScreen(id, view)
+    this.tabs.push({
+      id,
+      kind: 'html',
+      view,
+      title: openPath ? basename(openPath) : this.untitled('html', 'AI HTML'),
+      filePath: openPath,
+    })
+    this.activateTab(id)
+    return id
+  }
+
+  /** Present → New tab: a chrome-free html tab showing the owner tab's live preview */
+  openHtmlPresentTab(owner: WebContents, title: string): string {
+    const view = createHtmlPresentView(owner, title)
+    const id = `t${this.nextId++}`
+    this.shellWindow.contentView.addChildView(view)
+    view.setVisible(false)
+    this.trackHtmlFullScreen(id, view)
+    this.tabs.push({
+      id,
+      kind: 'html',
+      view,
+      title: title || this.untitled('html', 'AI HTML'),
+      present: true,
+    })
+    this.activateTab(id)
+    return id
+  }
+
   activateTab(id: string): void {
     const target = this.tabs.find((t) => t.id === id)
     if (!target) return
@@ -276,7 +414,7 @@ export class TabManager {
     setActiveDocsResolver(target.kind === 'docs' ? () => target.view!.webContents : () => null)
     if (target.kind === 'sheets' && target.view) setActiveSheetsWebContents(target.view.webContents)
     if (target.kind === 'slides' && target.view) setActiveSlidesWebContents(target.view.webContents)
-    this.applyMenuFor(target.kind)
+    this.applyMenuFor(target.present ? 'home' : target.kind)
   }
 
   /** move a tab to a new index in the strip; Home is pinned at index 0 */
@@ -291,12 +429,24 @@ export class TabManager {
     this.onChanged()
   }
 
+  tabIdForWebContents(webContentsId: number): string | undefined {
+    return this.tabs.find((t) => t.view?.webContents.id === webContentsId)?.id
+  }
+
   /** a module opened a file inside an existing tab (⌘O / queued path) — sync title + dedupe path */
   setTabFileFor(webContentsId: number, filePath: string): void {
     const tab = this.tabs.find((t) => t.view?.webContents.id === webContentsId)
     if (!tab) return
     tab.filePath = filePath
     tab.title = basename(filePath)
+    this.onChanged()
+  }
+
+  /** an untitled document named itself before its first save (html: from the first AI request) */
+  setTabTitleFor(webContentsId: number, title: string): void {
+    const tab = this.tabs.find((t) => t.view?.webContents.id === webContentsId)
+    if (!tab || tab.filePath || tab.title === title) return
+    tab.title = title
     this.onChanged()
   }
 
@@ -340,6 +490,13 @@ export class TabManager {
       .map((t) => ({ id: t.id, webContents: t.view!.webContents }))
   }
 
+  /** html tabs whose renderer reports unsaved edits (shell-close guard) */
+  dirtyHtmlTabs(): Array<{ id: string; webContents: WebContents }> {
+    return this.tabs
+      .filter((t) => t.kind === 'html' && t.view && htmlIsDirty(t.view.webContents.id))
+      .map((t) => ({ id: t.id, webContents: t.view!.webContents }))
+  }
+
   /** slides tabs whose main-process session has unsaved edits (shell-close guard) */
   dirtySlidesTabs(): Array<{ id: string; webContents: WebContents }> {
     return this.tabs
@@ -351,6 +508,20 @@ export class TabManager {
   docsTabs(): Array<{ id: string; webContents: WebContents }> {
     return this.tabs
       .filter((t) => t.kind === 'docs' && t.view)
+      .map((t) => ({ id: t.id, webContents: t.view!.webContents }))
+  }
+
+  /** all live slides tabs (MCP bridge resolves its new tab's webContents through this) */
+  slidesTabs(): Array<{ id: string; webContents: WebContents }> {
+    return this.tabs
+      .filter((t) => t.kind === 'slides' && t.view)
+      .map((t) => ({ id: t.id, webContents: t.view!.webContents }))
+  }
+
+  /** all live sheets tabs (MCP bridge resolves its new tab's webContents through this) */
+  sheetsTabs(): Array<{ id: string; webContents: WebContents }> {
+    return this.tabs
+      .filter((t) => t.kind === 'sheets' && t.view)
       .map((t) => ({ id: t.id, webContents: t.view!.webContents }))
   }
 
@@ -371,9 +542,11 @@ export class TabManager {
           ? requestPdfClose
           : tab.kind === 'markdown' && markdownIsDirty(tab.view.webContents.id)
             ? requestMarkdownClose
-            : tab.kind === 'slides' && slidesIsDirty(tab.view.webContents.id)
-              ? requestSlidesClose
-              : null)
+            : tab.kind === 'html' && htmlIsDirty(tab.view.webContents.id)
+              ? requestHtmlClose
+              : tab.kind === 'slides' && slidesIsDirty(tab.view.webContents.id)
+                ? requestSlidesClose
+                : null)
     // docs dirty state lives in the renderer and needs an async query; skip the guard when clean (avoids a flash activation)
     if (!closeGuard && tab.kind === 'docs' && tab.view) {
       this.closingIds.add(id)
@@ -393,6 +566,26 @@ export class TabManager {
         this.closingIds.delete(id)
       }
     }
+    this.removeTab(id)
+  }
+
+  /**
+   * Close a tab with no save prompt. The caller must have already settled the
+   * document's unsaved changes (the MCP close tool saves or discards first):
+   * this is the plain removal step of `closeTab`, so a dialog never appears in
+   * a flow the user did not start.
+   * Returns false when there is no such tab (already closed) or one is mid-prompt.
+   */
+  closeTabWithoutPrompt(id: string): boolean {
+    if (id === HOME_ID) return false
+    const tab = this.tabs.find((t) => t.id === id)
+    if (!tab || this.closingIds.has(id)) return false
+    this.removeTab(id)
+    return true
+  }
+
+  /** detach + drop one tab and re-activate a neighbour (no guards, no prompts) */
+  private removeTab(id: string): void {
     const idx = this.tabs.findIndex((t) => t.id === id)
     if (idx < 0) return
     if (this.htmlFullScreenId === id) this.htmlFullScreenId = null
@@ -420,6 +613,19 @@ export class TabManager {
     }
   }
 
+  /** the editor tab showing this file, whichever module owns it (path compared after resolving links) */
+  findTabByPath(path: string): { id: string; kind: TabKind; webContents: WebContents } | undefined {
+    const wanted = canonicalPath(path)
+    const tab = this.tabs.find(
+      (t) => t.view && t.filePath && !t.present && canonicalPath(t.filePath) === wanted,
+    )
+    return tab?.view ? { id: tab.id, kind: tab.kind, webContents: tab.view.webContents } : undefined
+  }
+
+  webContentsForTab(id: string): WebContents | undefined {
+    return this.tabs.find((t) => t.id === id)?.view?.webContents
+  }
+
   findDocsTabByPath(path: string): string | undefined {
     return this.tabs.find((t) => t.kind === 'docs' && t.filePath === path)?.id
   }
@@ -444,6 +650,18 @@ export class TabManager {
     return this.tabs.find((t) => t.kind === 'markdown' && t.filePath === path)?.id
   }
 
+  findHtmlTabByPath(path: string): string | undefined {
+    return this.tabs.find((t) => t.kind === 'html' && t.filePath === path)?.id
+  }
+
+  /** the active tab's html view, if the active tab is html (html menu target) */
+  activeHtmlTab(): { id: string; webContents: WebContents; filePath?: string } | undefined {
+    const tab = this.tabs.find((t) => t.id === this.activeId)
+    return tab?.kind === 'html' && tab.view && !tab.present
+      ? { id: tab.id, webContents: tab.view.webContents, filePath: tab.filePath }
+      : undefined
+  }
+
   /** the active tab's markdown view, if the active tab is markdown (markdown menu target) */
   activeMarkdownTab(): { id: string; webContents: WebContents; filePath?: string } | undefined {
     const tab = this.tabs.find((t) => t.id === this.activeId)
@@ -458,5 +676,13 @@ export class TabManager {
     return tab?.kind === 'pdf' && tab.view
       ? { id: tab.id, webContents: tab.view.webContents, filePath: tab.filePath }
       : undefined
+  }
+}
+
+function canonicalPath(path: string): string {
+  try {
+    return realpathSync.native(path)
+  } catch {
+    return path
   }
 }

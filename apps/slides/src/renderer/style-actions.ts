@@ -134,14 +134,19 @@ export function onElementTextColor(ctx: ActionCtx, hex: string): void {
 }
 
 export interface ParagraphFormatPatch {
-  bullet?: 'char' | 'number' | 'none'
+  bullet?: 'char' | 'number' | 'blip' | 'none'
   bulletChar?: string
+  bulletFont?: string
+  numType?: string
+  startAt?: number
+  bulletImage?: { base64: string; ext: string }
   bulletHangEmu?: number
   bulletSizePct?: number
   bulletColor?: string
   lineSpacingPct?: number
   spaceBeforePt?: number
   spaceAfterPt?: number
+  rtl?: boolean
   indentDelta?: 1 | -1
 }
 
@@ -149,9 +154,14 @@ export interface ParagraphFormatPatch {
 const SELECTION_PATCH_KEYS = new Set([
   'bullet',
   'bulletChar',
+  'bulletFont',
+  'numType',
+  'startAt',
+  'bulletImage',
   'lineSpacingPct',
   'spaceBeforePt',
   'spaceAfterPt',
+  'rtl',
 ])
 
 // While editing, bullets/numbering/line spacing/paragraph spacing apply to the paragraphs covered
@@ -159,17 +169,24 @@ const SELECTION_PATCH_KEYS = new Set([
 // they apply element-wide. Clicking the same bullet kind again = turn off (toggle semantics);
 // editing mode judges by the paragraph div's marks, element mode by the render tree's bullet glyphs
 export function onParagraphFormat(ctx: ActionCtx, patch: ParagraphFormatPatch): void {
-  if (ctx.editing && Object.keys(patch).every((k) => SELECTION_PATCH_KEYS.has(k))) {
+  // Cell editing commits regenerate whole paragraphs from the overlay DOM, which round-trips
+  // the rtl mark; the other selection keys keep their historical element-wide semantics there
+  const selectable = ctx.editing
+    ? Object.keys(patch).every((k) => SELECTION_PATCH_KEYS.has(k))
+    : ctx.editingCell != null && Object.keys(patch).every((k) => k === 'rtl')
+  if (selectable) {
     const active = document.activeElement
     if (!(active instanceof HTMLElement && active.isContentEditable)) restoreEditSelection()
     if (applySelectionParagraphFormat(patch)) return
   }
   if (!ctx.selectedIds.length) return
-  // Picking an explicit char always applies (no toggle-off)
+  // Picking an explicit glyph / scheme / picture always applies (no toggle-off)
   if (
     patch.bullet &&
     patch.bullet !== 'none' &&
     !patch.bulletChar &&
+    !patch.numType &&
+    !patch.bulletImage &&
     ctx.selectedIds.length === 1
   ) {
     const node = ctx.findNodeCtx(ctx.selectedIds[0]!)?.node
@@ -178,7 +195,13 @@ export function onParagraphFormat(ctx: ActionCtx, patch: ParagraphFormatPatch): 
         ? (node as ShapeRenderNode).text
         : undefined
     const bulletRun = text?.lines.flatMap((l) => l.runs).find((r) => r.isBullet)
-    const cur = bulletRun ? (/^\d/.test(bulletRun.text) ? 'number' : 'char') : null
+    const cur = bulletRun
+      ? bulletRun.numType
+        ? 'number'
+        : bulletRun.image
+          ? 'blip'
+          : 'char'
+      : null
     if (cur === patch.bullet) patch = { ...patch, bullet: 'none' }
   }
   const groupId = ctx.groupIdOf(ctx.selectedIds[0]!)

@@ -1,3 +1,4 @@
+import type { AiPanelPrefs } from '@genoffice/ui'
 import type { Lang } from '@genoffice/i18n'
 import type { AiSettings, AiStreamChunk, AiStreamRequest } from '@genoffice/ai-provider'
 
@@ -40,10 +41,13 @@ export const PDF_CHANNELS = {
   saveAsResult: 'pdf:save-as-result',
   saveAsFlow: 'pdf:save-as-flow',
   printRequest: 'pdf:print-request',
+  fileRenamed: 'pdf:file-renamed',
   getLanguage: 'app:get-language',
   languageChanged: 'app:language-changed',
   getTheme: 'app:get-theme',
   themeChanged: 'app:theme-changed',
+  getAiPanelPrefs: 'app:get-ai-panel-prefs',
+  aiPanelPrefsChanged: 'app:ai-panel-prefs-changed',
 } as const
 
 export const VISUAL_SIGNATURE_CONTENT_PREFIX = 'GenOffice visual signature field: '
@@ -76,7 +80,7 @@ export interface SavedSignature {
 export type PdfConvertFormat = 'docx' | 'xlsx' | 'pptx'
 
 /** target file type of the AI create_document tool (mirrors the docs app's contract) */
-export type CreateDocumentType = 'docx' | 'pdf' | 'md'
+export type CreateDocumentType = 'docx' | 'pdf' | 'md' | 'html'
 
 export interface CreateDocumentRequest {
   type: CreateDocumentType
@@ -330,6 +334,11 @@ export interface TextEditValidation {
 /** Curated fonts selectable for rebuilt text runs. Single-face .ttf on every platform we
     ship — the subsetter cannot read .ttc collections, which rules out the macOS CJK faces.
     Availability is machine-dependent: the main process reports the usable subset. */
+/** Stroke width of a synthetic-bold run as a fraction of the em. Bold on the document's
+    own face is a same-color fill+stroke (advances unchanged, layout survives); only an
+    explicit edit font loads a real bold face. Shared by the engine and the preview. */
+export const SYNTHETIC_BOLD_STROKE_EM = 0.035
+
 export const EDIT_FONTS = [
   { id: 'arial', label: 'Arial', css: "Arial, 'Helvetica Neue', sans-serif" },
   { id: 'times', label: 'Times New Roman', css: "'Times New Roman', Times, serif" },
@@ -521,7 +530,7 @@ export interface ValidateTextEditsRequest {
 /** Extract pages into a new PDF written to the GenOffice save dir and opened in a new tab */
 export interface ExtractPagesRequest {
   path: string
-  /** Original page indices */
+  /** Page indices in the file as saved (the renderer flushes first, so visible positions) */
   pages: number[]
   suggestedName: string
 }
@@ -752,10 +761,16 @@ export interface PdfApi {
   onSaveAsFlow(handler: (inFlight: boolean) => void): () => void
   /** Shell menu Print → renderer runs its print flow (save, rasterize, system dialog) */
   onPrintRequest(handler: () => void): () => void
+  /** The file was renamed or moved from the shell (home Folders / Files pane); the viewer follows the new path */
+  onFileRenamed(handler: (newPath: string) => void): () => void
   getLanguage(): Promise<Lang>
   onLanguageChanged(handler: (lang: Lang) => void): () => void
   getTheme(): Promise<UiTheme>
   onThemeChanged(handler: (theme: UiTheme) => void): () => void
+  /** AI panel text size + chat-input spellcheck (Settings → General in the shell) */
+  getAiPanelPrefs(): Promise<AiPanelPrefs>
+  setAiPanelPrefs(patch: Partial<AiPanelPrefs>): Promise<AiPanelPrefs>
+  onAiPanelPrefsChanged(handler: (prefs: AiPanelPrefs) => void): () => void
   /** press on the shell chrome (tab strip is a sibling WebContentsView whose
    *  clicks produce no DOM event here) — dismiss open popovers */
   onChromePressed(handler: () => void): () => void

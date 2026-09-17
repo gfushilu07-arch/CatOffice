@@ -1,7 +1,7 @@
 import type { AgentMessage, AgentToolCall, AgentToolDef } from '@genoffice/agent-core'
 import { aiFetch } from '../fetch'
 import { httpBodyDetail } from '../http-error'
-import { gensparkAttributionHeaders } from '../providers'
+import { gensparkAttributionHeaders, opencodeSessionHeaders } from '../providers'
 import { modelEchoesReasoning } from '../registry'
 import type { AiChatResponse, AiProviderConfig } from '../types'
 import { createStreamWatchdog, type StreamWatchdog } from '../watchdog'
@@ -154,8 +154,9 @@ async function openAiCompatibleTurn(
     signal: wd.signal,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
+      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
       ...gensparkAttributionHeaders(baseUrl),
+      ...opencodeSessionHeaders(baseUrl, cb.sessionId),
     },
     body: JSON.stringify({
       model: config.model,
@@ -191,6 +192,7 @@ async function openAiCompatibleTurn(
   let stopReason: string | undefined
   let abnormalFinish: string | undefined
   let sawFinish = false
+  let sawDone = false
   let emitted = false
   const flushTools = () => {
     const entries = [...pendingTools.entries()].sort(([a], [b]) => a - b)
@@ -215,7 +217,10 @@ async function openAiCompatibleTurn(
     if (!line.startsWith('data:')) continue
     const payload = line.slice(5).trim()
     if (!payload) continue
-    if (payload === '[DONE]') break
+    if (payload === '[DONE]') {
+      sawDone = true
+      break
+    }
     // A truncated frame or a non-JSON keep-alive from a proxy should skip
     // that event, not kill the entire AI turn with a parser error.
     let event
@@ -256,7 +261,16 @@ async function openAiCompatibleTurn(
         json: '',
       }
       if (tc.id) pending.id = tc.id
-      if (tc.function?.name) pending.name += tc.function.name
+      // Spec-compliant servers send the name once, but some local/proxy
+      // servers resend the full (or growing) name on every delta; naive
+      // concatenation then yields "read_fileread_file" and every call fails
+      // as an unknown tool. Treat a delta that extends the accumulated name
+      // as a resend, anything else as a fragment to append.
+      if (tc.function?.name) {
+        pending.name = tc.function.name.startsWith(pending.name)
+          ? tc.function.name
+          : pending.name + tc.function.name
+      }
       if (tc.function?.arguments) pending.json += tc.function.arguments
       pendingTools.set(tc.index, pending)
     }
@@ -267,6 +281,17 @@ async function openAiCompatibleTurn(
         abnormalFinish = choice.finish_reason
       }
       flushTools()
+    }
+  }
+  // No finish and no [DONE] with half-received arguments: the connection dropped
+  if (!sawFinish && !sawDone) {
+    const broken = [...pendingTools.values()].filter((p) => p.name && parseToolInput(p.json).error)
+    if (broken.length > 0) {
+      const received = broken.reduce((n, p) => n + p.json.length, 0)
+      throw new Error(
+        `The model stream closed while sending tool arguments (${received} chars received); the connection was dropped. ` +
+          'If this recurs on a large request (e.g. generating a whole document), ask for the output in several smaller parts.',
+      )
     }
   }
   flushTools()
@@ -295,8 +320,9 @@ export async function chatOpenAiCompatible(
     signal: wd.signal,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
+      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
       ...gensparkAttributionHeaders(baseUrl),
+      ...opencodeSessionHeaders(baseUrl),
     },
     body: JSON.stringify({
       model: config.model,
@@ -312,7 +338,19 @@ export async function chatOpenAiCompatible(
   if (!response.ok) {
     return { ok: false, error: `HTTP ${response.status}: ${httpBodyDetail(await response.text())}` }
   }
-  const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
+  // A 200 with an HTML shell / empty / truncated body (gateway soft-failure)
+  // would make response.json() throw; return ok:false instead of leaking a
+  // raw SyntaxError to the caller.
+  const bodyText = await response.text()
+  let json: { choices?: Array<{ message?: { content?: string } }> }
+  try {
+    json = JSON.parse(bodyText) as { choices?: Array<{ message?: { content?: string } }> }
+  } catch {
+    return {
+      ok: false,
+      error: `AI returned a non-JSON response: ${httpBodyDetail(bodyText)}`,
+    }
+  }
   const content = json.choices?.[0]?.message?.content
   if (!content) return { ok: false, error: 'AI returned an empty response' }
   return { ok: true, content }

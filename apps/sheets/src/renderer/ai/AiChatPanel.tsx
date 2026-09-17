@@ -1,7 +1,8 @@
+import { aiPanelWidthAtPointer, AiPanelSideButton } from '@genoffice/ui'
 import React, { useEffect, useRef, useState } from 'react'
-import { AiComposer, AiTypingIndicator } from '@genoffice/ui'
+import { AiComposer, AiScopeQuote, AiTypingIndicator, type AiScopeQuoteData } from '@genoffice/ui'
 import { GensparkMark } from '../ribbon-icons'
-import type { ChangePlan } from '../../domain/workbook.types'
+import type { ChangePlan } from '@genoffice/xlsx-gateway/domain/workbook.types'
 import { ATTACHMENT_IMAGE_EXTS, type AttachmentMeta } from '../../shared/desktop-api'
 import { useI18n, type TFunc } from '../i18n/locale'
 import { Markdown } from '@genoffice/ui'
@@ -105,7 +106,7 @@ function truncateCardName(name: string): string {
 
 /** Name the scope the way the user thinks of it: by column header when the
  *  selection covers whole columns, by range only when it cannot be named. */
-function scopeLabel(range: string, columns: readonly string[] | null, t: TFunc): string {
+export function scopeLabel(range: string, columns: readonly string[] | null, t: TFunc): string {
   if (columns?.length === 1) return t('aiScopeColumn', { name: columns[0] ?? '' })
   if (columns && columns.length > 1) {
     return t('aiScopeColumns', { names: columns.join(', '), count: columns.length })
@@ -196,12 +197,16 @@ export interface AiChatMessage {
   readonly isError?: boolean | undefined
   /** the run failed and this user message was rolled back out of the model context */
   readonly undelivered?: boolean | undefined
+  /** this user message was written to the project-store chat log (Retry re-persists when it wasn't) */
+  readonly persisted?: boolean | undefined
   /** the run failed because Genspark is signed out — render an inline sign-in button */
   readonly loginRequired?: boolean | undefined
   /** Set when this message reflects an auto-applied plan; renders an inline [Undo] button. */
   readonly autoApplied?: { readonly opCount: number; readonly undoSteps: number } | undefined
   /** attachments consumed from the composer by this user message (read-only echo chips) */
   readonly attachments?: readonly AttachmentMeta[] | undefined
+  /** the range this user message targeted, frozen at send */
+  readonly scope?: AiScopeQuoteData | undefined
 }
 
 export function AiChatPanel({
@@ -251,8 +256,13 @@ export function AiChatPanel({
   readonly aiBusy: boolean
   readonly onPromptChange: (prompt: string) => void
   /** Send the composer text, or the given instruction when provided (used by the
-   *  failed-run Retry, which also resends the message's original attachments) */
-  readonly onSend: (instruction?: string, attachments?: readonly AttachmentMeta[]) => void
+   *  failed-run Retry, which also resends the message's original attachments;
+   *  retryIndex is the failed bubble's chat index so the send replaces it in place) */
+  readonly onSend: (
+    instruction?: string,
+    attachments?: readonly AttachmentMeta[],
+    retryIndex?: number,
+  ) => void
   readonly onStop: () => void
   readonly onNewChat: () => void
   readonly onUndo: (steps: number) => void
@@ -272,7 +282,9 @@ export function AiChatPanel({
   readonly onExpand: () => void
   readonly onCollapse: () => void
 }): React.JSX.Element {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
+  // Panel chrome follows the UI language; message text follows its own content (dir=auto below)
+  const isRtl = lang === 'ar' || lang === 'he'
   const chatRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const stickToBottomRef = useRef(true)
@@ -306,15 +318,23 @@ export function AiChatPanel({
     for (const a of wanted) {
       if (!ATTACHMENT_IMAGE_EXTS.has(a.ext) || previewRequestedRef.current.has(a.path)) continue
       previewRequestedRef.current.add(a.path)
-      void window.desktopApi.readAttachmentImage(a.path).then((r) => {
-        if (!previewRequestedRef.current.has(a.path)) return // removed while the read was in flight
-        if (r.ok && r.base64 && r.mime) {
-          setAttachmentPreviews((prev) => ({
-            ...prev,
-            [a.path]: `data:${r.mime};base64,${r.base64}`,
-          }))
-        }
-      })
+      void window.desktopApi
+        .readAttachmentImage(a.path)
+        .then((r) => {
+          if (!previewRequestedRef.current.has(a.path)) return // removed while the read was in flight
+          if (r.ok && r.base64 && r.mime) {
+            setAttachmentPreviews((prev) => ({
+              ...prev,
+              [a.path]: `data:${r.mime};base64,${r.base64}`,
+            }))
+          }
+        })
+        .catch(() => {
+          // A rejected read (bridge error, teardown race) must not leave the
+          // path marked requested forever — that would permanently skip the
+          // thumbnail with no retry. Clear it so the next effect run retries.
+          previewRequestedRef.current.delete(a.path)
+        })
     }
   }, [attachments, chat, historicChat])
   /** paints the strip's scrollbar thumb while the user scrolls it (cleared 800ms after the last event) */
@@ -370,7 +390,7 @@ export function AiChatPanel({
   const resizeCleanupRef = useRef<(() => void) | null>(null)
   useEffect(() => () => resizeCleanupRef.current?.(), [])
 
-  /** Drag the right edge to resize: the panel is flush with the window's left edge, so width = clientX; the grid transition is disabled while dragging */
+  /** Drag the inner panel edge to resize from the selected window side. */
   const startResize = (e: React.PointerEvent<HTMLDivElement>): void => {
     e.preventDefault()
     const area = asideRef.current?.closest('.sheet-body') as HTMLElement | null
@@ -382,7 +402,7 @@ export function AiChatPanel({
     document.body.style.userSelect = 'none'
     let width = 0
     const onMove = (ev: PointerEvent): void => {
-      width = clampPanelWidth(ev.clientX)
+      width = clampPanelWidth(aiPanelWidthAtPointer(ev.clientX))
       preferredWidthRef.current = width
       area.style.setProperty('--copilot-width', `${width}px`)
     }
@@ -472,6 +492,7 @@ export function AiChatPanel({
     <aside
       ref={asideRef}
       className={`copilot${dragOver ? ' ai-panel-dragover' : ''}${resizing ? ' ai-panel-resizing' : ''}`}
+      dir={isRtl ? 'rtl' : undefined}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('Files')) {
           e.preventDefault()
@@ -497,6 +518,10 @@ export function AiChatPanel({
           Genspark
         </span>
         <div className="ai-panel-header-actions">
+          <AiPanelSideButton
+            lang={lang}
+            onMove={(side) => window.desktopApi.setAiPanelPrefs({ side })}
+          />
           {(chat.length > 0 || historicChat.length > 0) && (
             <button
               className="ai-header-btn"
@@ -508,7 +533,7 @@ export function AiChatPanel({
             </button>
           )}
           <button
-            className="ai-header-btn"
+            className="ai-header-btn ai-panel-collapse"
             onClick={onCollapse}
             data-tip={t('aiCollapsePanel')}
             aria-label={t('aiCollapsePanel')}
@@ -524,11 +549,16 @@ export function AiChatPanel({
           <>
             {historicChat.map((entry, i) => (
               <div key={`h${i}`} className={`ai-msg ai-msg-${entry.role} ai-msg-historic`}>
+                {entry.role === 'user' && entry.scope && <AiScopeQuote scope={entry.scope} />}
                 {entry.role === 'user' && entry.attachments && entry.attachments.length > 0 && (
                   <SentAttachments atts={entry.attachments} previews={attachmentPreviews} />
                 )}
                 {entry.tools.length > 0 && <ToolChipList tools={entry.tools} />}
-                {entry.text && <Markdown text={entry.text} nav={citationNav} />}
+                {entry.text && (
+                  <div dir="auto">
+                    <Markdown text={entry.text} nav={citationNav} />
+                  </div>
+                )}
               </div>
             ))}
             <div className="ai-history-sep">{t('aiHistorySep')}</div>
@@ -551,17 +581,18 @@ export function AiChatPanel({
           >
             {entry.role === 'user' ? (
               <>
+                {entry.scope && <AiScopeQuote scope={entry.scope} />}
                 {entry.attachments && entry.attachments.length > 0 && (
                   <SentAttachments atts={entry.attachments} previews={attachmentPreviews} />
                 )}
-                {entry.text}
+                <span dir="auto">{entry.text}</span>
                 {entry.undelivered && (
                   <div className="ai-msg-undelivered">
                     {t('aiUndelivered')}
                     {!aiBusy && (
                       <button
                         className="ai-retry-btn"
-                        onClick={() => onSend(entry.text, entry.attachments ?? [])}
+                        onClick={() => onSend(entry.text, entry.attachments ?? [], index)}
                       >
                         {t('aiRetry')}
                       </button>
@@ -573,7 +604,9 @@ export function AiChatPanel({
               <>
                 {entry.tools.length > 0 && <ToolChipList tools={entry.tools} />}
                 {entry.text ? (
-                  <Markdown text={entry.text} nav={citationNav} />
+                  <div dir="auto">
+                    <Markdown text={entry.text} nav={citationNav} />
+                  </div>
                 ) : (
                   entry.streaming && (
                     <span className="ai-typing-row">
@@ -588,13 +621,18 @@ export function AiChatPanel({
                     <span className="ai-auto-applied-text">
                       {t('aiAutoApplied', { count: entry.autoApplied.opCount })}
                     </span>
-                    <button
-                      className="ai-undo-btn"
-                      onClick={() => onUndo(Math.max(1, entry.autoApplied?.undoSteps ?? 1))}
-                      data-tip={t('aiUndoTitle')}
-                    >
-                      {t('aiUndo')}
-                    </button>
+                    {/* undoSteps 0 = the batch exceeded the undo budget and
+                        kept no stack entry; a forced 1-step undo would revert
+                        the user's own previous action instead. */}
+                    {(entry.autoApplied.undoSteps ?? 1) > 0 && (
+                      <button
+                        className="ai-undo-btn"
+                        onClick={() => onUndo(Math.max(1, entry.autoApplied?.undoSteps ?? 1))}
+                        data-tip={t('aiUndoTitle')}
+                      >
+                        {t('aiUndo')}
+                      </button>
+                    )}
                   </div>
                 )}
                 {entry.loginRequired && (
