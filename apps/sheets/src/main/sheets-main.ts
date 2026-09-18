@@ -2304,16 +2304,8 @@ export function registerSheetsIpc(): void {
   // owns its channel the way pdf does.
   ipcMain.handle(
     IPC_CHANNELS.aiGenerateImage,
-    async (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
-      if (!hasGskAuth())
-        return {
-          error: 'Catspark account is not logged in on this machine; ask the user to log in first',
-        }
-      if (!gskCloudToolsOn())
-        return {
-          error:
-            'Catspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
-        }
+    (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
+      // generateImageTool runs the login + cloud-tools gate itself (ai-search)
       const prompt = String(op?.prompt ?? '').trim()
       if (!prompt) return { error: 'prompt must not be empty' }
       return generateImageTool(SETTINGS_PATH(), {

@@ -1375,16 +1375,8 @@ function registerPdfIpc(): void {
   // slides' ai:generate-image is only registered once a slides view exists, so pdf needs its own
   ipcMain.handle(
     PDF_CHANNELS.generateImage,
-    async (_e, op: { prompt?: unknown; aspectRatio?: unknown }) => {
-      if (!hasGskAuth())
-        return {
-          error: 'Catspark account is not logged in on this machine; ask the user to log in first',
-        }
-      if (!gskCloudToolsOn())
-        return {
-          error:
-            'Catspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
-        }
+    (_e, op: { prompt?: unknown; aspectRatio?: unknown }) => {
+      // generateImageTool runs the login + cloud-tools gate itself (ai-search)
       const prompt = String(op?.prompt ?? '').trim()
       if (!prompt) return { error: 'prompt must not be empty' }
       return generateImageTool(join(app.getPath('userData'), 'ai-settings.json'), {

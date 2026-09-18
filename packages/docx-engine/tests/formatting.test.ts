@@ -129,26 +129,50 @@ describe('paragraph-level formatting (align / line spacing / indent)', () => {
         '<w:p><w:pPr><w:ind w:left="720" w:leftChars="200"/></w:pPr><w:r><w:t>左缩进</w:t></w:r></w:p>',
     })
     const doc = await parseDocx(bytes)
-    expect(doc.blocks[0].format).toEqual({ indentFirstLine: 420, indentFirstLineChars: 200 })
-    expect(doc.blocks[1].format).toEqual({ indentFirstLineChars: -200 })
-    expect(doc.blocks[2].format).toEqual({ indentLeft: 720, indentLeftChars: 200 })
+    // upstream model: the twips fields carry the RESOLVED values and charIndents
+    // records the character-unit attrs they came from (the fork's parallel
+    // *Chars fields were merged into this single representation)
+    expect(doc.blocks[0].format).toEqual({
+      indentFirstLine: 400,
+      charIndents: { firstLine: 200 },
+    })
+    // hangingChars resolves to the twips pair Word keeps alongside it
+    expect(doc.blocks[1].format).toEqual({
+      indentLeft: 400,
+      indentFirstLine: -400,
+      charIndents: { hanging: 200 },
+    })
+    // leftChars 200 resolves to 400 twips at the default 10.5pt EA size
+    expect(doc.blocks[2].format).toEqual({ indentLeft: 400, charIndents: { left: 200 } })
 
+    // generation keeps BOTH representations: the fork's *Chars fields carry the
+    // value (so Word keeps scaling with the EA font size), while upstream's
+    // charIndents records provenance and drives the cancel-attrs path
     const charsXml = generateParagraphXml(
-      { type: 'paragraph', format: { indentFirstLine: 420, indentFirstLineChars: 200 }, runs: [{ text: 'a' }] },
+      {
+        type: 'paragraph',
+        format: { indentFirstLine: 420, indentFirstLineChars: 200 },
+        runs: [{ text: 'a' }],
+      },
       GEN_CTX,
     )
-    // both forms ride together so Word keeps scaling with the EA font size
-    expect(charsXml).toContain('<w:ind w:firstLine="420" w:firstLineChars="200"/>')
+    expect(charsXml).toContain('w:firstLine="420"')
+    expect(charsXml).toContain('w:firstLineChars="200"')
     const hangingCharsXml = generateParagraphXml(
       { type: 'paragraph', format: { indentFirstLineChars: -200 }, runs: [{ text: 'a' }] },
       GEN_CTX,
     )
-    expect(hangingCharsXml).toContain('<w:ind w:hangingChars="200"/>')
+    expect(hangingCharsXml).toContain('w:hangingChars="200"')
     const leftCharsXml = generateParagraphXml(
-      { type: 'paragraph', format: { indentLeft: 720, indentLeftChars: 200 }, runs: [{ text: 'a' }] },
+      {
+        type: 'paragraph',
+        format: { indentLeft: 720, indentLeftChars: 200 },
+        runs: [{ text: 'a' }],
+      },
       GEN_CTX,
     )
-    expect(leftCharsXml).toContain('<w:ind w:left="720" w:leftChars="200"/>')
+    expect(leftCharsXml).toContain('w:left="720"')
+    expect(leftCharsXml).toContain('w:leftChars="200"')
   })
 
   it('round-trips negative indents (text extending into the margins)', async () => {

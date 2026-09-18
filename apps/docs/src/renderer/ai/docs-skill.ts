@@ -85,12 +85,10 @@ export function createDocsSkill(
         getComments?.(),
         getHf?.(),
         applyGovtTemplate,
-
         getWriter?.(),
         getPageSetup?.(),
         getExtras?.(),
         getNotes?.(),
-
       ),
   }
 }

@@ -160,6 +160,7 @@ describe('write_document tool', () => {
       null,
       undefined,
       undefined,
+      undefined,
       writerOf('<h1>T</h1><p>body</p>'),
     )
     expect(exec.isError).toBeFalsy()
@@ -183,6 +184,7 @@ describe('write_document tool', () => {
       null,
       undefined,
       undefined,
+      undefined,
       writerOf('<p>new</p>'),
     )
     expect(exec.isError).toBe(true)
@@ -200,6 +202,7 @@ describe('write_document tool', () => {
       undefined,
       undefined,
       null,
+      undefined,
       undefined,
       undefined,
       writerOf('<p>half</p>', true),
@@ -228,6 +231,7 @@ describe('write_document tool', () => {
       null,
       undefined,
       undefined,
+      undefined,
       writer,
     )
     expect(exec.isError).toBeFalsy()
@@ -254,6 +258,7 @@ describe('write_document tool', () => {
       null,
       undefined,
       undefined,
+      undefined,
       writer,
     )
     expect(exec.isError).toBeFalsy()
@@ -276,6 +281,7 @@ describe('write_document tool', () => {
       undefined,
       undefined,
       null,
+      undefined,
       undefined,
       undefined,
       writer,

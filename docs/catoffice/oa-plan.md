@@ -4,7 +4,7 @@
 > 定位为**独立的服务端产品**，由客户部署在自有内网；客户已有的第三方系统
 > （钉钉 / 企微 / 泛微 / 既有 CRM / 工单）通过连接器接入。本文档只规划
 > **当前仓库（桌面端）需要补充的能力**；OA 自身的功能规划、架构设计与对接
-> 契约见 [oa/](oa/) 目录。
+> 契约见独立项目仓 [CatOfficeOA](../../CatOfficeOA/)（位于本仓库同级目录）。
 >
 > 总原则：**无配置即不存在**。未配置 OA 实例地址时，本文全部能力在桌面端
 > 零 UI、零代码路径激活——个人版包体与体验不受任何影响。任何 OA 业务概念
@@ -67,13 +67,13 @@
 
 - 职责：凭已登录 OA 会话换取**短时效、单文档**桥 token → 下载文件 →
   交编辑器打开 → 登记会话 → 回传。协议细节见
-  [oa/contracts.md](oa/contracts.md)。
+  [CatOfficeOA/docs/contracts.md](../../CatOfficeOA/docs/contracts.md)。
 - 回传前**必须经桌面端确认对话框**（列出目标文档名与 OA 实例），确认后
   执行并审计；OA 网页永远不能静默触发对本地文件的写。
 - 与编辑器解耦：桥包只负责「取文件 / 交文件 / 记会话」；编辑器以既有
   「打开文件」入口接入（等价于打开一个本地临时副本，保存时触发回传）。
 - 测试：token 交换 / 过期 / 单文档绑定 / 确认拦截 / 断网降级；mock OA
-  服务器先行（见 oa/contracts.md 第零节）。
+  服务器先行（见 [CatOfficeOA/docs/contracts.md](../../CatOfficeOA/docs/contracts.md) 第零节）。
 
 ### W0.3 契约包 `@catoffice/contracts`
 
@@ -109,7 +109,8 @@ C1 红线不变：任何事件不得携带文档内容、AI prompt/回复、凭�
 - `GET {oa_base}/api/manifest`，zod 校验；任何失败（网络 / 非 200 /
   坏字段）→ 工作台显示「不可达」占位并允许重试，**绝不阻塞编辑器主流程**
   （语义对齐 asset_center 客户端：失败降级、resolve 空）。
-- manifest 完整语义见 [oa/contracts.md](oa/contracts.md)。
+- manifest 完整语义见
+  [CatOfficeOA/docs/contracts.md](../../CatOfficeOA/docs/contracts.md)。
 
 ### W1.3 工作台启动器 UI
 
@@ -159,4 +160,4 @@ C1 红线不变：任何事件不得携带文档内容、AI prompt/回复、凭�
 | [compliance-plan.md](compliance-plan.md) | C1 事件表随 W0.4 增补；C2「写入必确认」原则在桥上延续 |
 | [catspark-integration.md](catspark-integration.md) | 设备码登录流复用；mock-first 契约开发模式复用 |
 | [asset-center-plan.md](asset-center-plan.md) | manifest「元数据驱动 + 失败降级」语义的先例 |
-| [oa/](oa/) | OA 服务端的产品规划 / 架构设计 / 对接契约 |
+| [CatOfficeOA](../../CatOfficeOA/) | OA 独立项目仓：产品规划 / 架构设计 / 对接契约 |

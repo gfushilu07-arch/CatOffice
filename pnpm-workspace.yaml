@@ -6,6 +6,11 @@ packages:
 overrides:
   nanoid@3: ^3.3.17
   nanoid@5: ^5.1.16
+  # one @types/node for the whole workspace: vite/vitest peers otherwise pull a
+  # second copy (25.x), and two copies make the ambient `node:*` module
+  # declarations ambiguous — tsc then silently drops them (fork fix, upstream
+  # npm layout happens to resolve a single copy per importer)
+  '@types/node': ^24.10.1
 
 # 允许运行构建脚本的依赖：esbuild 安装平台二进制校验，protobufjs 同理；
 # electron-winstaller 仅打 Windows 包时用到。

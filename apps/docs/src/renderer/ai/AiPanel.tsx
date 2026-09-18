@@ -765,16 +765,18 @@ export function AiPanel({
           () => (trackChangesRef.current ? { author: AI_REVISION_AUTHOR } : undefined),
           () => commentsAccessRef.current,
           () => hfAccessRef.current,
-          onApplyGovtTemplate,
-
           () => imageGenerationAvailable(settingsRef.current, gskLoggedInRef.current),
           () => ({
-            write: (spec, onProgress, signal) => runDocWriterRef.current(spec, onProgress, signal),
+            write: (
+              spec: Parameters<typeof runDocWriterRef.current>[0],
+              onProgress: Parameters<typeof runDocWriterRef.current>[1],
+              signal: Parameters<typeof runDocWriterRef.current>[2],
+            ) => runDocWriterRef.current(spec, onProgress, signal),
           }),
           () => pageSetupAccessRef.current,
           () => docExtrasRef.current,
           () => notesAccessRef.current,
-
+          onApplyGovtTemplate,
         ),
         createFilesSkill(availableAttachments),
       ]),

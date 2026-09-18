@@ -25,7 +25,6 @@ export {
   windowMenuTemplate,
   type AppMenuLabels,
 } from './app-menu'
-export { GITHUB_REPO_URL } from './github-menu'
 export {
   saveAsSuggestion,
   showOpenDialogWithMemory,

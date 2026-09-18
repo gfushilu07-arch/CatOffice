@@ -1201,7 +1201,6 @@ export function executeTool(
   comments?: AiCommentsAccess,
   hf?: AiHeaderFooterAccess,
   applyGovtTemplate?: ApplyGovtTemplate,
-,
   writer?: AiDocWriter,
   pageSetup?: AiPageSetupAccess,
   extras?: AiDocExtras,

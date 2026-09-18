@@ -28,13 +28,12 @@ const parseOne = (txBodyInner: string) => {
 }
 
 describe('a:pPr rtl="1" parse', () => {
-  it('reads rtl="1" into Paragraph.rtl with pPrExplicit.rtl', () => {
+  it('reads rtl="1" into Paragraph.rtl (explicit RTL base)', () => {
     const { el } = parseOne(
       '<a:bodyPr/><a:p><a:pPr rtl="1" algn="r"/><a:r><a:t>سلام</a:t></a:r></a:p>',
     )
     const p = el.text!.paragraphs[0]!
     expect(p.rtl).toBe(true)
-    expect(p.pPrExplicit?.rtl).toBe(true)
     expect(p.align).toBe('right')
   })
 
@@ -47,7 +46,6 @@ describe('a:pPr rtl="1" parse', () => {
     const { el } = parseOne('<a:bodyPr/><a:p><a:r><a:t>سلام</a:t></a:r></a:p>')
     const p = el.text!.paragraphs[0]!
     expect(p.rtl).toBeUndefined()
-    expect(p.pPrExplicit?.rtl).toBeUndefined()
   })
 })
 
@@ -66,9 +64,15 @@ describe('a:pPr rtl="1" write-back', () => {
     expect(out).toContain(RUN)
   })
 
-  it('non-explicit rtl in pPrExplicit does not inject rtl into a rebuilt pPr', () => {
+  it('an inferred (absent) rtl writes no rtl attribute', () => {
     const { el } = parseOne('<a:bodyPr/><a:p><a:r><a:t>x</a:t></a:r></a:p>')
     const xml = generateParagraphXml(el.text!.paragraphs[0]!)
     expect(xml).not.toContain('rtl=')
+  })
+
+  it('explicit rtl="0" round-trips as an explicit LTR base (upstream three-state model)', () => {
+    const { el } = parseOne('<a:bodyPr/><a:p><a:pPr rtl="0"/><a:r><a:t>x</a:t></a:r></a:p>')
+    expect(el.text!.paragraphs[0]!.rtl).toBe(false)
+    expect(generateParagraphXml(el.text!.paragraphs[0]!)).toContain('rtl="0"')
   })
 })

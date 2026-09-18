@@ -5,8 +5,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import JSZip from 'jszip'
-import { SHEET_TEMPLATES, SHEET_TEMPLATE_MENU, sheetTemplateById } from '../src/gateway/sheet-templates'
-import { rowsToXlsxBuffer } from '../src/gateway/csv-import'
+import { SHEET_TEMPLATES, SHEET_TEMPLATE_MENU, sheetTemplateById } from '@genoffice/xlsx-gateway/gateway/sheet-templates'
+import { rowsToXlsxBuffer } from '@genoffice/xlsx-gateway/gateway/csv-import'
 
 describe('sheet template presets', () => {
   it('ships budget / roster / ledger / invoice / attendance with unique ids', () => {

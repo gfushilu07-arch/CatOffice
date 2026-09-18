@@ -15,7 +15,7 @@ main ── merge 提交串接上游快照 ──  CatOffice 集成分支（开�
 origin (自建仓库)
 ```
 
-``bash
+```bash
 git fetch upstream
 git checkout main
 git merge upstream/main
@@ -23,7 +23,7 @@ pnpm run sync-gate # 门禁：typecheck + 测试 + 构建冒烟（见下）
 git tag fork-YYYYMMDD # 记录一次成功同步点
 git push origin main --tags
 
-````
+```
 
 若上游变更巨大想先观察再整合，可建 `integration/xxx` 临时分支演练 merge，绿了再快进 main。
 
@@ -61,6 +61,19 @@ git push origin main --tags
 | `packages/electron-utils/src/default-save-dir.ts` 等 | 回退目录 `CatOffice` | 保我方值 |
 | 字体家族名 / PDF 数据键 / provider 存储键 `genspark` | 有意不改 | 永远保上游 |
 
+### 2026-09-18 同步新增的偏离点
+
+| 文件 | 偏离内容 | 合并取舍 |
+| --- | --- | --- |
+| `pnpm-workspace.yaml` | 新增 override `'@types/node': ^24.10.1` | 全保我方：vite/vitest 的 peer 会拉进第二份 `@types/node`（25.x），两份副本使 ambient `node:*` 模块声明二义化，tsc 会静默丢弃它们（表现为 sheets/ai-provider/cli 报「找不到模块 node:readline」）。上游若自行升级 Node 类型 → 同步抬高此版本号 |
+| `packages/cli/src/resources.ts` | `repoRoot()` 的包名判定接受 `genoffice` 或 `catoffice` | 保我方两行：上游 CLI 靠根 `package.json` 的 `name` 定位仓库根来解析捆绑资源（`skills/genoffice/SKILL.md`、pdfium.wasm、sidecar），fork 根包名是 `catoffice`，只认 `genoffice` 会让所有 CLI 资源探测失败（exit code 4） |
+| `packages/cli/tests/render.test.ts` | contact-sheet 用例加 `{ timeout: 240_000 }` | 保我方一行：该用例两次 spawn 假 app，macOS 上「新写入脚本的首次执行」要 15–60s，全量套件并行时超默认 60s。属环境性 flake，非逻辑缺陷 |
+| `apps/docs/src/renderer/i18n/**`（每语言一文件） | fork 键值迁入上游的 `i18n/{ai,app,ribbon}/<lang>.ts` 结构，含上游新增的 `cs` | 结构随上游；fork 键按语言逐个迁移。上游再重构 i18n 目录 → 照搬结构重迁 |
+| `packages/docx-engine/src/parse.ts`/`generate.ts`/`parse-styles.ts` | 采纳上游 `charIndents` 为唯一解析产物；fork 的 `indentLeftChars`/`indentFirstLineChars` 改为**派生态**（`parse-styles.ts` 的样式层 + `apps/docs/.../convert.ts` 的 `charUnitIndents()` 从 `charIndents` 折算有符号对） | 上游模型为准：引擎不再写 fork 字段（否则上游 15 个 char-unit 测试全红），渲染层在边界处派生。生成侧仍保留 fork 的 `*Chars` 发射与上游 `charIndents` 取消属性，两模型共存 |
+| `apps/shell/src/main/index.ts` | 保留 fork 的 MCP 辅助块、`newSlideTab` 模板分支 + `bindPendingDir('slide')`、`ProjectStore` 导入、19 语言 pdfDocx 键、`before-quit` 同时调 `auditAppQuit()` 与 `stopMcpSync()` | 逐块保留；上游若重构标签页创建 → 参照 `newSlideTab` 分支平移模板逻辑 |
+| `apps/docs/src/renderer/line-metrics.ts` | CJK 变体分支保留 fork 的 T4 平台分派（`macSubstitution` 才查 `missingLocally()`，Windows/Linux 保持声明分类） | 保我方语义：合并时曾误将上游的 `missingLocally() && !sansSub` 与 fork 的 `macSubstitution` 叠加，导致 `Noto Sans CJK SC` 在 win32/linux 丢字面头且类被强制成 serif；`font-platform`/`font-chain-matrix` 快照是守卫 |
+| `apps/docs/tests/fixtures/font-chains/*.json` | 随上游新增捆绑别名重生成（Aptos/Consolas/MS Gothic/MS Mincho/Meiryo 的 `* GO` 面 + hangul 尾链） | 快照随上游逻辑更新，非 fork 偏离；重生成命令见测试头注释 |
+
 ## 双 lockfile 治理
 
 pnpm 用 `pnpm-lock.yaml` 安装依赖，但上游的三件许可证工具（`tools/check-licenses.mjs`、`tools/gen-third-party-notices.mjs`）读取 npm 的 `package-lock.json`，两者必须并存：
@@ -74,7 +87,7 @@ pnpm 用 `pnpm-lock.yaml` 安装依赖，但上游的三件许可证工具（`to
 
 ```bash
 pnpm run sync-gate
-````
+```
 
 （= typecheck 全 workspace + catspark tsc + 全量测试 + build:all；测试前自动把 cargo 加入 PATH。）
 

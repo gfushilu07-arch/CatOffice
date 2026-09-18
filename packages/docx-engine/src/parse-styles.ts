@@ -633,6 +633,11 @@ function styleDisplayOf(
       // zeros included, they cancel an inherited value) for the parser
       const chars = charIndentsOf(ind)
       if (chars) display.indentChars = chars
+      // the fork's renderer reads the signed char-unit pair (ribbon indent state,
+      // style-level text-indent in em); derive it from the same raw record
+      if (chars?.left) display.indentLeftChars = chars.left
+      if (chars?.hanging) display.indentFirstLineChars = -chars.hanging
+      else if (chars?.firstLine) display.indentFirstLineChars = chars.firstLine
     }
   }
   return Object.keys(display).length > 0 ? display : undefined

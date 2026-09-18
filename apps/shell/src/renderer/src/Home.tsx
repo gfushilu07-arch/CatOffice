@@ -1906,14 +1906,9 @@ export function Home() {
     }
   }
 
-<<<<<<< HEAD
   // asset center A1: the native picker lists the built-in GB/T 9704 kinds
   const handleNewGovtDoc = () => {
     void window.aiOffice.govtTemplates()
-  }
-
-  const handleNewSheet = () => {
-    void window.aiOffice.newSheet(selectedProjectId ? { projectId: selectedProjectId } : undefined)
   }
 
   // asset center S1: the native sheet-template picker (budget / roster / ledger)
@@ -1921,50 +1916,11 @@ export function Home() {
     void window.aiOffice.sheetTemplates()
   }
 
-  const handleNewSlide = () => {
-    void window.aiOffice.newSlide(selectedProjectId ? { projectId: selectedProjectId } : undefined)
-  }
-
   // asset center S2: the native deck-template picker (work report)
   const handleNewDeckTemplate = () => {
     void window.aiOffice.deckTemplates()
   }
 
-  const handleNewMarkdown = () => {
-    void window.aiOffice.newMarkdown(
-      selectedProjectId ? { projectId: selectedProjectId } : undefined,
-    )
-  }
-
-  const handleNewPdf = () => {
-    void window.aiOffice.newPdf(selectedProjectId ? { projectId: selectedProjectId } : undefined)
-  }
-
-  const NEW_ITEMS = [
-    { ext: 'docx', title: t('newDoc'), sub: '.docx', action: handleNewDoc },
-    {
-      ext: 'govt',
-      title: '公文模板',
-      sub: 'GB/T 9704',
-      action: handleNewGovtDoc,
-    },
-    { ext: 'xlsx', title: t('newSheet'), sub: '.xlsx', action: handleNewSheet },
-    {
-      ext: 'xlsht',
-      title: '表格模板',
-      sub: '预算 / 排班 / 台账',
-      action: handleNewSheetTemplate,
-    },
-    { ext: 'pptx', title: t('newSlide'), sub: '.pptx', action: handleNewSlide },
-    {
-      ext: 'pptsht',
-      title: '演示模板',
-      sub: '工作汇报',
-      action: handleNewDeckTemplate,
-    },
-    { ext: 'md', title: t('newMarkdown'), sub: '.md', action: handleNewMarkdown },
-    { ext: 'pdf', title: t('newPdf'), sub: '.pdf', action: handleNewPdf },
-=======
   const folderDropProps = (dir: string, { autoExpand }: { autoExpand: boolean }) => ({
     onDragOver: (event: ReactDragEvent) => {
       if (!event.dataTransfer.types.includes(DRAG_PATHS_MIME)) return
@@ -1994,48 +1950,22 @@ export function Home() {
     },
   })
 
+
   // ── New file (lands in the selected folder) ──
   const newFileOpts =
     selectedFolder && root && selectedFolder !== root.path ? { dir: selectedFolder } : undefined
 
   const NEW_ITEMS = [
-    {
-      ext: 'docx',
-      title: t('newDoc'),
-      sub: '.docx',
-      action: () => window.aiOffice.newDoc(newFileOpts),
-    },
-    {
-      ext: 'xlsx',
-      title: t('newSheet'),
-      sub: '.xlsx',
-      action: () => window.aiOffice.newSheet(newFileOpts),
-    },
-    {
-      ext: 'pptx',
-      title: t('newSlide'),
-      sub: '.pptx',
-      action: () => window.aiOffice.newSlide(newFileOpts),
-    },
-    {
-      ext: 'md',
-      title: t('newMarkdown'),
-      sub: '.md',
-      action: () => window.aiOffice.newMarkdown(newFileOpts),
-    },
-    {
-      ext: 'html',
-      title: t('newHtml'),
-      sub: '.html',
-      action: () => window.aiOffice.newHtml(newFileOpts),
-    },
-    {
-      ext: 'pdf',
-      title: t('newPdf'),
-      sub: '.pdf',
-      action: () => window.aiOffice.newPdf(newFileOpts),
-    },
->>>>>>> upstream/main
+    { ext: 'docx', title: t('newDoc'), sub: '.docx', action: () => window.aiOffice.newDoc(newFileOpts) },
+    { ext: 'govt', title: '公文模板', sub: 'GB/T 9704', action: handleNewGovtDoc },
+    { ext: 'xlsx', title: t('newSheet'), sub: '.xlsx', action: () => window.aiOffice.newSheet(newFileOpts) },
+    { ext: 'xlsht', title: '表格模板', sub: '预算 / 排班 / 台账', action: handleNewSheetTemplate },
+    { ext: 'pptx', title: t('newSlide'), sub: '.pptx', action: () => window.aiOffice.newSlide(newFileOpts) },
+    { ext: 'pptsht', title: '演示模板', sub: '工作汇报', action: handleNewDeckTemplate },
+    { ext: 'md', title: t('newMarkdown'), sub: '.md', action: () => window.aiOffice.newMarkdown(newFileOpts) },
+    { ext: 'html', title: t('newHtml'), sub: '.html', action: () => window.aiOffice.newHtml(newFileOpts) },
+    { ext: 'pdf', title: t('newPdf'), sub: '.pdf', action: () => window.aiOffice.newPdf(newFileOpts) },
+
   ]
 
   function renderQuickCards() {

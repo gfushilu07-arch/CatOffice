@@ -43,8 +43,7 @@ import menuHomeIcon2x from './assets/menu-home@2x.png?asset'
 import { createI18n, isLang, normalizeLang, setUiLang, type Lang } from '@genoffice/i18n'
 import {
   DEFAULT_SAVE_DIR_KEY,
-  DROP_OPEN_CHANNEL,
-  GITHUB_REPO_URL,
+DROP_OPEN_CHANNEL,
 
   appMenuLabels,
   contextMenuLabels,
@@ -71,6 +70,7 @@ import { OPEN_DOCUMENTS_FILE, clearOpenDocuments, publishOpenDocuments } from '.
 import { startControlServer, type ControlServer } from './control-server'
 import { controlHandler } from './control-handlers'
 import { installCliLinkBestEffort } from './cli-link'
+import { ProjectStore } from '@genoffice/project-store'
 import { registerIntegrationsIpc } from './integrations-ipc'
 import {
   auditAppQuit,
@@ -162,8 +162,10 @@ import {
   uniquePathIn,
   authorizeMcpDocWrite,
 } from '../../../docs/src/main/docs-main'
-import { blankXlsxBuffer } from '@genoffice/xlsx-gateway/gateway/csv-import'
-import { rowsToXlsxBuffer } from '@genoffice/xlsx-gateway/gateway/csv-import'
+import {
+  blankXlsxBuffer,
+  rowsToXlsxBuffer,
+} from '@genoffice/xlsx-gateway/gateway/csv-import'
 import { SHEET_TEMPLATE_MENU, sheetTemplateById } from '@genoffice/xlsx-gateway/gateway/sheet-templates'
 import {
   DECK_TEMPLATE_MENU,
@@ -360,6 +362,7 @@ if (headlessArgv.kind !== 'none') {
 
 // The product rename from "AI Office" to CatOffice changed the userData path; migrate old user data once
 
+
 if (app.isPackaged) {
   const oldDir = join(app.getPath('appData'), 'AI Office')
   const newDir = app.getPath('userData')
@@ -401,6 +404,7 @@ function packagedSidecarBin(): string {
 const HTML_OUT = app.isPackaged
   ? join(process.resourcesPath, 'modules', 'html')
   : join(APPS_ROOT, 'html', 'out')
+
 
 const SIDECAR_BIN = app.isPackaged
   ? packagedSidecarBin()
@@ -866,7 +870,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Choose Default Save Location',
     errSaveDirUnusable:
       'The selected folder is not writable and cannot be used as the default save location',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   ja: {
     menuFile: 'ファイル',
     menuSectionNew: '新規作成',
@@ -1371,7 +1376,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Elegir ubicación de guardado predeterminada',
     errSaveDirUnusable:
       'La carpeta seleccionada no admite escritura y no puede usarse como ubicación de guardado predeterminada',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   th: {
     menuFile: 'ไฟล์',
     menuSectionNew: 'สร้างใหม่',
@@ -1568,7 +1574,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Pilih Lokasi Penyimpanan Default',
     errSaveDirUnusable:
       'Folder yang dipilih tidak dapat ditulis dan tidak bisa digunakan sebagai lokasi penyimpanan default',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   ru: {
     menuFile: 'Файл',
     menuSectionNew: 'Создать',
@@ -1668,7 +1675,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Выбрать папку сохранения по умолчанию',
     errSaveDirUnusable:
       'Выбранная папка недоступна для записи и не может использоваться как папка сохранения по умолчанию',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   ar: {
     menuFile: 'ملف',
     menuSectionNew: 'جديد',
@@ -1763,7 +1771,8 @@ const tMain = createI18n({
     pdfDocxLocalCorruptDetail: 'الملف تالف أو ليس ملف PDF صالحًا ولا يمكن تحويله.',
     dlgPickSaveDir: 'اختيار موقع الحفظ الافتراضي',
     errSaveDirUnusable: 'المجلد المحدد غير قابل للكتابة ولا يمكن استخدامه كموقع حفظ افتراضي',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   pt: {
     menuFile: 'Arquivo',
     menuSectionNew: 'Novo',
@@ -1863,7 +1872,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Escolher local de salvamento padrão',
     errSaveDirUnusable:
       'A pasta selecionada não permite gravação e não pode ser usada como local de salvamento padrão',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   it: {
     menuFile: 'File',
     menuSectionNew: 'Nuovo',
@@ -1963,7 +1973,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Scegli la posizione di salvataggio predefinita',
     errSaveDirUnusable:
       'La cartella selezionata non è scrivibile e non può essere usata come posizione di salvataggio predefinita',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   pl: {
     menuFile: 'Plik',
     menuSectionNew: 'Nowy',
@@ -2063,7 +2074,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Wybierz domyślną lokalizację zapisu',
     errSaveDirUnusable:
       'Wybrany folder nie pozwala na zapis i nie może być domyślną lokalizacją zapisu',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   cs: {
     menuFile: 'Soubor',
     menuSectionNew: 'Nový',
@@ -2151,7 +2163,15 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Zvolte výchozí umístění pro ukládání',
     errSaveDirUnusable:
       'Do vybrané složky nelze zapisovat a nelze ji použít jako výchozí umístění pro ukládání',
-  },
+
+    pdfDocxLoginMsg: '导出为 Word 需要登录 Catspark 账号。',
+    pdfDocxLoginDetail: '点击“登录”将打开浏览器完成授权，完成后请重新点击导出。',
+    pdfDocxBtnLogin: '登录',
+    pdfDocxConfirmMsg: '将此 PDF 上传到 Catspark 云端转换为 Word？',
+    pdfDocxConfirmDetail: '本次转换将消耗 5 credits，文件将上传至云端处理。',
+    pdfDocxConfirmBalance: '当前余额 {balance} credits。',
+    pdfDocxBtnConvert: '继续',
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   nl: {
     menuFile: 'Bestand',
     menuSectionNew: 'Nieuw',
@@ -2251,7 +2271,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Standaard opslaglocatie kiezen',
     errSaveDirUnusable:
       'De geselecteerde map is niet beschrijfbaar en kan niet als standaard opslaglocatie worden gebruikt',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   ms: {
     menuFile: 'Fail',
     menuSectionNew: 'Baharu',
@@ -2350,7 +2371,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'Pilih Lokasi Simpanan Lalai',
     errSaveDirUnusable:
       'Folder yang dipilih tidak boleh ditulis dan tidak dapat digunakan sebagai lokasi simpanan lalai',
-  },
+
+    pdfDocxNoCliMsg: '无法登录 Catspark：缺少必需组件（gsk），请重新安装应用。',  },
   he: {
     menuFile: 'קובץ',
     menuSectionNew: 'חדש',
@@ -2445,7 +2467,8 @@ const tMain = createI18n({
     dlgPickSaveDir: 'בחירת מיקום שמירה כברירת מחדל',
     errSaveDirUnusable:
       'התיקייה שנבחרה אינה ניתנת לכתיבה ולא ניתן להשתמש בה כמיקום שמירה כברירת מחדל',
-  },
+
+    pdfDocxNoCliMsg: 'לא ניתן להתחבר ל-Genspark: רכיב נדרש (gsk) חסר. נא להתקין מחדש את האפליקציה.',  },
   hi: {
     menuFile: 'फ़ाइल',
     menuSectionNew: 'नया',
@@ -2659,6 +2682,40 @@ let tabManager: TabManager | null = null
 const pendingNewFileDir = new Map<string, { dir: string; setAt: number }>()
 /** folder bound to a freshly created editor tab, keyed by its webContents id; consumed by the first save */
 const pendingDirByWc = new Map<number, { dir: string; setAt: number }>()
+/**
+ * When the user creates a file from a specific project view, remember which
+ * project the next save should belong to. key: 'doc' | 'sheet' | 'slide', value: projectId.
+ * Consumed by each app's saveHook once the file first hits disk (P1 item 3).
+ */
+const pendingNewFileProject = new Map<string, string>()
+
+/**
+ * P1: after a file first hits disk, if a pending project was set earlier via
+ * "create from project view", move the new file into that project automatically.
+ * Called from createShellWindow's opened/saved hooks.
+ */
+function applyPendingProject(filePath: string): void {
+  const ext = extname(filePath).slice(1).toLowerCase()
+  let key: string | undefined
+  if (ext === 'docx') key = 'doc'
+  else if (ext === 'xlsx' || ext === 'xlsm' || ext === 'xls' || ext === 'csv') key = 'sheet'
+  else if (ext === 'pptx') key = 'slide'
+  else if (ext === 'md' || ext === 'markdown') key = 'markdown'
+  else if (ext === 'pdf') key = 'pdf'
+  if (!key) return
+  const projectId = pendingNewFileProject.get(key)
+  if (!projectId) return
+  pendingNewFileProject.delete(key)
+  try {
+    const store = new ProjectStore(app.getPath('userData'))
+    store.ensureDefaultProject()
+    store.resolveProjectForFile(filePath) // assign to default first (idempotent)
+    store.moveFileToProject(filePath, projectId)
+  } catch (err) {
+    console.warn('[shell] applyPendingProject failed:', err)
+  }
+}
+
 /** a pending folder only applies to a file created within this window after the click */
 const PENDING_DIR_TTL_MS = 30 * 60 * 1000
 
@@ -2808,6 +2865,7 @@ function createShellWindow(): void {
     minHeight: 600,
     title: '办公猫',
 
+
     // vibrancy: editor modules punch translucent regions (e.g. the slides
     // thumbnail pane) through to the desktop
     ...(process.platform === 'darwin'
@@ -2919,6 +2977,7 @@ function createShellWindow(): void {
     applyPendingProject(path)
     auditLog('doc.save', path)
     applyPendingDir(wc.id, path)
+
   })
   // ⌘O / open-path inside a docs tab: sync the tab title immediately, same
   // contract as the sheets/slides opened hooks (a plain save to the original
@@ -2929,6 +2988,7 @@ function createShellWindow(): void {
     applyPendingProject(path)
     auditLog('doc.open', path)
     applyPendingDir(wcId, path)
+
   })
   // markdown untitled first save / Save As lands on a new path
   setMarkdownFileSavedHook((wc, path) => {
@@ -3207,6 +3267,116 @@ function routeDocumentPath(filePath: string): boolean {
   return false
 }
 
+
+
+
+/**
+ * MCP: open a blank sheets tab and return its webContents id, for the
+ * visible-grid bridge. Like the app's own "new spreadsheet", a real blank
+ * .xlsx is created up front (the save pipeline needs an on-disk workbook;
+ * the fallback in-memory demo grid cannot save) — but the AI auto-rename
+ * marking is skipped, the file name is the agent's business.
+ */
+
+/** MCP: open a blank docs tab and return its webContents id, for the visible-editor bridge */
+function openBlankDocsTabForMcp(): number {
+  if (!tabManager) throw new Error('GenOffice is not ready')
+  const tabId = tabManager.openDocsTab(undefined, { newBlank: true })
+  const view = tabManager.docsTabs().find((t) => t.id === tabId)
+  if (!view) throw new Error('the new document tab could not be opened')
+  recordStarPromptDocOpen()
+  analytics.track('file_new', { kind: 'docx' })
+  return view.webContents.id
+}
+
+/**
+ * MCP: open a blank sheets tab and return its webContents id, for the
+ * visible-grid bridge. Like the app's own "new spreadsheet", a real blank
+ * .xlsx is created up front (the save pipeline needs an on-disk workbook;
+ * the fallback in-memory demo grid cannot save) — but the AI auto-rename
+ * marking is skipped, the file name is the agent's business.
+ */
+async function openBlankSheetsTabForMcp(): Promise<number> {
+  if (!tabManager) throw new Error('GenOffice is not ready')
+  const filePath = uniquePathIn(defaultSaveDir(), `${tm('untitledSheet')}.xlsx`)
+  writeFileSync(filePath, await blankXlsxBuffer())
+  const tabId = tabManager.openSheetsTab(filePath)
+  const view = tabManager.sheetsTabs().find((t) => t.id === tabId)
+  if (!view) {
+    // the tab never appeared, so nothing will ever consume this file
+    try {
+      rmSync(filePath)
+    } catch (error) {
+      console.warn('[mcp] could not remove the unused blank workbook:', error)
+    }
+    throw new Error('the new spreadsheet tab could not be opened')
+  }
+  const wcId = view.webContents.id
+  mcpBlankSheetPaths.set(wcId, filePath)
+  view.webContents.once('destroyed', () => mcpBlankSheetPaths.delete(wcId))
+  // Same nudge the interactive path uses: the renderer subscribes to the open
+  // action only after Univer mounts, so a single push can land in the void on a
+  // cold start and leave the tab sitting on a blank in-memory workbook.
+  startQueuedWorkbookNudge()
+  recordStarPromptDocOpen()
+  analytics.track('file_new', { kind: 'xlsx' })
+  return view.webContents.id
+}
+
+/** backing files of blank sheets tabs created by the MCP session tools */
+const mcpBlankSheetPaths = new Map<number, string>()
+
+/**
+ * MCP: drop a blank sheets tab whose session never became ready, and delete the
+ * empty workbook created for it. Without this a failed `create_session` leaves
+ * an orphan tab plus an .xlsx in the default save folder that the user never
+ * asked for — and nothing in the MCP surface can clean either one up.
+ */
+function abandonBlankSheetsTabForMcp(wcId: number): void {
+  const manager = tabManager
+  const filePath = mcpBlankSheetPaths.get(wcId)
+  mcpBlankSheetPaths.delete(wcId)
+  if (!manager) return
+  // the grid may already be usable while the MCP bridge is not: keep anything the user typed
+  if (manager.dirtySheetsTabs().some((t) => t.webContents.id === wcId)) return
+  if (!abandonBlankTabForMcp(manager.sheetsTabs(), wcId)) return
+  if (!filePath) return
+  try {
+    if (existsSync(filePath)) rmSync(filePath)
+  } catch (error) {
+    console.warn('[mcp] could not remove the unused blank workbook:', error)
+  }
+}
+
+/**
+ * MCP: close a tab whose session never became ready. Returns false when the
+ * tab could not be closed (it is already gone, or the close failed).
+ */
+function abandonBlankTabForMcp(
+  tabs: Array<{ id: string; webContents: WebContents }>,
+  wcId: number,
+): boolean {
+  const tab = tabs.find((t) => t.webContents.id === wcId)
+  if (!tab || !tabManager) return false
+  try {
+    return tabManager.closeTabWithoutPrompt(tab.id)
+  } catch (error) {
+    console.warn('[mcp] could not close the unused tab:', error)
+    return false
+  }
+}
+
+/** MCP: open a blank slides tab and return its webContents id, for the visible-deck bridge */
+function openBlankSlidesTabForMcp(): number {
+  if (!tabManager) throw new Error('GenOffice is not ready')
+  const tabId = tabManager.openSlidesTab()
+  const view = tabManager.slidesTabs().find((t) => t.id === tabId)
+  if (!view) throw new Error('the new presentation tab could not be opened')
+  recordStarPromptDocOpen()
+  analytics.track('file_new', { kind: 'pptx' })
+  return view.webContents.id
+}
+
 /**
  * "New spreadsheet" creates the backing .xlsx in the default folder up front and
  * opens it as a regular file tab — the blank in-memory demo mode has no save
@@ -3218,12 +3388,14 @@ async function newSheetTab(sheetTemplateId?: string): Promise<void> {
     const template = sheetTemplateId ? sheetTemplateById(sheetTemplateId) : undefined
     const filePath = uniquePathIn(
       newFileDir('sheet'),
+
       `${template ? template.fileName : tm('untitledSheet')}.xlsx`,
     )
     writeFileSync(
       filePath,
       template ? await rowsToXlsxBuffer(template.rows, template.sheetName) : await blankXlsxBuffer(),
     )
+
 
     // eligible for content-derived auto-rename after the first AI generation
     markSheetsUntitledPath(filePath)
@@ -3268,6 +3440,7 @@ const GOVT_TEMPLATE_MENU: Array<{ id: string; label: string; description: string
 function newDocTab(govtTemplateId?: string): void {
   try {
     bindPendingDir('doc', tabManager?.openDocsTab(undefined, { newBlank: true, govtTemplateId }))
+
     // creating a document is as much a value moment as opening one
     recordStarPromptDocOpen()
     analytics.track('file_new', { kind: 'docx' })
@@ -3276,6 +3449,22 @@ function newDocTab(govtTemplateId?: string): void {
   }
 }
 
+
+function newSlideTab(deckTemplateId?: string): void {
+  try {
+    const template = deckTemplateId ? deckTemplateById(deckTemplateId) : undefined
+    if (template) {
+      // asset center S2: render the skeleton to a template-named pptx and
+      // route it like an opened file (same flow as the sheet templates)
+      void deckTemplatePptx(template).then((bytes) => {
+        const filePath = uniquePathIn(defaultSaveDir(), `${template.fileName}.pptx`)
+        writeFileSync(filePath, bytes)
+        if (routeDocumentPath(filePath)) recordStarPromptDocOpen()
+        analytics.track('file_new', { kind: 'pptx', template: template.id })
+      })
+      return
+    }
+    tabManager?.openSlidesTab()
 
     recordStarPromptDocOpen()
     analytics.track('file_new', { kind: 'pptx' })
@@ -3508,6 +3697,7 @@ function registerHomeIpc(): void {
     }
     rememberPendingDir('slide', opts)
     newSlideTab(opts?.deckTemplateId)
+
   })
 
   // Template pickers (asset center A1/S1/S2): one factory, three entries.
@@ -4994,6 +5184,9 @@ let controlServer: ControlServer | null = null
 // Linux desktop-session switch (L4): must run before app.whenReady()
 applyLinuxOzoneSwitch()
 
+// Linux desktop-session switch (L4): must run before app.whenReady()
+applyLinuxOzoneSwitch()
+
 // show() does not un-minimize, and on macOS ⌘W destroys the shell window while the
 // app keeps running — either way a file opened from Finder would land out of sight.
 function revealShellWindow(): void {
@@ -5317,4 +5510,5 @@ app.on('before-quit', () => {
   // release the MCP port synchronously (macOS keeps the process alive after
   // the last window closes, so window-all-closed is not enough)
   stopMcpSync()
+
 })

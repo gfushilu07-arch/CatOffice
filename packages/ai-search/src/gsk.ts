@@ -589,7 +589,6 @@ export async function gskTranscribe(
   return extractGskText(raw)
 }
 
-<<<<<<< HEAD
 // ── File upload / login ─────────────────────────────────────────────
 
 /** Uploads a local file and returns a file wrapper URL (usable as input to other gsk commands) */
@@ -607,9 +606,7 @@ export async function gskUpload(filePath: string): Promise<string> {
 }
 
 // ── Past projects (Catspark web) ────────────────────────────────────
-=======
-// ── Past projects (Genspark web) ────────────────────────────────────
->>>>>>> upstream/main
+
 
 export interface GskPastProject {
   projectId: string

@@ -151,27 +151,27 @@
       "cjkFactor": null
     },
     "Meiryo": {
-      "chain": "'Meiryo','Yu Gothic','GenOffice Hiragino Sans','Noto Sans JP',sans-serif",
+      "chain": "'Meiryo','Meiryo GO','Yu Gothic','GenOffice Hiragino Sans','Noto Sans JP',sans-serif",
       "lineHeightFactor": 1.9429,
       "cjkFactor": null
     },
     "メイリオ": {
-      "chain": "'メイリオ','Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif",
+      "chain": "'メイリオ','Meiryo GO','Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif",
       "lineHeightFactor": 1.9429,
       "cjkFactor": null
     },
     "MS Mincho": {
-      "chain": "'MS Mincho','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif",
+      "chain": "'MS Mincho','MS Mincho GO','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": null
     },
     "ＭＳ 明朝": {
-      "chain": "'ＭＳ 明朝','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif",
+      "chain": "'ＭＳ 明朝','MS Mincho GO','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','Noto Serif JP',serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": null
     },
     "MS Gothic": {
-      "chain": "'MS Gothic','Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif",
+      "chain": "'MS Gothic','MS Gothic GO','Yu Gothic','GenOffice Hiragino Sans','Meiryo','Noto Sans JP',sans-serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": null
     },
@@ -221,27 +221,27 @@
       "cjkFactor": null
     },
     "Noto Sans CJK SC": {
-      "chain": "'Noto Sans CJK SC','PingFang SC','Microsoft YaHei',sans-serif",
+      "chain": "'Noto Sans CJK SC','PingFang SC','Microsoft YaHei','GenOffice Batang','GenOffice Serif KR',sans-serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": 1.3029
     },
     "Noto Serif CJK SC": {
-      "chain": "'Noto Serif CJK SC','GenOffice Songti SC','STSong','SimSun',serif",
+      "chain": "'Noto Serif CJK SC','GenOffice Songti SC','STSong','SimSun','GenOffice Batang','GenOffice Serif KR',serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": 1.3029
     },
     "Noto Sans SC": {
-      "chain": "'Noto Sans SC','PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif",
+      "chain": "'Noto Sans SC','PingFang SC','Microsoft YaHei','Noto Sans CJK SC','GenOffice Batang','GenOffice Serif KR',sans-serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": 1.3029
     },
     "Noto Sans TC": {
-      "chain": "'Noto Sans TC','Microsoft JhengHei','PingFang TC','GenOffice Heiti TC',sans-serif",
+      "chain": "'Noto Sans TC','Microsoft JhengHei','PingFang TC','GenOffice Heiti TC','GenOffice Batang','GenOffice Serif KR',sans-serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": 1.3029
     },
     "Noto Serif JP": {
-      "chain": "'Noto Serif JP','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho',serif",
+      "chain": "'Noto Serif JP','Yu Mincho','GenOffice Hiragino Mincho','GenOffice MS Mincho','GenOffice Batang','GenOffice Serif KR',serif",
       "lineHeightFactor": 1.172,
       "cjkFactor": 1.3029
     },
@@ -251,12 +251,12 @@
       "cjkFactor": 1.3029
     },
     "Source Han Sans SC": {
-      "chain": "'Source Han Sans SC','PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif",
+      "chain": "'Source Han Sans SC','PingFang SC','Microsoft YaHei','Noto Sans CJK SC','GenOffice Batang','GenOffice Serif KR',sans-serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": 1.3029
     },
     "Source Han Serif SC": {
-      "chain": "'Source Han Serif SC','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC',serif",
+      "chain": "'Source Han Serif SC','GenOffice Songti SC','STSong','SimSun','Noto Serif CJK SC','GenOffice Batang','GenOffice Serif KR',serif",
       "lineHeightFactor": 1.3029,
       "cjkFactor": 1.3029
     },
@@ -281,7 +281,7 @@
       "cjkFactor": null
     },
     "Aptos": {
-      "chain": "'Aptos','Calibri','Carlito GO','GenOffice PUA Blank','Noto Sans CJK SC',sans-serif",
+      "chain": "'Aptos','Aptos GO','GenOffice PUA Blank','Noto Sans CJK SC',sans-serif",
       "lineHeightFactor": 1.22,
       "cjkFactor": null
     },
@@ -306,7 +306,7 @@
       "cjkFactor": null
     },
     "Consolas": {
-      "chain": "'Consolas','Menlo','Courier New','Liberation Mono','Noto Sans CJK SC',monospace",
+      "chain": "'Consolas','Consolas GO','Noto Sans CJK SC',monospace",
       "lineHeightFactor": 1.1667,
       "cjkFactor": null
     },

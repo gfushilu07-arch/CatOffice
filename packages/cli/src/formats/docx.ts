@@ -520,7 +520,8 @@ export async function applyDocOps(
         null,
         comments,
         hf,
-        undefined,
+        undefined, // applyGovtTemplate (app-only)
+        undefined, // writer (app-only)
         pageSetup,
         extras,
         notes,
@@ -990,7 +991,7 @@ async function setPictureWatermark(
   return { output: `Picture watermark set (${size.width}x${size.height}px source).` }
 }
 
-type DocExtras = NonNullable<Parameters<Modules['tools']['executeTool']>[10]>
+type DocExtras = NonNullable<Parameters<Modules['tools']['executeTool']>[11]>
 
 /** styles.xml catalog plus this batch's define_style entries, and the header watermark. */
 function docExtras(doc: OpenDocument): DocExtras {

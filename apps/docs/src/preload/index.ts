@@ -132,7 +132,6 @@ const api: DesktopApi = {
   getRecentFiles: () => ipcRenderer.invoke('docs:recent'),
   pickImage: () => ipcRenderer.invoke('docs:pick-image'),
   fontMetrics: (family: string) => ipcRenderer.invoke('docs:font-metrics', family),
-  print: () => ipcRenderer.invoke('docs:print'),
   getUploadConsent: () => ipcRenderer.invoke('consent:get'),
   setUploadConsent: (tier: string, granted: boolean) =>
     ipcRenderer.invoke('consent:set', tier, granted),

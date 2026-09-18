@@ -1655,6 +1655,7 @@ const tMain = createI18n({
     errGskNotLoggedIn:
       'Nejste přihlášeni do Genspark: klikněte níže na „Přihlásit se do Genspark“, přihlaste se a zkuste to znovu',
     errNoApiKey: 'Pro {provider} není nakonfigurován žádný klíč API',
+    errAiConsentRequired: 'Enable AI data upload consent to use the online AI (Settings → Privacy)',
     errAiBusy: 'Služba AI je právě zaneprázdněna — zkuste to prosím za chvíli znovu',
     errNoModel: 'Není nakonfigurován název modelu',
     menuFile: 'Soubor',
@@ -3137,16 +3138,8 @@ export function registerAiIpc(): void {
   // registered once a slides view exists, so docs needs its own channel
   ipcMain.handle(
     'docs:ai-generate-image',
-    async (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
-      if (!hasGskAuth())
-        return {
-          error: 'Catspark account is not logged in on this machine; ask the user to log in first',
-        }
-      if (!gskCloudToolsOn())
-        return {
-          error:
-            'Catspark cloud tools are turned off in Settings (AI Model); enable them to use this tool',
-        }
+    (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
+      // generateImageTool runs the login + cloud-tools gate itself (ai-search)
       const prompt = String(op?.prompt ?? '').trim()
       if (!prompt) return { error: 'prompt must not be empty' }
       return generateImageTool(SETTINGS_PATH(), {
@@ -4236,7 +4229,6 @@ export function registerDocsIpc(): void {
       try {
         const filePath = join(dir, fileName)
         await writeFile(filePath, Buffer.from(String(pngBase64), 'base64'))
->>>>>>> upstream/main
         return { ok: true, path: filePath }
       } catch (err) {
         return { ok: false, error: String(err) }

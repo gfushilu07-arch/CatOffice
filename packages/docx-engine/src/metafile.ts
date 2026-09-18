@@ -29,11 +29,15 @@ function isGzip(bytes: Uint8Array): boolean {
 }
 
 async function gunzip(bytes: Uint8Array): Promise<Uint8Array> {
-  // copy to a fresh ArrayBuffer-backed view (BlobPart rejects ArrayBufferLike)
+  // copy to a fresh ArrayBuffer-backed view (BlobPart rejects ArrayBufferLike).
+  // The cast bridges @types/node's generic web-stream types (ReadableStream over
+  // NonSharedUint8Array) with the platform globals' untyped pair under pnpm's
+  // isolated type layout — runtime shape is identical.
   const stream = new Blob([new Uint8Array(bytes)])
     .stream()
-    .pipeThrough(new DecompressionStream('gzip'))
-  return new Uint8Array(await new Response(stream).arrayBuffer())
+    .pipeThrough(new DecompressionStream('gzip') as unknown as never)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see above
+  return new Uint8Array(await new Response(stream as any).arrayBuffer())
 }
 
 /** EMR_HEADER iType plus the ' EMF' signature at offset 40 */

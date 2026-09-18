@@ -92,8 +92,6 @@ function displayRepoUrl(repoUrl: string): string {
   return repoUrl.replace(/^https:\/\//, '')
 }
 
-type SectionId = 'account' | 'aiModel' | 'general' | 'about'
-
 /** px stepper for the custom AI panel text size; in-range values apply live,
  * out-of-range or partial input is clamped on blur */
 function CustomFontSizeInput({

@@ -1022,11 +1022,13 @@ export function cssFontFamily(font: string, followAltName = true): string {
     // the literal head — native on Windows, an installed Noto on Linux — and
     // the DECLARED class decides serif/sans there.
     const macSubstitution = fontPlatform() === 'darwin'
-    const serif = /serif/i.test(cjkVariant[1]) || (macSubstitution && missingLocally())
     const region = cjkVariant[2].toLowerCase()
     const isKr = region === 'kr' || region === 'k'
     const sansSub = isKr && krSansVariantSubstituted(font)
-    const serif = /serif/i.test(cjkVariant[1]) || (missingLocally() && !sansSub)
+    // macOS substitutes a missing EA font wholesale (class forced serif) unless
+    // the KR-sans PANOSE exception applies; Windows and Linux keep the declared
+    // class, so only macOS consults missingLocally() here.
+    const serif = /serif/i.test(cjkVariant[1]) || (macSubstitution && missingLocally() && !sansSub)
     const chainFor =
       region === 'jp'
         ? serif

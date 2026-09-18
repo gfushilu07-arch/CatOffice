@@ -42,8 +42,8 @@ describe('ZoteroWireClient', () => {
     const seen: string[] = []
     const server = createServer((socket) => {
       const decoder = new ZoteroFrameDecoder()
-      socket.on('data', (chunk) => {
-        for (const frame of decoder.push(chunk)) {
+      socket.on('data', (chunk: Buffer | string) => {
+        for (const frame of decoder.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)) {
           seen.push(frame.payload)
           if (frame.transactionId === 0) {
             setTimeout(

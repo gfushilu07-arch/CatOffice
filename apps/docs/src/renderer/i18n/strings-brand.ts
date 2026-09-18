@@ -141,6 +141,15 @@ export const brandStrings = defineStrings({
     aiCreditsExhausted: 'Twoje kredyty Catspark wyczerpały się. Doładuj konto na genspark.ai/pricing i spróbuj ponownie',
     ribbonAiAssistant: 'Catspark',
   },
+  cs: {
+    appGensparkAccount: 'Catspark account',
+    appNotLoggedIn: 'Not signed in (AI features require a Catspark account)',
+    appLoginGenspark: 'Sign in to Catspark',
+    aiGskLoginBtn: 'Sign in to Catspark',
+    aiPanelTitle: 'Catspark',
+    aiCreditsExhausted: 'Your Catspark credits have run out. Visit genspark.ai/pricing to top up, then try again',
+    ribbonAiAssistant: 'Catspark',
+  },
   nl: {
     appGensparkAccount: 'Catspark-account',
     appNotLoggedIn: 'Niet aangemeld (AI-functies vereisen een Catspark-account)',

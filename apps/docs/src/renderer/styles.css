@@ -11108,7 +11108,6 @@ tr > .page-gap-cut {
   line-height: 0;
 }
 
-<<<<<<< HEAD
 /* ---- punctuation compression (T5) -------------------------------- */
 /* Consecutive fullwidth closing marks: every member but the last gives up
    its trailing half (Word CJK default). Opening brackets are the symmetric
@@ -11390,7 +11389,8 @@ tr > .page-gap-cut {
 }
 .seal-card-actions .seal-danger {
   color: #c0392b;
-=======
+}
+
 /* Curly quotes in w:hint="eastAsia" runs: Word draws them with the East Asian
    font at a fullwidth advance, while every macOS Chinese system face keeps them
    proportional — only the bundled Noto subset matches Word's 1em cell. */
@@ -11488,5 +11488,5 @@ tr > .page-gap-cut {
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
->>>>>>> upstream/main
+
 }

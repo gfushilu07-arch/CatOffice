@@ -98,10 +98,10 @@ export class ZoteroWireClient {
     this.socket = socket
     return new Promise<void>((resolve, reject) => {
       let failure: Error | null = null
-      socket.on('data', (chunk) => {
+      socket.on('data', (chunk: Buffer | string) => {
         let frames: ZoteroWireFrame[]
         try {
-          frames = decoder.push(chunk)
+          frames = decoder.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
         } catch (error) {
           socket.destroy(error instanceof Error ? error : new Error(String(error)))
           return

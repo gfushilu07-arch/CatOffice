@@ -71,7 +71,10 @@ describe('GB/T 9704 template', () => {
     const blocks = govtDocBlocks()
     const bodyStart = blocks.findIndex((b) => b.runs?.[0]?.text.startsWith('一、'))
     const [reparsed] = await roundTrip(blocks.slice(bodyStart, bodyStart + 1))
-    expect(reparsed.format?.indentFirstLineChars).toBe(200)
+    // the engine keeps the raw char-unit record; the renderer derives the signed
+    // pair from it (formatAttrs → indentFirstLineChars), which is what the
+    // editor's text-indent in em and the ribbon state read
+    expect(reparsed.format?.charIndents?.firstLine).toBe(200)
     expect(reparsed.format?.indentFirstLine).toBe(640)
     expect(reparsed.runs![0]!.font).toBe('仿宋_GB2312')
     expect(reparsed.runs![0]!.sizeHalfPoints).toBe(32)

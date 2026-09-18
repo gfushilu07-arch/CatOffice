@@ -18,7 +18,6 @@ import {
 import type { ExtractedPage, PdfiumModule } from './extract'
 import type { IrPage, PageBlock, PageRender, TextBlock } from './ir'
 import { coverageRatio, type Rect } from './geometry'
-import type { IrPage, PageBlock, TextBlock } from './ir'
 import { tryOcrScannedPage, type OcrEngine, type OcrRecognition } from './ocr'
 
 export interface ConvertOptions {

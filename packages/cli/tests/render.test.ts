@@ -68,7 +68,10 @@ describe('genoffice render', () => {
     expect(existsSync(files[0]!.path)).toBe(true)
   })
 
-  it('crops a slide to an element and builds a contact sheet', async () => {
+  // Two app exports, each spawning the fake binary; the first execution of a
+  // freshly written script is slow on macOS, so the default 60s is tight once
+  // the suite runs in parallel.
+  it('crops a slide to an element and builds a contact sheet', { timeout: 240_000 }, async () => {
     if (process.platform === 'win32') return
     const dir = tempDir()
     const INCH = 914400

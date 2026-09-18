@@ -126,17 +126,39 @@ export function inferredBidi(format: ParaFormat | undefined, runs: Run[] | undef
   return runs.some((r) => r.rtl)
 }
 
+/**
+ * The editor's signed character-unit fields (positive = firstLineChars,
+ * negative = hangingChars) predate the engine's `charIndents` provenance record,
+ * which stores the two forms separately. The engine fills only `charIndents`, so
+ * derive the signed pair here — the ribbon state, the CSS text-indent/margin and
+ * the govt-template round-trip all read them.
+ */
+function charUnitIndents(format: ParaFormat | undefined): {
+  indentLeftChars: number | null
+  indentFirstLineChars: number | null
+} {
+  const chars = format?.charIndents
+  const firstLineChars =
+    format?.indentFirstLineChars ??
+    (chars?.hanging ? -chars.hanging : chars?.firstLine ? chars.firstLine : undefined)
+  return {
+    indentLeftChars: format?.indentLeftChars ?? chars?.left ?? null,
+    indentFirstLineChars: firstLineChars ?? null,
+  }
+}
+
 function formatAttrs(format: ParaFormat | undefined, runs?: Run[]): Record<string, unknown> {
+  const charUnits = charUnitIndents(format)
   return {
     align: format?.align ?? null,
     lineSpacing: format?.lineSpacing ?? null,
     lineRule: format?.lineRule ?? null,
     lineRawTwips: format?.lineRawTwips ?? null,
     indentLeft: format?.indentLeft ?? null,
-    indentLeftChars: format?.indentLeftChars ?? null,
+    indentLeftChars: charUnits.indentLeftChars,
     indentRight: format?.indentRight ?? null,
     indentFirstLine: format?.indentFirstLine ?? null,
-    indentFirstLineChars: format?.indentFirstLineChars ?? null,
+    indentFirstLineChars: charUnits.indentFirstLineChars,
     spaceBefore: format?.spaceBefore ?? null,
     spaceAfter: format?.spaceAfter ?? null,
     spaceBeforeAuto: format?.spaceBeforeAuto ?? null,

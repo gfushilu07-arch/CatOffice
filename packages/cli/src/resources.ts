@@ -30,7 +30,10 @@ export function repoRoot(): string | null {
     const pkg = join(dir, 'package.json')
     if (existsSync(pkg)) {
       try {
-        if (JSON.parse(readFileSync(pkg, 'utf-8')).name === 'genoffice') {
+        // the fork's root package is named `catoffice`; accept both so the
+        // resource probes work in either checkout
+        const name = JSON.parse(readFileSync(pkg, 'utf-8')).name
+        if (name === 'genoffice' || name === 'catoffice') {
           cachedRepo = dir
           return dir
         }
